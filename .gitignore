@@ -1,0 +1,16 @@
+# PlatformIO build files
+.pio/
+.pioenvs/
+.piolibdeps/
+
+# IDE settings
+.vscode/
+.idea/
+
+# macOS
+.DS_Store
+
+# Temporary files
+*.swp
+*.swo
+*~
