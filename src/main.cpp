@@ -15,6 +15,10 @@
 
 #include <Arduino.h>
 #include <GxEPD2_BW.h>
+#include <LittleFS.h>
+#include "Base/TTStorage.h"
+#include "Base/Logger.h"
+#include "Base/TTFontLoader.h"
 
 // E-Paper display pins for ESP8266 NodeMCU
 #define EPD_CS    15  // D8
@@ -42,6 +46,8 @@
 
 GxEPD2_BW<GxEPD2_290, GxEPD2_290::HEIGHT> display(
     GxEPD2_290(EPD_CS, EPD_DC, EPD_RST, EPD_BUSY));
+
+TTFontLoader font14;
 
 // Time tracking (starts from 00:00:00 at boot)
 uint8_t hours = 0;
@@ -93,7 +99,7 @@ void drawTimeText() {
 }
 
 void drawFullScreen() {
-    Serial.println("Full screen refresh...");
+    LOG_I("Full screen refresh...");
     display.setRotation(1);
     display.setFullWindow();
     display.firstPage();
@@ -103,14 +109,10 @@ void drawFullScreen() {
         // Draw time
         drawTimeText();
         
-        // Draw label at top
-        display.setTextSize(1);
-        display.setCursor(10, 5);
-        display.print("E-Paper Clock Demo");
-        
-        // Draw note at bottom
-        display.setCursor(10, DISPLAY_HEIGHT - 12);
-        display.print("Time since boot - Partial refresh mode");
+        // 使用动态加载器显示中文，0 RAM 占用
+        // 将坐标调整到更靠中心的位置进行测试
+        font14.drawUTF8(display, 10, 4, "电子墨水屏时钟演示");
+        font14.drawUTF8(display, 10, DISPLAY_HEIGHT - 18, "自启动时间 - 局部刷新模式");
         
     } while (display.nextPage());
     
@@ -118,7 +120,7 @@ void drawFullScreen() {
 }
 
 void drawTimePartial() {
-    Serial.println("Partial refresh...");
+    LOG_I("Partial refresh...");
     display.setRotation(1);
     display.setPartialWindow(TIME_AREA_X, TIME_AREA_Y, TIME_AREA_W, TIME_AREA_H);
     display.firstPage();
@@ -138,42 +140,84 @@ void refreshDisplay() {
     }
 }
 
+TTStorage storage;
+
+void testStorage() {
+    LOG_I("--- Storage Test ---");
+    if (storage.begin()) {
+        JsonDocument doc;
+        doc["test"] = "hello";
+        doc["val"] = 123;
+        
+        if (storage.saveConfig(doc, "/test.json")) {
+            LOG_I("Save test.json success");
+            
+            JsonDocument loadDoc;
+            if (storage.loadConfig(loadDoc, "/test.json")) {
+                LOG_I("Load test.json success, test=%s, val=%d", 
+                    loadDoc["test"].as<const char*>(), 
+                    loadDoc["val"].as<int>());
+            }
+        }
+    } else {
+        LOG_E("Storage begin failed");
+    }
+    LOG_I("--------------------");
+}
+
 void printChipInfo() {
-    Serial.println("--- Chip Info ---");
-    Serial.printf("Chip ID: %08X\n", ESP.getChipId());
-    Serial.printf("Flash Chip ID: %08X\n", ESP.getFlashChipId());
-    Serial.printf("Flash Size: %u KB (%u MB)\n", 
+    LOG_I("--- Chip Info ---");
+    LOG_I("Chip ID: %08X", ESP.getChipId());
+    LOG_I("Flash Chip ID: %08X", ESP.getFlashChipId());
+    LOG_I("Flash Size: %u KB (%u MB)", 
         ESP.getFlashChipSize() / 1024, 
         ESP.getFlashChipSize() / 1024 / 1024);
-    Serial.printf("Flash Real Size: %u KB\n", ESP.getFlashChipRealSize() / 1024);
-    Serial.printf("Flash Speed: %u MHz\n", ESP.getFlashChipSpeed() / 1000000);
-    Serial.printf("Free Heap: %u bytes\n", ESP.getFreeHeap());
-    Serial.printf("SDK Version: %s\n", ESP.getSdkVersion());
-    Serial.println("-----------------");
+    LOG_I("Flash Real Size: %u KB", ESP.getFlashChipRealSize() / 1024);
+    LOG_I("Flash Speed: %u MHz", ESP.getFlashChipSpeed() / 1000000);
+    
+    FSInfo fs_info;
+    if (LittleFS.begin() && LittleFS.info(fs_info)) {
+        LOG_I("LittleFS Total: %u KB", fs_info.totalBytes / 1024);
+        LOG_I("LittleFS Used: %u KB", fs_info.usedBytes / 1024);
+    }
+    
+    LOG_I("Free Heap: %u bytes", ESP.getFreeHeap());
+    LOG_I("SDK Version: %s", ESP.getSdkVersion());
+    LOG_I("-----------------");
 }
 
 void setup() {
     Serial.begin(115200);
     delay(1000);
     
-    Serial.println();
-    Serial.println("=================================");
-    Serial.println("E-Paper Clock Demo (Partial Refresh)");
-    Serial.println("=================================");
+    LOG_I("");
+    LOG_I("=================================");
+    LOG_I("E-Paper Clock Demo (Partial Refresh)");
+    LOG_I("=================================");
     
     printChipInfo();
     delay(200);
+    testStorage();
+    delay(200);
     
     // Initialize display
-    Serial.println("Initializing display...");
+    LOG_I("Initializing display...");
     display.init(115200);
+    
+    // Initialize font loader from LittleFS
+    if (LittleFS.begin()) {
+        if (font14.begin("/font14.bin")) {
+            font14.setTextColor(GxEPD_BLACK);
+            LOG_I("Font loader initialized");
+        }
+    }
     
     // Initial full screen draw
     lastUpdateMs = millis();
     drawFullScreen();
     
-    Serial.println("Clock started.");
-    Serial.printf("Partial refresh enabled, full refresh every %d minutes.\n", FULL_REFRESH_INTERVAL);
+    LOG_I("Clock started.");
+    LOG_I("Partial refresh enabled, full refresh every %d minutes", FULL_REFRESH_INTERVAL);
 }
 
 void loop() {
@@ -184,9 +228,9 @@ void loop() {
     if (minutes != lastMinute) {
         lastMinute = minutes;
         
-        Serial.printf("Time: %02d:%02d:%02d\n", hours, minutes, seconds);
+        LOG_I("Time: %02d:%02d:%02d", hours, minutes, seconds);
         refreshDisplay();
-        Serial.println("Display refreshed.");
+        LOG_I("Display refreshed.");
     }
     
     delay(100);
