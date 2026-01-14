@@ -19,6 +19,7 @@
 #include "Base/TTStorage.h"
 #include "Base/Logger.h"
 #include "Base/TTFontLoader.h"
+#include "Base/ErrorCheck.h"
 
 // E-Paper display pins for ESP8266 NodeMCU
 #define EPD_CS    15  // D8
@@ -109,10 +110,8 @@ void drawFullScreen() {
         // Draw time
         drawTimeText();
         
-        // 使用动态加载器显示中文，0 RAM 占用
-        // 将坐标调整到更靠中心的位置进行测试
-        font14.drawUTF8(display, 10, 4, "电子墨水屏时钟演示");
-        font14.drawUTF8(display, 10, DISPLAY_HEIGHT - 18, "自启动时间 - 局部刷新模式");
+        font14.drawUTF8(display, 4, 4, "电子墨水屏时钟演示");
+        font14.drawUTF8(display, 4, DISPLAY_HEIGHT - 18, "自启动时间 - 局部刷新模式");
         
     } while (display.nextPage());
     
@@ -138,31 +137,6 @@ void refreshDisplay() {
     } else {
         drawTimePartial();
     }
-}
-
-TTStorage storage;
-
-void testStorage() {
-    LOG_I("--- Storage Test ---");
-    if (storage.begin()) {
-        JsonDocument doc;
-        doc["test"] = "hello";
-        doc["val"] = 123;
-        
-        if (storage.saveConfig(doc, "/test.json")) {
-            LOG_I("Save test.json success");
-            
-            JsonDocument loadDoc;
-            if (storage.loadConfig(loadDoc, "/test.json")) {
-                LOG_I("Load test.json success, test=%s, val=%d", 
-                    loadDoc["test"].as<const char*>(), 
-                    loadDoc["val"].as<int>());
-            }
-        }
-    } else {
-        LOG_E("Storage begin failed");
-    }
-    LOG_I("--------------------");
 }
 
 void printChipInfo() {
@@ -197,20 +171,16 @@ void setup() {
     
     printChipInfo();
     delay(200);
-    testStorage();
-    delay(200);
     
     // Initialize display
     LOG_I("Initializing display...");
     display.init(115200);
     
     // Initialize font loader from LittleFS
-    if (LittleFS.begin()) {
-        if (font14.begin("/font14.bin")) {
-            font14.setTextColor(GxEPD_BLACK);
-            LOG_I("Font loader initialized");
-        }
-    }
+    ERR_CHECK_FAIL(LittleFS.begin());
+    ERR_CHECK_FAIL(font14.begin("/font14.bin"));
+    font14.setTextColor(GxEPD_BLACK);
+    LOG_I("Font loader initialized");
     
     // Initial full screen draw
     lastUpdateMs = millis();
