@@ -21,6 +21,7 @@
 #include "LvglDriver.h"
 #include "Base/Logger.h"
 #include "Base/ErrorCheck.h"
+#include "Base/TTFontLoader.h"
 
 // E-Paper SPI pins
 #define EPD_MOSI  4
@@ -36,6 +37,9 @@
 // E-Paper display instance
 GxEPD2_BW<GxEPD2_290, GxEPD2_290::HEIGHT> display(
     GxEPD2_290(EPD_CS, EPD_DC, EPD_RST, EPD_BUSY));
+
+// Chinese font loader (streaming from LittleFS, ~200 bytes RAM)
+TTFontLoader chineseFont;
 
 // LVGL UI elements
 static lv_obj_t* titleLabel = nullptr;
@@ -80,28 +84,31 @@ void createClockUI() {
     lv_obj_set_style_bg_color(scr, lv_color_white(), 0);
     lv_obj_set_style_bg_opa(scr, LV_OPA_COVER, 0);
     
-    // Create title label at top (use smaller font)
+    // Get Chinese font (falls back to built-in if not loaded)
+    lv_font_t* zhFont = chineseFont.getLvglFont();
+    
+    // Create title label at top (Chinese font)
     titleLabel = lv_label_create(scr);
-    lv_label_set_text(titleLabel, "LVGL Clock Demo");
+    lv_label_set_text(titleLabel, "电子墨水屏时钟");
     lv_obj_set_style_text_color(titleLabel, lv_color_black(), 0);
-    lv_obj_set_style_text_font(titleLabel, &lv_font_unscii_8, 0);
+    lv_obj_set_style_text_font(titleLabel, zhFont, 0);
     lv_obj_align(titleLabel, LV_ALIGN_TOP_LEFT, 4, 4);
     
-    // Create large time label in center (use larger font)
+    // Create large time label in center (Chinese font)
     timeLabel = lv_label_create(scr);
     lv_label_set_text(timeLabel, "00:00");
     lv_obj_set_style_text_color(timeLabel, lv_color_black(), 0);
-    lv_obj_set_style_text_font(timeLabel, &lv_font_unscii_16, 0);
+    lv_obj_set_style_text_font(timeLabel, zhFont, 0);
     lv_obj_center(timeLabel);
     
-    // Create status label at bottom (use smaller font)
+    // Create status label at bottom (Chinese font)
     statusLabel = lv_label_create(scr);
-    lv_label_set_text(statusLabel, "Uptime - Partial refresh");
+    lv_label_set_text(statusLabel, "运行中 - 局部刷新");
     lv_obj_set_style_text_color(statusLabel, lv_color_black(), 0);
-    lv_obj_set_style_text_font(statusLabel, &lv_font_unscii_8, 0);
+    lv_obj_set_style_text_font(statusLabel, zhFont, 0);
     lv_obj_align(statusLabel, LV_ALIGN_BOTTOM_LEFT, 4, -4);
     
-    LOG_I("LVGL UI created");
+    LOG_I("LVGL UI created with Chinese font");
 }
 
 void updateClockDisplay() {
@@ -164,9 +171,16 @@ void setup() {
     LOG_I("Initializing E-Paper display...");
     display.init(115200, true, 2, false, SPI, SPISettings(4000000, MSBFIRST, SPI_MODE0));
     
-    // Initialize LittleFS for potential font loading
+    // Initialize LittleFS for font loading
     ERR_CHECK_FAIL(LittleFS.begin());
     LOG_I("LittleFS initialized");
+    
+    // Load Chinese font from LittleFS (streaming, ~200 bytes RAM)
+    if (chineseFont.begin("/font14.bin")) {
+        LOG_I("Chinese font loaded (streaming mode)");
+    } else {
+        LOG_W("Failed to load Chinese font, will use built-in font");
+    }
     
     // Initialize LVGL display driver
     LOG_I("Initializing LVGL...");
