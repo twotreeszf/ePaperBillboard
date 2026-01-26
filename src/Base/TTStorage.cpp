@@ -13,10 +13,7 @@ bool TTStorage::begin()
     LOG_I("LittleFS mounted successfully");
     
     // Get storage info
-    FSInfo info;
-    if (LittleFS.info(info)) {
-        LOG_I("Storage: %u KB total, %u KB used", (uint32_t)info.totalBytes / 1024, (uint32_t)info.usedBytes / 1024);
-    }
+    LOG_I("Storage: %u KB total, %u KB used", (uint32_t)LittleFS.totalBytes() / 1024, (uint32_t)LittleFS.usedBytes() / 1024);
 
     _initialized = true;
     return true;

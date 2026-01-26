@@ -5,25 +5,21 @@
 #include "TTPreference.h"
 #include <ArduinoJson.h>
 #include <map>
-#include <Tasks/TTPrinterTask.h>
-#include <PresetText.h>
 #include "Util.h"
+
+#define PREF_WIFI_SSID "wifi_ssid"
+#define PREF_WIFI_PASSWORD "wifi_password"
 
 bool TTWiFiManager::tryConfigWiFi()
 {
     // Try to connect to saved WiFi
-    auto &printer = TTInstanceOf<TTPrinterTask>();
-
     String ssid, password;
     auto &pref = TTInstanceOf<TTPreference>();
     ERR_CHECK_RET(pref.get(PREF_WIFI_SSID, ssid, String("")));
     ERR_CHECK_RET(pref.get(PREF_WIFI_PASSWORD, password, String("")));
     if (!ssid.isEmpty() && !password.isEmpty())
     {
-        printer.printText(Util::format(TXT_WIFI_CONNECTTING, ssid.c_str()).c_str());
         if (_connectToWiFi(ssid, password)) {
-            printer.printText(TXT_WIFI_CONNECTED);
-            printer.printText(TXT_SHUTTER_INTRO);
             return true;
         }
         else
@@ -42,14 +38,11 @@ bool TTWiFiManager::tryConfigWiFi()
     // If connection failed or no saved credentials, start AP mode
     LOG_I("Starting AP mode for configuration");
 
-    printer.printText(TXT_NO_WIFI_CONFIG);
-
     // First scan available networks
     ERR_CHECK_RET(_scanWiFi());
     ERR_CHECK_RET(_startAP());
     ERR_CHECK_RET(_startWebServer());
 
-    printer.printText(Util::format(TXT_WIFI_GUIDE, DEFAULT_AP_SSID, DEFAULT_AP_PASSWORD).c_str());
     return true;
 }
 
@@ -93,7 +86,6 @@ void TTWiFiManager::process()
     {
         // Restart device to reconfigure WiFi
         LOG_W("WiFi connection lost");
-        TTInstanceOf<TTPrinterTask>().printText(TXT_NO_WIFI_CONFIG);
         delay(5000);
         ESP.restart();
     }

@@ -1,18 +1,11 @@
 #pragma once
 
-#ifdef ESP32
 #include <WiFi.h>
 #include <WebServer.h>
-#elif defined(ESP8266)
-#include <ESP8266WiFi.h>
-#include <ESP8266WebServer.h>
-using WebServer = ESP8266WebServer;
-#endif
 #include <DNSServer.h>
 #include <ArduinoJson.h>
 #include "TTPreference.h"
 #include "TTInstance.h"
-#include "PrefKeys.h"
 
 /**
  * @brief WiFi Manager for handling WiFi connection and configuration

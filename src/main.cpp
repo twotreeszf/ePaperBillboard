@@ -1,19 +1,20 @@
 /**
- * ESP8266 + E029A01 2.9" E-Paper Clock Demo
+ * ESP32-WROOM-32E + E029A01 2.9" E-Paper Clock Demo
  * 
- * Hardware Connection (ESP8266 NodeMCU -> E-Paper):
+ * Hardware Connection (ESP32 -> E-Paper):
  * -------------------------------------------------
  * VCC  -> 3.3V
  * GND  -> GND
- * DIN  -> D7 (GPIO13, MOSI)
- * CLK  -> D5 (GPIO14, SCK)
- * CS   -> D8 (GPIO15)
- * DC   -> D2 (GPIO4)
- * RST  -> D4 (GPIO2)
- * BUSY -> D1 (GPIO5)
+ * DIN  -> GPIO4  (MOSI)
+ * CLK  -> GPIO16 (SCK)
+ * CS   -> GPIO17
+ * DC   -> GPIO5
+ * RST  -> GPIO18
+ * BUSY -> GPIO19
  */
 
 #include <Arduino.h>
+#include <SPI.h>
 #include <GxEPD2_BW.h>
 #include <LittleFS.h>
 #include "Base/TTStorage.h"
@@ -21,11 +22,13 @@
 #include "Base/TTFontLoader.h"
 #include "Base/ErrorCheck.h"
 
-// E-Paper display pins for ESP8266 NodeMCU
-#define EPD_CS    15  // D8
-#define EPD_DC    4   // D2
-#define EPD_RST   2   // D4
-#define EPD_BUSY  5   // D1
+// E-Paper SPI pins
+#define EPD_MOSI  4
+#define EPD_SCK   16
+#define EPD_CS    17
+#define EPD_DC    5
+#define EPD_RST   18
+#define EPD_BUSY  19
 
 // Display dimensions in landscape mode
 #define DISPLAY_WIDTH   296
@@ -141,18 +144,17 @@ void refreshDisplay() {
 
 void printChipInfo() {
     LOG_I("--- Chip Info ---");
-    LOG_I("Chip ID: %08X", ESP.getChipId());
-    LOG_I("Flash Chip ID: %08X", ESP.getFlashChipId());
+    LOG_I("Chip Model: %s", ESP.getChipModel());
+    LOG_I("Chip Revision: %d", ESP.getChipRevision());
+    LOG_I("CPU Freq: %u MHz", ESP.getCpuFreqMHz());
     LOG_I("Flash Size: %u KB (%u MB)", 
         ESP.getFlashChipSize() / 1024, 
         ESP.getFlashChipSize() / 1024 / 1024);
-    LOG_I("Flash Real Size: %u KB", ESP.getFlashChipRealSize() / 1024);
     LOG_I("Flash Speed: %u MHz", ESP.getFlashChipSpeed() / 1000000);
     
-    FSInfo fs_info;
-    if (LittleFS.begin() && LittleFS.info(fs_info)) {
-        LOG_I("LittleFS Total: %u KB", fs_info.totalBytes / 1024);
-        LOG_I("LittleFS Used: %u KB", fs_info.usedBytes / 1024);
+    if (LittleFS.begin()) {
+        LOG_I("LittleFS Total: %u KB", LittleFS.totalBytes() / 1024);
+        LOG_I("LittleFS Used: %u KB", LittleFS.usedBytes() / 1024);
     }
     
     LOG_I("Free Heap: %u bytes", ESP.getFreeHeap());
@@ -162,8 +164,7 @@ void printChipInfo() {
 
 void setup() {
     Serial.begin(115200);
-    delay(1000);
-    
+    delay(100);
     LOG_I("");
     LOG_I("=================================");
     LOG_I("E-Paper Clock Demo (Partial Refresh)");
@@ -172,9 +173,13 @@ void setup() {
     printChipInfo();
     delay(200);
     
+    // Initialize SPI with custom pins
+    LOG_I("Initializing SPI (MOSI=%d, SCK=%d)...", EPD_MOSI, EPD_SCK);
+    SPI.begin(EPD_SCK, -1, EPD_MOSI, EPD_CS);
+    
     // Initialize display
     LOG_I("Initializing display...");
-    display.init(115200);
+    display.init(115200, true, 2, false, SPI, SPISettings(4000000, MSBFIRST, SPI_MODE0));
     
     // Initialize font loader from LittleFS
     ERR_CHECK_FAIL(LittleFS.begin());
