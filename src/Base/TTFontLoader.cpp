@@ -118,8 +118,10 @@ uint32_t TTFontLoader::_getGlyphOffset(uint32_t glyphId) {
 
 bool TTFontLoader::getGlyphInfo(uint32_t unicode, GlyphInfo& info) {
     if (!_file) return false;
-    
+        
     uint32_t gid = _getGlyphID(unicode);
+    if (gid == 0 && unicode != 0) return false;
+    
     uint32_t gOffset = _getGlyphOffset(gid);
     
     _file.seek(_glyfOffset + gOffset);
@@ -201,11 +203,19 @@ bool TTFontLoader::lvglGetGlyphDsc(const lv_font_t* font, lv_font_glyph_dsc_t* d
         return false;
     }
     
-    dsc->adv_w = info.adv_w;
     dsc->box_w = info.box_w;
     dsc->box_h = info.box_h;
-    dsc->ofs_x = info.ofs_x;
     dsc->ofs_y = info.ofs_y;
+    
+    // Apply extra spacing for ASCII characters (unicode < 0x80)
+    if (letter < 0x80) {
+        dsc->adv_w = info.adv_w + 2;
+        dsc->ofs_x = info.ofs_x;
+    } else {
+        dsc->adv_w = info.adv_w;
+        dsc->ofs_x = info.ofs_x;
+    }   
+    
     dsc->format = LV_FONT_GLYPH_FORMAT_A8;
     dsc->is_placeholder = 0;
     dsc->resolved_font = font;

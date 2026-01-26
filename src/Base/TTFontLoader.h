@@ -39,7 +39,7 @@ public:
     bool getGlyphBitmap(const GlyphInfo& info, uint8_t* buf, size_t bufSize);
     int32_t getLineHeight() const { return _head.ascent - _head.descent; }
     int32_t getBaseLine() const { return -_head.descent; }
-
+    
 private:
     File _file;
     uint16_t _color = 0;

@@ -103,7 +103,7 @@ void createClockUI() {
     
     // Create status label at bottom (Chinese font)
     statusLabel = lv_label_create(scr);
-    lv_label_set_text(statusLabel, "运行中 - 局部刷新");
+    lv_label_set_text(statusLabel, "运行中-局部刷新");
     lv_obj_set_style_text_color(statusLabel, lv_color_black(), 0);
     lv_obj_set_style_text_font(statusLabel, zhFont, 0);
     lv_obj_align(statusLabel, LV_ALIGN_BOTTOM_LEFT, 4, -4);
@@ -177,7 +177,7 @@ void setup() {
     
     // Load Chinese font from LittleFS (streaming, ~200 bytes RAM)
     if (chineseFont.begin("/font14.bin")) {
-        LOG_I("Chinese font loaded (streaming mode)");
+        LOG_I("Chinese font loaded (streaming mode, ASCII fallback to Montserrat-14)");
     } else {
         LOG_W("Failed to load Chinese font, will use built-in font");
     }
