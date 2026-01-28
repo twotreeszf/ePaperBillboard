@@ -132,12 +132,25 @@ void createClockUI() {
     lv_obj_set_style_text_letter_space(titleLabel, 1, 0);
     lv_obj_align(titleLabel, LV_ALIGN_TOP_MID, 0, 4);
     
+    // Create test label below title (12px font)
+    lv_obj_t* testLabel = lv_label_create(scr);
+    lv_label_set_text(testLabel, "末日时钟被设定距离午夜85秒\nBulletin of the Atomic Scientists");
+    lv_obj_set_style_text_color(testLabel, lv_color_black(), 0);
+    lv_obj_set_style_text_font(testLabel, font12, 0);
+    lv_obj_set_width(testLabel, lv_pct(100));
+    lv_obj_set_style_pad_left(testLabel, 4, 0);
+    lv_obj_set_style_pad_right(testLabel, 4, 0);
+    lv_obj_set_style_text_line_space(testLabel, 4, 0);
+    lv_obj_set_style_text_letter_space(testLabel, 1, 0);
+    lv_obj_align(testLabel, LV_ALIGN_TOP_MID, 0, 24);
+    
     // Create time label in center (48px ASCII font)
     timeLabel = lv_label_create(scr);
     lv_label_set_text(timeLabel, "00:00");
     lv_obj_set_style_text_color(timeLabel, lv_color_black(), 0);
+    lv_obj_set_style_text_letter_space(timeLabel, 1, 0);
     lv_obj_set_style_text_font(timeLabel, font48, 0);
-    lv_obj_center(timeLabel);
+    lv_obj_align(timeLabel, LV_ALIGN_CENTER, 0, 18);
     
     // Create status label at bottom (12px font) for sensor data
     statusLabel = lv_label_create(scr);
