@@ -5,8 +5,8 @@
 #include <Adafruit_GFX.h>
 #include <lvgl.h>
 
-// Maximum glyph bitmap size for A8 format (24x24 = 576 bytes)
-#define TT_FONT_GLYPH_BUF_SIZE 576
+// Maximum glyph bitmap size for A8 format (48x48 = 2304 bytes)
+#define TT_FONT_GLYPH_BUF_SIZE 2304
 
 class TTFontLoader {
 public:
@@ -53,6 +53,7 @@ private:
     struct {
         uint16_t ascent;
         int16_t descent;
+        uint16_t def_adv_w;  // Default advance width (when bits_adv = 0)
         uint8_t bpp;
         uint8_t bits_x_y;
         uint8_t bits_w_h;

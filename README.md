@@ -97,14 +97,16 @@ npm install -g lv_font_conv
 
 ```bash
 lv_font_conv \
-  --font fonts/WenQuanZhengHei.ttf \
+  --font fonts/中易宋体.ttf \
   --size 14 \
   --bpp 1 \
   --format bin \
   --no-compress \
   --range 0x20-0x7E \
+  --range 0x3000-0x303F \
+  --range 0xFF00-0xFFEF \
   --range 0x4E00-0x9FFF \
-  -o data/font14.bin
+  -o data/fonts/chs_14.bin
 ```
 
 ### Parameters
@@ -124,6 +126,8 @@ lv_font_conv \
 | Range | Description |
 |-------|-------------|
 | `0x20-0x7E` | ASCII (Basic Latin) |
+| `0x3000-0x303F` | CJK Symbols and Punctuation (`。`、`「」` etc.) |
+| `0xFF00-0xFFEF` | Fullwidth Forms (`，`、`：`、`？`、`！` etc.) |
 | `0x4E00-0x9FFF` | CJK Unified Ideographs |
 
 ### File Size Estimates

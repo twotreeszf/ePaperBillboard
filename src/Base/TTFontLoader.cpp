@@ -22,12 +22,15 @@ bool TTFontLoader::begin(const char* path) {
     // 1. Parse HEAD
     if (!_seekToTable("head")) return false;
     uint32_t headStart = _file.position() - 8;
-    _file.seek(headStart + 16); 
+    // HEAD data starts at headStart + 8 (after length + name)
+    _file.seek(headStart + 8 + 8);  // offset 8 in HEAD data: ascent
     _file.read((uint8_t*)&_head.ascent, 2);
     _file.read((uint8_t*)&_head.descent, 2);
-    _file.seek(headStart + 34);
+    _file.seek(headStart + 8 + 22);  // offset 22 in HEAD data: def_adv_w
+    _file.read((uint8_t*)&_head.def_adv_w, 2);
+    _file.seek(headStart + 8 + 26);  // offset 26 in HEAD data: loc_format
     _file.read(&_head.loc_format, 1);
-    _file.seek(headStart + 36);
+    _file.seek(headStart + 8 + 28);  // offset 28 in HEAD data: adv_format
     _file.read(&_head.adv_format, 1);
     _file.read(&_head.bpp, 1);
     _file.read(&_head.bits_x_y, 1);
@@ -68,8 +71,9 @@ bool TTFontLoader::begin(const char* path) {
     _lvFont.underline_thickness = 1;
     _lvFont.dsc = this;  // Store 'this' pointer for callbacks
 
-    LOG_I("Font Ready: Asc=%d, Des=%d, LineH=%d, CMAPs=%d, BPP=%d", 
-        _head.ascent, _head.descent, getLineHeight(), _cmapCount, _head.bpp);
+    LOG_I("Font Ready: Asc=%d, Des=%d, LineH=%d, CMAPs=%d, BPP=%d, DefAdv=%d, BitsAdv=%d", 
+        _head.ascent, _head.descent, getLineHeight(), _cmapCount, _head.bpp, 
+        _head.def_adv_w, _head.bits_adv);
     return true;
 }
 
@@ -127,7 +131,18 @@ bool TTFontLoader::getGlyphInfo(uint32_t unicode, GlyphInfo& info) {
     _file.seek(_glyfOffset + gOffset);
     _resetBitReader();
     
-    uint32_t adv_w = _readBits(_head.bits_adv);
+    // Read advance width (use default if bits_adv = 0)
+    uint32_t adv_w;
+    if (_head.bits_adv > 0) {
+        adv_w = _readBits(_head.bits_adv);
+        // Convert advance width if FP12.4 format
+        if (_head.adv_format == 1) {
+            adv_w = (adv_w + 8) >> 4;
+        }
+    } else {
+        adv_w = _head.def_adv_w;
+    }
+    
     int32_t box_x = _readSignedBits(_head.bits_x_y);
     int32_t box_y = _readSignedBits(_head.bits_x_y);
     uint32_t box_w = _readBits(_head.bits_w_h);
@@ -135,11 +150,6 @@ bool TTFontLoader::getGlyphInfo(uint32_t unicode, GlyphInfo& info) {
     
     // Calculate header bits consumed
     uint8_t headerBits = _head.bits_adv + _head.bits_x_y * 2 + _head.bits_w_h * 2;
-    
-    // Convert advance width if FP12.4 format
-    if (_head.adv_format == 1) {
-        adv_w = (adv_w + 8) >> 4;
-    }
     
     info.adv_w = adv_w;
     info.box_w = box_w;
@@ -207,14 +217,8 @@ bool TTFontLoader::lvglGetGlyphDsc(const lv_font_t* font, lv_font_glyph_dsc_t* d
     dsc->box_h = info.box_h;
     dsc->ofs_y = info.ofs_y;
     
-    // Apply extra spacing for ASCII characters (unicode < 0x80)
-    if (letter < 0x80) {
-        dsc->adv_w = info.adv_w + 2;
-        dsc->ofs_x = info.ofs_x;
-    } else {
-        dsc->adv_w = info.adv_w;
-        dsc->ofs_x = info.ofs_x;
-    }   
+    dsc->adv_w = info.adv_w;
+    dsc->ofs_x = info.ofs_x;
     
     dsc->format = LV_FONT_GLYPH_FORMAT_A8;
     dsc->is_placeholder = 0;

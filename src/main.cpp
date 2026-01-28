@@ -38,8 +38,10 @@
 GxEPD2_BW<GxEPD2_290, GxEPD2_290::HEIGHT> display(
     GxEPD2_290(EPD_CS, EPD_DC, EPD_RST, EPD_BUSY));
 
-// Chinese font loader (streaming from LittleFS, ~200 bytes RAM)
-TTFontLoader chineseFont;
+// Font loaders (streaming from LittleFS)
+TTFontLoader fontLarge;   // 16px for title
+TTFontLoader fontSmall;   // 14px for content
+TTFontLoader fontClock;   // 48px for clock digits
 
 // LVGL UI elements
 static lv_obj_t* titleLabel = nullptr;
@@ -84,31 +86,37 @@ void createClockUI() {
     lv_obj_set_style_bg_color(scr, lv_color_white(), 0);
     lv_obj_set_style_bg_opa(scr, LV_OPA_COVER, 0);
     
-    // Get Chinese font (falls back to built-in if not loaded)
-    lv_font_t* zhFont = chineseFont.getLvglFont();
+    // Get fonts
+    lv_font_t* font16 = fontLarge.getLvglFont();
+    lv_font_t* font14 = fontSmall.getLvglFont();
+    lv_font_t* font48 = fontClock.getLvglFont();
     
-    // Create title label at top (Chinese font)
+    // Create title label at top (16px font)
     titleLabel = lv_label_create(scr);
     lv_label_set_text(titleLabel, "电子墨水屏时钟");
     lv_obj_set_style_text_color(titleLabel, lv_color_black(), 0);
-    lv_obj_set_style_text_font(titleLabel, zhFont, 0);
-    lv_obj_align(titleLabel, LV_ALIGN_TOP_LEFT, 4, 4);
+    lv_obj_set_style_text_font(titleLabel, font16, 0);
+    lv_obj_align(titleLabel, LV_ALIGN_TOP_MID, 0, 4);
     
-    // Create large time label in center (Chinese font)
+    // Create time label in center (48px ASCII font)
     timeLabel = lv_label_create(scr);
     lv_label_set_text(timeLabel, "00:00");
     lv_obj_set_style_text_color(timeLabel, lv_color_black(), 0);
-    lv_obj_set_style_text_font(timeLabel, zhFont, 0);
+    lv_obj_set_style_text_font(timeLabel, font48, 0);
     lv_obj_center(timeLabel);
     
-    // Create status label at bottom (Chinese font)
+    // Create status label at bottom (14px font, auto wrap)
     statusLabel = lv_label_create(scr);
-    lv_label_set_text(statusLabel, "运行中-局部刷新");
+    lv_obj_set_width(statusLabel, lv_pct(100));
+    lv_obj_set_style_pad_left(statusLabel, 4, 0);
+    lv_obj_set_style_pad_right(statusLabel, 4, 0);
+    lv_label_set_long_mode(statusLabel, LV_LABEL_LONG_WRAP);
+    lv_label_set_text(statusLabel, "奥特曼亲口承认 GPT-5.2 搞砸了，这是 OpenAI CEO 最特别的一次直播");
     lv_obj_set_style_text_color(statusLabel, lv_color_black(), 0);
-    lv_obj_set_style_text_font(statusLabel, zhFont, 0);
-    lv_obj_align(statusLabel, LV_ALIGN_BOTTOM_LEFT, 4, -4);
+    lv_obj_set_style_text_font(statusLabel, font14, 0);
+    lv_obj_align(statusLabel, LV_ALIGN_BOTTOM_LEFT, 0, -4);
     
-    LOG_I("LVGL UI created with Chinese font");
+    LOG_I("LVGL UI created with dual fonts");
 }
 
 void updateClockDisplay() {
@@ -175,11 +183,23 @@ void setup() {
     ERR_CHECK_FAIL(LittleFS.begin());
     LOG_I("LittleFS initialized");
     
-    // Load Chinese font from LittleFS (streaming, ~200 bytes RAM)
-    if (chineseFont.begin("/font14.bin")) {
-        LOG_I("Chinese font loaded (streaming mode, ASCII fallback to Montserrat-14)");
+    // Load Chinese fonts from LittleFS (streaming mode)
+    if (fontLarge.begin("/fonts/chs_16.bin")) {
+        LOG_I("16px font loaded");
     } else {
-        LOG_W("Failed to load Chinese font, will use built-in font");
+        LOG_W("Failed to load 16px font");
+    }
+    
+    if (fontSmall.begin("/fonts/chs_14.bin")) {
+        LOG_I("14px font loaded");
+    } else {
+        LOG_W("Failed to load 14px font");
+    }
+    
+    if (fontClock.begin("/fonts/ascii_48.bin")) {
+        LOG_I("48px clock font loaded");
+    } else {
+        LOG_W("Failed to load 48px clock font");
     }
     
     // Initialize LVGL display driver
