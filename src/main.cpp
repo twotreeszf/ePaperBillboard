@@ -93,7 +93,7 @@ void createClockUI() {
     
     // Create title label at top (16px font)
     titleLabel = lv_label_create(scr);
-    lv_label_set_text(titleLabel, "电子墨水屏时钟");
+    lv_label_set_text(titleLabel, "电子墨水屏时钟 E-Paper Clock");
     lv_obj_set_style_text_color(titleLabel, lv_color_black(), 0);
     lv_obj_set_style_text_font(titleLabel, font16, 0);
     lv_obj_align(titleLabel, LV_ALIGN_TOP_MID, 0, 4);
@@ -110,6 +110,7 @@ void createClockUI() {
     lv_obj_set_width(statusLabel, lv_pct(100));
     lv_obj_set_style_pad_left(statusLabel, 4, 0);
     lv_obj_set_style_pad_right(statusLabel, 4, 0);
+    lv_obj_set_style_text_line_space(statusLabel, 4, 0);
     lv_label_set_long_mode(statusLabel, LV_LABEL_LONG_WRAP);
     lv_label_set_text(statusLabel, "奥特曼亲口承认 GPT-5.2 搞砸了，这是 OpenAI CEO 最特别的一次直播");
     lv_obj_set_style_text_color(statusLabel, lv_color_black(), 0);
@@ -183,20 +184,21 @@ void setup() {
     ERR_CHECK_FAIL(LittleFS.begin());
     LOG_I("LittleFS initialized");
     
-    // Load Chinese fonts from LittleFS (streaming mode)
-    if (fontLarge.begin("/fonts/chs_16.bin")) {
-        LOG_I("16px font loaded");
+    // Load fonts from LittleFS (streaming mode)
+    // Chinese fonts with ASCII fallback for better English rendering
+    if (fontLarge.begin("/fonts/chs_16.bin", "/fonts/en_16.bin")) {
+        LOG_I("16px font loaded (CHS + EN)");
     } else {
         LOG_W("Failed to load 16px font");
     }
     
-    if (fontSmall.begin("/fonts/chs_14.bin")) {
-        LOG_I("14px font loaded");
+    if (fontSmall.begin("/fonts/chs_14.bin", "/fonts/en_14.bin")) {
+        LOG_I("14px font loaded (CHS + EN)");
     } else {
         LOG_W("Failed to load 14px font");
     }
     
-    if (fontClock.begin("/fonts/ascii_48.bin")) {
+    if (fontClock.begin("/fonts/en_48.bin")) {
         LOG_I("48px clock font loaded");
     } else {
         LOG_W("Failed to load 48px clock font");

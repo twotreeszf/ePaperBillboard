@@ -13,7 +13,10 @@ public:
     TTFontLoader() {}
     ~TTFontLoader() { end(); }
 
-    bool begin(const char* path);
+    // Load font file(s)
+    // path: main font file (e.g. Chinese font)
+    // asciiPath: optional ASCII font file for better English rendering (0x20-0x7E)
+    bool begin(const char* path, const char* asciiPath = nullptr);
     void end();
 
     // GFX direct drawing (legacy)
@@ -32,6 +35,7 @@ public:
         int16_t ofs_y;
         uint32_t glyfOffset;  // File offset to bitmap data
         uint8_t bitmapBits;   // Bits consumed by header (for bitmap start)
+        bool fromAsciiFont;   // True if this glyph is from ASCII font
     };
 
     // Public methods for LVGL callbacks
@@ -41,57 +45,76 @@ public:
     int32_t getBaseLine() const { return -_head.descent; }
     
 private:
-    File _file;
+    // Font file data structure (used for both main and ASCII fonts)
+    struct FontData {
+        File file;
+        
+        // Head table info
+        struct {
+            uint16_t ascent;
+            int16_t descent;
+            uint16_t def_adv_w;
+            uint8_t bpp;
+            uint8_t bits_x_y;
+            uint8_t bits_w_h;
+            uint8_t bits_adv;
+            uint8_t adv_format;
+            uint8_t loc_format;
+            uint8_t compression;
+        } head;
+        
+        // Table offsets
+        uint32_t cmapOffset = 0;
+        uint32_t locaOffset = 0;
+        uint32_t glyfOffset = 0;
+        
+        // CMAP Cache
+        struct CMAPSubtable {
+            uint32_t dataOffset;
+            uint32_t startUnicode;
+            uint16_t length;
+            uint16_t glyphIdOffset;
+            uint16_t entriesCount;
+            uint8_t type;
+        };
+        CMAPSubtable* cmaps = nullptr;
+        uint16_t cmapCount = 0;
+        
+        // Bit-stream reader state
+        uint8_t bitBuf = 0;
+        uint8_t bitCount = 0;
+        
+        bool isLoaded() const { return (bool)file; }
+    };
+    
+    FontData _main;     // Main font (Chinese)
+    FontData _ascii;    // ASCII font (English)
     uint16_t _color = 0;
 
-    // LVGL font structure
+    // Shared LVGL font structure and glyph buffer
     lv_font_t _lvFont;
     uint8_t _glyphBuf[TT_FONT_GLYPH_BUF_SIZE];
-    lv_draw_buf_t _drawBuf;  // LVGL draw buffer for glyph bitmap
+    lv_draw_buf_t _drawBuf;
 
-    // Head table info
-    struct {
-        uint16_t ascent;
-        int16_t descent;
-        uint16_t def_adv_w;  // Default advance width (when bits_adv = 0)
-        uint8_t bpp;
-        uint8_t bits_x_y;
-        uint8_t bits_w_h;
-        uint8_t bits_adv;
-        uint8_t adv_format; // 0: uint, 1: FP12.4
-        uint8_t loc_format; // 0: 16bit, 1: 32bit
-        uint8_t compression;
-    } _head;
+    // For compatibility with _head access
+    decltype(_main.head)& _head = _main.head;
 
-    // Table offsets
-    uint32_t _cmapOffset = 0;
-    uint32_t _locaOffset = 0;
-    uint32_t _glyfOffset = 0;
-
-    // CMAP Cache
-    struct CMAPSubtable {
-        uint32_t dataOffset;
-        uint32_t startUnicode;
-        uint16_t length;
-        uint16_t glyphIdOffset;
-        uint16_t entriesCount;
-        uint8_t type;
-    };
-    CMAPSubtable* _cmaps = nullptr;
-    uint16_t _cmapCount = 0;
-
-    // Bit-stream reader state
-    uint8_t _bitBuf = 0;
-    uint8_t _bitCount = 0;
-
-    bool _seekToTable(const char* tag);
-    uint32_t _getGlyphID(uint32_t unicode);
-    uint32_t _readBits(uint8_t bits);
-    int32_t _readSignedBits(uint8_t bits);
-    void _resetBitReader() { _bitCount = 0; _bitBuf = 0; }
+    // Font loading helper
+    bool _loadFontData(FontData& fd, const char* path);
+    void _freeFontData(FontData& fd);
+    
+    // Font data access helpers
+    bool _seekToTable(FontData& fd, const char* tag);
+    uint32_t _getGlyphID(FontData& fd, uint32_t unicode);
+    uint32_t _getGlyphOffset(FontData& fd, uint32_t glyphId);
+    uint32_t _readBits(FontData& fd, uint8_t bits);
+    int32_t _readSignedBits(FontData& fd, uint8_t bits);
+    void _resetBitReader(FontData& fd) { fd.bitCount = 0; fd.bitBuf = 0; }
+    
+    // Internal glyph info getter
+    bool _getGlyphInfoFromFont(FontData& fd, uint32_t unicode, GlyphInfo& info);
     
     uint32_t _decodeUTF8(const char** s);
-    uint32_t _getGlyphOffset(uint32_t glyphId);
 
     // LVGL static callbacks
     static bool lvglGetGlyphDsc(const lv_font_t* font, lv_font_glyph_dsc_t* dsc, 
