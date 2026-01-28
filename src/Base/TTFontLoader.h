@@ -15,7 +15,7 @@ public:
 
     // Load font file(s)
     // path: main font file (e.g. Chinese font)
-    // asciiPath: optional ASCII font file for better English rendering (0x20-0x7E)
+    // asciiPath: optional fallback font, characters in this font are rendered with priority
     bool begin(const char* path, const char* asciiPath = nullptr);
     void end();
 

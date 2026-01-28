@@ -214,8 +214,8 @@ bool TTFontLoader::_getGlyphInfoFromFont(FontData& fd, uint32_t unicode, GlyphIn
 }
 
 bool TTFontLoader::getGlyphInfo(uint32_t unicode, GlyphInfo& info) {
-    // For ASCII characters (0x20-0x7E), try ASCII font first
-    if (unicode >= 0x20 && unicode <= 0x7E && _ascii.isLoaded()) {
+    // Try ASCII font first if loaded (any character in its range)
+    if (_ascii.isLoaded()) {
         if (_getGlyphInfoFromFont(_ascii, unicode, info)) {
             info.fromAsciiFont = true;
             return true;
