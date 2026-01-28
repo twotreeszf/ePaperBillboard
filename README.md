@@ -138,6 +138,61 @@ lv_font_conv \
 | ASCII + GB2312 (~7000 chars) | ~500-600 KB |
 | Full CJK (~20000 chars) | ~1.5-2 MB |
 
+### English Font Extraction
+
+For English-only fonts (e.g., pixel fonts), use `analyze_ttf_cmap.py` to extract encoding ranges.
+
+#### 1. Setup Python Environment
+
+```bash
+cd tools
+python3 -m venv venv
+source venv/bin/activate  # macOS/Linux
+pip install -r requirements.txt
+```
+
+#### 2. Analyze TTF Font Encoding
+
+```bash
+source tools/venv/bin/activate
+python tools/analyze_ttf_cmap.py fonts/your_font.ttf
+```
+
+Output example:
+```
+# Font: Post Pixel-7
+# Total Characters: 312
+# Total Ranges: 25
+
+--range=0x0020-0x007E,0x00A0-0x00AE,0x00B0-0x00FF,...
+```
+
+#### 3. Generate Font with Extracted Ranges
+
+Copy the `--range=...` output and use it directly:
+
+```bash
+lv_font_conv \
+  --font fonts/post_pixel-7.ttf \
+  --size 16 \
+  --bpp 1 \
+  --format bin \
+  --no-compress \
+  --range=0x0020-0x007E,0x00A0-0x00AE,0x00B0-0x00FF,... \
+  -o data/fonts/en_16.bin
+```
+
+#### 4. Dual-Font Setup (Chinese + English)
+
+TTFontLoader supports fallback fonts. Characters in the fallback font are rendered with priority:
+
+```cpp
+// Load Chinese as main font, English as fallback (priority)
+fontLoader.begin("/fonts/chs_16.bin", "/fonts/en_16.bin");
+```
+
+This allows mixing Chinese text with stylized English fonts (e.g., pixel fonts).
+
 ### Usage in Code
 
 ```cpp
@@ -147,8 +202,10 @@ TTFontLoader font;
 
 void setup() {
     LittleFS.begin();
-    font.begin("/font14.bin");
-    font.setTextColor(GxEPD_BLACK);
+    // Single font
+    font.begin("/fonts/chs_14.bin");
+    // Or dual font (English font has priority)
+    font.begin("/fonts/chs_14.bin", "/fonts/en_14.bin");
 }
 
 void loop() {
