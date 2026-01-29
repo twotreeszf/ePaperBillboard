@@ -66,8 +66,8 @@ void LvglDriver::flushCallback(lv_display_t* disp, const lv_area_t* area, uint8_
     
     LOG_I("Flush area: (%d,%d) - (%d,%d), size: %dx%d", x1, y1, x2, y2, w, h);
     
-    // Set rotation to landscape
-    driver->_epd->setRotation(1);
+    // Set rotation: 3 = landscape 180° (upside down)
+    driver->_epd->setRotation(3);
 
     bool doFullRefresh = driver->_needFullRefresh || 
                          (driver->_partialCount >= EPD_FULL_REFRESH_INTERVAL);

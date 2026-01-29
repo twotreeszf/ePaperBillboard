@@ -27,7 +27,7 @@ void TTVTask::start(int coreId)
     LOG_I("Task %s started on core %d", _name, coreId);
 }
 
-void TTVTask::inqueue(std::function<void()> *func)
+void TTVTask::enqueue(std::function<void()> *func)
 {
     if (_queue != nullptr)
     {

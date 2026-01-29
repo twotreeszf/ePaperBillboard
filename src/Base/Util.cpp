@@ -1,5 +1,8 @@
 #include "Util.h"
+#include "Logger.h"
 #ifdef ESP32
+#include <Arduino.h>
+#include <LittleFS.h>
 #include <esp_timer.h>
 #include "soc/soc.h"           // Disable brownout problems
 #include "soc/rtc_cntl_reg.h"  // Disable brownout problems
@@ -68,6 +71,28 @@ namespace Util
     void disableBrownoutDetector() {
 #ifdef ESP32
         WRITE_PERI_REG(RTC_CNTL_BROWN_OUT_REG, 0);
+#endif
+    }
+
+    void printChipInfo() {
+#ifdef ESP32
+        LOG_I("--- Chip Info ---");
+        LOG_I("Chip Model: %s", ESP.getChipModel());
+        LOG_I("Chip Revision: %d", ESP.getChipRevision());
+        LOG_I("CPU Freq: %u MHz", ESP.getCpuFreqMHz());
+        LOG_I("Flash Size: %u KB (%u MB)",
+            ESP.getFlashChipSize() / 1024,
+            ESP.getFlashChipSize() / 1024 / 1024);
+        LOG_I("Flash Speed: %u MHz", ESP.getFlashChipSpeed() / 1000000);
+
+        if (LittleFS.begin()) {
+            LOG_I("LittleFS Total: %u KB", LittleFS.totalBytes() / 1024);
+            LOG_I("LittleFS Used: %u KB", LittleFS.usedBytes() / 1024);
+        }
+
+        LOG_I("Free Heap: %u bytes", ESP.getFreeHeap());
+        LOG_I("SDK Version: %s", ESP.getSdkVersion());
+        LOG_I("-----------------");
 #endif
     }
 }

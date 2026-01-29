@@ -21,6 +21,9 @@ namespace Util
     
     // Disable brownout detector to prevent resets during high power operations
     void disableBrownoutDetector();
+
+    // Print ESP chip and flash info to log
+    void printChipInfo();
 };
 
 #endif

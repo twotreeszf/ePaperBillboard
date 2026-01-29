@@ -3,14 +3,9 @@
 
 #pragma once
 
-#ifdef ESP32
 #include <freertos/FreeRTOS.h>
 #include <freertos/task.h>
 #include <freertos/queue.h>
-#elif defined(ESP8266)
-// Minimal stubs for ESP8266
-typedef void* QueueHandle_t;
-#endif
 #include <functional>
 
 class TTVTask
@@ -33,7 +28,7 @@ protected:
     virtual void loop() = 0;     
 
     // Add external task to queue
-    void inqueue(std::function<void()>* func);
+    void enqueue(std::function<void()>* func);
     
 private:
     void _task();           // Main task function
