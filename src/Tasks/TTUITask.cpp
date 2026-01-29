@@ -5,6 +5,7 @@
 #include <memory>
 #include <functional>
 #include "../LVGLDriver/TTLVGLDriver.h"
+#include "../Base/TTInstance.h"
 #include "../Base/Logger.h"
 #include "../Base/ErrorCheck.h"
 #include "../Base/TTFontManager.h"
@@ -24,7 +25,7 @@ void TTUITask::setup() {
     ERR_CHECK_FAIL(TTFontManager::instance().begin());
 
     LOG_I("Initializing LVGL...");
-    ERR_CHECK_FAIL(lvglDriver.begin(_display));
+    ERR_CHECK_FAIL(TTInstanceOf<TTLVGLDriver>().begin(_display));
 
     _nav.setRoot(std::unique_ptr<TTClockScreenPage>(new TTClockScreenPage()));
 
@@ -34,7 +35,7 @@ void TTUITask::setup() {
 void TTUITask::loop() {
     lv_timer_handler();
     _nav.tick();
-    vTaskDelay(pdMS_TO_TICKS(100));
+    vTaskDelay(pdMS_TO_TICKS(1000));
 }
 
 void TTUITask::submitSensorData(float temperature, float humidity, float pressure,

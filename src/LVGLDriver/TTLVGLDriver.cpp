@@ -1,9 +1,6 @@
 #include "TTLVGLDriver.h"
 #include "../Base/Logger.h"
 
-// Global instance
-TTLVGLDriver lvglDriver;
-
 // Static draw buffer - must be aligned for LVGL 9.x
 static uint8_t _drawBuf[EPD_BUF_SIZE] __attribute__((aligned(4)));
 

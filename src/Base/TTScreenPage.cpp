@@ -1,4 +1,5 @@
 #include "TTScreenPage.h"
+#include "TTNavigationController.h"
 
 TTScreenPage::~TTScreenPage() {
     if (_screen != nullptr) {
@@ -11,4 +12,10 @@ void TTScreenPage::createScreen() {
     if (_screen != nullptr) return;
     _screen = lv_obj_create(NULL);
     buildContent();
+}
+
+void TTScreenPage::requestRefresh(bool fullRefresh) {
+    if (_controller != nullptr) {
+        _controller->requestRefresh(this, fullRefresh);
+    }
 }

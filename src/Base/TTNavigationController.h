@@ -15,6 +15,8 @@ public:
     void tick();
 
     TTScreenPage* getCurrentPage();
+    void requestRefresh(TTScreenPage* page, bool fullRefresh);
+
     bool canPop() const { return _stack.size() > 1; }
     size_t stackSize() const { return _stack.size(); }
 

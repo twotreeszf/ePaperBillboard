@@ -1,11 +1,14 @@
 #include "TTNavigationController.h"
 #include "Logger.h"
+#include "TTInstance.h"
+#include "../LVGLDriver/TTLVGLDriver.h"
 
 void TTNavigationController::setRoot(std::unique_ptr<TTScreenPage> page) {
     _stack.clear();
     if (!page) return;
     page->createScreen();
     _stack.push_back(std::move(page));
+    _stack.back()->setNavigationController(this);
     loadScreen(_stack.back().get());
     _stack.back()->didAppear();
 }
@@ -23,6 +26,7 @@ void TTNavigationController::push(std::unique_ptr<TTScreenPage> page) {
         _stack.back()->didDisappear();
     }
     _stack.push_back(std::move(page));
+    _stack.back()->setNavigationController(this);
     raw->didAppear();
 }
 
@@ -53,5 +57,11 @@ TTScreenPage* TTNavigationController::getCurrentPage() {
 void TTNavigationController::loadScreen(TTScreenPage* page) {
     if (page != nullptr && page->getScreen() != nullptr) {
         lv_screen_load(page->getScreen());
+    }
+}
+
+void TTNavigationController::requestRefresh(TTScreenPage* page, bool fullRefresh) {
+    if (getCurrentPage() == page) {
+        TTInstanceOf<TTLVGLDriver>().requestRefresh(fullRefresh);
     }
 }

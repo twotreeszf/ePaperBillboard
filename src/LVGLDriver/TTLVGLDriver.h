@@ -29,5 +29,3 @@ private:
     uint8_t _partialCount = 0;
     bool _needFullRefresh = true;
 };
-
-extern TTLVGLDriver lvglDriver;

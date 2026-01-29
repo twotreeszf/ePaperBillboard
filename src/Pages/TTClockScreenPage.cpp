@@ -1,5 +1,4 @@
 #include "TTClockScreenPage.h"
-#include "../LVGLDriver/TTLVGLDriver.h"
 #include "../Base/Logger.h"
 #include "../Base/TTFontManager.h"
 
@@ -99,7 +98,7 @@ void TTClockScreenPage::onSensorData(float temperature, float humidity, float pr
     _aht20Available = ahtAvailable;
     _bmp280Available = bmp280Available;
     updateSensorDisplay();
-    lvglDriver.requestRefresh(false);
+    requestRefresh(false);
 }
 
 void TTClockScreenPage::updateSensorDisplay() {
@@ -121,5 +120,5 @@ void TTClockScreenPage::updateClockDisplay() {
     char timeStr[8];
     snprintf(timeStr, sizeof(timeStr), "%02d:%02d", _hours, _minutes);
     lv_label_set_text(_timeLabel, timeStr);
-    lvglDriver.requestRefresh(false);
+    requestRefresh(false);
 }
