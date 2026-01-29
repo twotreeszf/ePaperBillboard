@@ -4,7 +4,6 @@
 #include <GxEPD2_BW.h>
 #include <lvgl.h>
 #include "../Base/TTVTask.h"
-#include "../Base/TTFontLoader.h"
 #include "../Base/TTNavigationController.h"
 
 #define TT_UI_EPD_MOSI  4
@@ -30,9 +29,5 @@ protected:
 
 private:
     EPaperDisplay _display;
-    TTFontLoader _font_16;
-    TTFontLoader _font_10;
-    TTFontLoader _font_12;
-    TTFontLoader _font_48;
     TTNavigationController _nav;
 };

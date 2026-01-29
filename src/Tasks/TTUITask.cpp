@@ -1,12 +1,13 @@
 #include "TTUITask.h"
-#include "TTClockScreenPage.h"
+#include "../Pages/TTClockScreenPage.h"
 #include <SPI.h>
 #include <LittleFS.h>
 #include <memory>
 #include <functional>
-#include "../LvglDriver.h"
+#include "../LVGLDriver/TTLVGLDriver.h"
 #include "../Base/Logger.h"
 #include "../Base/ErrorCheck.h"
+#include "../Base/TTFontManager.h"
 #include <freertos/FreeRTOS.h>
 #include <freertos/task.h>
 
@@ -20,32 +21,12 @@ void TTUITask::setup() {
     ERR_CHECK_FAIL(LittleFS.begin());
     LOG_I("LittleFS initialized");
 
-    if (_font_10.begin("/fonts/all_10.bin")) {
-        LOG_I("12px font loaded (CHS + EN)");
-    } else {
-        LOG_W("Failed to load 12px font");
-    }
-    if (_font_12.begin("/fonts/all_12.bin")) {
-        LOG_I("14px font loaded (CHS + EN)");
-    } else {
-        LOG_W("Failed to load 14px font");
-    }
-    if (_font_16.begin("/fonts/all_16.bin")) {
-        LOG_I("16px font loaded (CHS + EN)");
-    } else {
-        LOG_W("Failed to load 16px font");
-    }
-    if (_font_48.begin("/fonts/en_48.bin")) {
-        LOG_I("48px clock font loaded");
-    } else {
-        LOG_W("Failed to load 48px clock font");
-    }
+    ERR_CHECK_FAIL(TTFontManager::instance().begin());
 
     LOG_I("Initializing LVGL...");
     ERR_CHECK_FAIL(lvglDriver.begin(_display));
 
-    _nav.setRoot(std::unique_ptr<TTClockScreenPage>(
-        new TTClockScreenPage(&_font_16, &_font_10, &_font_12, &_font_48)));
+    _nav.setRoot(std::unique_ptr<TTClockScreenPage>(new TTClockScreenPage()));
 
     LOG_I("UI task started.");
 }

@@ -1,8 +1,8 @@
-#include "LvglDriver.h"
-#include "Base/Logger.h"
+#include "TTLVGLDriver.h"
+#include "../Base/Logger.h"
 
 // Global instance
-LvglDriver lvglDriver;
+TTLVGLDriver lvglDriver;
 
 // Static draw buffer - must be aligned for LVGL 9.x
 static uint8_t _drawBuf[EPD_BUF_SIZE] __attribute__((aligned(4)));
@@ -11,7 +11,7 @@ static uint32_t lvglTickCallback() {
     return millis();
 }
 
-bool LvglDriver::begin(EPaperDisplay& display) {
+bool TTLVGLDriver::begin(EPaperDisplay& display) {
     _epd = &display;
     
     // Initialize LVGL
@@ -46,9 +46,9 @@ bool LvglDriver::begin(EPaperDisplay& display) {
     return true;
 }
 
-void LvglDriver::flushCallback(lv_display_t* disp, const lv_area_t* area, uint8_t* px_map) {
-    LvglDriver* driver = (LvglDriver*)lv_display_get_user_data(disp);
-    if (!driver || !driver->_epd) {
+void TTLVGLDriver::flushCallback(lv_display_t* disp, const lv_area_t* area, uint8_t* px_map) {
+    TTLVGLDriver* pThis = (TTLVGLDriver*)lv_display_get_user_data(disp);
+    if (!pThis || !pThis->_epd) {
         LOG_E("Flush callback: invalid driver or display");
         lv_display_flush_ready(disp);
         return;
@@ -63,24 +63,24 @@ void LvglDriver::flushCallback(lv_display_t* disp, const lv_area_t* area, uint8_
     int32_t y2 = area->y2;
     int32_t w = x2 - x1 + 1;
     int32_t h = y2 - y1 + 1;
-    
-    LOG_I("Flush area: (%d,%d) - (%d,%d), size: %dx%d", x1, y1, x2, y2, w, h);
-    
-    // Set rotation: 3 = landscape 180° (upside down)
-    driver->_epd->setRotation(3);
 
-    bool doFullRefresh = driver->_needFullRefresh || 
-                         (driver->_partialCount >= EPD_FULL_REFRESH_INTERVAL);
-    
+    LOG_I("Flush area: (%d,%d)-(%d,%d), size %dx%d", x1, y1, x2, y2, w, h);
+
+    // Set rotation: 3 = landscape 180° (upside down)
+    pThis->_epd->setRotation(3);
+
+    bool doFullRefresh = pThis->_needFullRefresh || 
+                         (pThis->_partialCount >= EPD_FULL_REFRESH_INTERVAL);
+
     if (doFullRefresh) {
         LOG_I("E-Paper full refresh");
-        driver->_epd->setFullWindow();
-        driver->_partialCount = 0;
-        driver->_needFullRefresh = false;
+        pThis->_epd->setFullWindow();
+        pThis->_partialCount = 0;
+        pThis->_needFullRefresh = false;
     } else {
         LOG_I("E-Paper partial refresh at (%d,%d) %dx%d", x1, y1, w, h);
-        driver->_epd->setPartialWindow(x1, y1, w, h);
-        driver->_partialCount++;
+        pThis->_epd->setPartialWindow(x1, y1, w, h);
+        pThis->_partialCount++;
     }
     
     // For PARTIAL render mode, buffer contains only the flush area
@@ -88,7 +88,7 @@ void LvglDriver::flushCallback(lv_display_t* disp, const lv_area_t* area, uint8_
     int32_t buf_stride = (w + 7) / 8;
     
     // Draw pixels using GxEPD2's paged drawing
-    driver->_epd->firstPage();
+    pThis->_epd->firstPage();
     do {
         for (int32_t y = y1; y <= y2; y++) {
             for (int32_t x = x1; x <= x2; x++) {
@@ -106,30 +106,20 @@ void LvglDriver::flushCallback(lv_display_t* disp, const lv_area_t* area, uint8_
                 // LVGL I1: 1 = foreground, 0 = background
                 // For E-Paper: invert - 1 should be white (paper), 0 should be black (ink)
                 uint16_t color = isSet ? GxEPD_WHITE : GxEPD_BLACK;
-                driver->_epd->drawPixel(x, y, color);
+                pThis->_epd->drawPixel(x, y, color);
             }
         }
-    } while (driver->_epd->nextPage());
+    } while (pThis->_epd->nextPage());
     
     LOG_I("E-Paper flush complete");
-    
-    // Notify LVGL that flush is complete
+
     lv_display_flush_ready(disp);
 }
 
-void LvglDriver::requestRefresh(bool fullRefresh) {
+void TTLVGLDriver::requestRefresh(bool fullRefresh) {
     if (fullRefresh) {
         _needFullRefresh = true;
     }
-    
-    LOG_I("requestRefresh called, fullRefresh=%d", fullRefresh);
-    
-    // Invalidate the entire screen to mark it as dirty
     lv_obj_invalidate(lv_scr_act());
-    
-    // For LVGL 9.x with deleted refresh timer, use lv_refr_now() 
-    // But we need to ensure the display is properly set
     lv_refr_now(_lvDisplay);
-    
-    LOG_I("requestRefresh done");
 }

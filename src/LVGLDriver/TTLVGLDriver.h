@@ -13,7 +13,7 @@
 // Full refresh interval to prevent ghosting
 #define EPD_FULL_REFRESH_INTERVAL 10
 
-class LvglDriver {
+class TTLVGLDriver {
 public:
     using EPaperDisplay = GxEPD2_BW<GxEPD2_290, GxEPD2_290::HEIGHT>;
     
@@ -27,7 +27,7 @@ private:
     EPaperDisplay* _epd = nullptr;
     lv_display_t* _lvDisplay = nullptr;
     uint8_t _partialCount = 0;
-    bool _needFullRefresh = false;
+    bool _needFullRefresh = true;
 };
 
-extern LvglDriver lvglDriver;
+extern TTLVGLDriver lvglDriver;
