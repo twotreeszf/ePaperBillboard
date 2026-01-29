@@ -2,7 +2,7 @@
 #include <Wire.h>
 #include "../Base/Logger.h"
 #include "../Base/TTInstance.h"
-#include "TTClockTask.h"
+#include "TTUITask.h"
 #include <freertos/FreeRTOS.h>
 #include <freertos/task.h>
 
@@ -48,7 +48,7 @@ void TTSensorTask::loop() {
         LOG_I("BMP280: Pressure=%.1f hPa", pressure);
     }
 
-    TTInstanceOf<TTClockTask>().submitSensorData(temperature, humidity, pressure,
+    TTInstanceOf<TTUITask>().submitSensorData(temperature, humidity, pressure,
         _aht20Available, _bmp280Available);
 
     vTaskDelay(pdMS_TO_TICKS((uint32_t)TT_SENSOR_UPDATE_INTERVAL * 1000));

@@ -26,7 +26,7 @@
 #include "Base/Logger.h"
 #include "Base/TTInstance.h"
 #include "Base/Util.h"
-#include "Tasks/TTClockTask.h"
+#include "Tasks/TTUITask.h"
 #include "Tasks/TTSensorTask.h"
 
 void setup() {
@@ -40,7 +40,7 @@ void setup() {
     Util::printChipInfo();
     delay(200);
 
-    TTInstanceOf<TTClockTask>().start(0);
+    TTInstanceOf<TTUITask>().start(0);
     TTInstanceOf<TTSensorTask>().start(1);
 }
 

@@ -1,0 +1,57 @@
+#include "TTNavigationController.h"
+#include "Logger.h"
+
+void TTNavigationController::setRoot(std::unique_ptr<TTScreenPage> page) {
+    _stack.clear();
+    if (!page) return;
+    page->createScreen();
+    _stack.push_back(std::move(page));
+    loadScreen(_stack.back().get());
+    _stack.back()->didAppear();
+}
+
+void TTNavigationController::push(std::unique_ptr<TTScreenPage> page) {
+    if (!page) return;
+    TTScreenPage* raw = page.get();
+    raw->createScreen();
+    if (!_stack.empty()) {
+        _stack.back()->willDisappear();
+    }
+    raw->willAppear();
+    loadScreen(raw);
+    if (!_stack.empty()) {
+        _stack.back()->didDisappear();
+    }
+    _stack.push_back(std::move(page));
+    raw->didAppear();
+}
+
+void TTNavigationController::pop() {
+    if (_stack.size() <= 1) {
+        LOG_W("Nav: pop ignored (stack size %u)", (unsigned)_stack.size());
+        return;
+    }
+    _stack.back()->willDisappear();
+    TTScreenPage* prev = _stack[_stack.size() - 2].get();
+    prev->willAppear();
+    loadScreen(prev);
+    _stack.back()->didDisappear();
+    _stack.pop_back();
+    prev->didAppear();
+}
+
+void TTNavigationController::tick() {
+    if (!_stack.empty()) {
+        _stack.back()->loop();
+    }
+}
+
+TTScreenPage* TTNavigationController::getCurrentPage() {
+    return _stack.empty() ? nullptr : _stack.back().get();
+}
+
+void TTNavigationController::loadScreen(TTScreenPage* page) {
+    if (page != nullptr && page->getScreen() != nullptr) {
+        lv_screen_load(page->getScreen());
+    }
+}
