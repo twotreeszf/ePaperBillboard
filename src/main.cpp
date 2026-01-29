@@ -67,8 +67,8 @@ bool bmp280Available = false;
 
 // Font loaders (streaming from LittleFS)
 TTFontLoader font_16;   // 16px for title
-TTFontLoader font_12;   // 12px for status
-TTFontLoader font_14;   // 14px for status
+TTFontLoader font_10;   // 12px for status
+TTFontLoader font_12;   // 14px for status
 TTFontLoader font_48;   // 48px for clock digits
 
 // LVGL UI elements
@@ -125,26 +125,23 @@ void createClockUI() {
     lv_label_set_text(titleLabel, "电子墨水屏时钟 E-Paper Clock");
     lv_obj_set_style_text_color(titleLabel, lv_color_black(), 0);
     lv_obj_set_style_text_font(titleLabel, font_16.getLvglFont(), 0);
-    lv_obj_set_style_text_letter_space(titleLabel, 1, 0);
     lv_obj_align(titleLabel, LV_ALIGN_TOP_MID, 0, 4);
     
     // Create test label below title (12px font)
     lv_obj_t* testLabel = lv_label_create(scr);
     lv_label_set_text(testLabel, "末日时钟被设定距离午夜85秒\nBulletin of the Atomic Scientists");
     lv_obj_set_style_text_color(testLabel, lv_color_black(), 0);
-    lv_obj_set_style_text_font(testLabel, font_12.getLvglFont(), 0);
+    lv_obj_set_style_text_font(testLabel, font_10.getLvglFont(), 0);
     lv_obj_set_width(testLabel, lv_pct(100));
     lv_obj_set_style_pad_left(testLabel, 4, 0);
     lv_obj_set_style_pad_right(testLabel, 4, 0);
     lv_obj_set_style_text_line_space(testLabel, 4, 0);
-    lv_obj_set_style_text_letter_space(testLabel, 1, 0);
     lv_obj_align(testLabel, LV_ALIGN_TOP_MID, 0, 24);
     
     // Create time label in center (48px ASCII font)
     timeLabel = lv_label_create(scr);
     lv_label_set_text(timeLabel, "00:00");
     lv_obj_set_style_text_color(timeLabel, lv_color_black(), 0);
-    lv_obj_set_style_text_letter_space(timeLabel, 1, 0);
     lv_obj_set_style_text_font(timeLabel, font_48.getLvglFont(), 0);
     lv_obj_align(timeLabel, LV_ALIGN_CENTER, 0, 18);
     
@@ -154,11 +151,10 @@ void createClockUI() {
     lv_obj_set_style_pad_left(statusLabel, 4, 0);
     lv_obj_set_style_pad_right(statusLabel, 4, 0);
     lv_obj_set_style_text_line_space(statusLabel, 4, 0);
-    lv_obj_set_style_text_letter_space(statusLabel, 1, 0);
     lv_label_set_long_mode(statusLabel, LV_LABEL_LONG_WRAP);
     lv_label_set_text(statusLabel, "正在读取传感器... / Reading sensor...");
     lv_obj_set_style_text_color(statusLabel, lv_color_black(), 0);
-    lv_obj_set_style_text_font(statusLabel, font_14.getLvglFont(), 0);
+    lv_obj_set_style_text_font(statusLabel, font_12.getLvglFont(), 0);
     lv_obj_align(statusLabel, LV_ALIGN_BOTTOM_LEFT, 0, -4);
     
     LOG_I("LVGL UI created with dual fonts");
@@ -202,7 +198,7 @@ void updateSensorDisplay() {
     char sensorStr[96];
     if (aht20Available && bmp280Available) {
         snprintf(sensorStr, sizeof(sensorStr), 
-                 "温度:%.1f°C | 湿度:%.1f%% | 气压:%.0f hPag", 
+                 "温度:%.1f℃ | 湿度:%.1f%% | 气压:%.0f hPag", 
                  temperature, humidity, pressure);
     }
     lv_label_set_text(statusLabel, sensorStr);
@@ -298,19 +294,19 @@ void setup() {
     
     // Load fonts from LittleFS (streaming mode)
     // Chinese fonts with ASCII fallback for better English rendering
-    if (font_12.begin("/fonts/chs_12.bin", "/fonts/en_12.bin")) {
+    if (font_10.begin("/fonts/all_10.bin")) {
         LOG_I("12px font loaded (CHS + EN)");
     } else {
         LOG_W("Failed to load 12px font");
     }
 
-    if (font_14.begin("/fonts/chs_14.bin", "/fonts/en_14.bin")) {
+    if (font_12.begin("/fonts/all_12.bin")) {
         LOG_I("14px font loaded (CHS + EN)");
     } else {
         LOG_W("Failed to load 14px font");
     }
 
-    if (font_16.begin("/fonts/chs_16.bin", "/fonts/en_16.bin")) {
+    if (font_16.begin("/fonts/all_16.bin")) {
         LOG_I("16px font loaded (CHS + EN)");
     } else {
         LOG_W("Failed to load 16px font");

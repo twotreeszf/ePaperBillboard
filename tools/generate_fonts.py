@@ -85,25 +85,49 @@ def generate_font(font_path, actual_size, output_path, ranges, nominal_size=None
 
 def main():
     if len(sys.argv) < 3:
-        print("Usage: python generate_en_fonts.py <font.ttf> <sizes> [size_offset]")
+        print("Usage: python generate_fonts.py <font.ttf> <sizes> [prefix] [size_offset]")
         print()
         print("Arguments:")
         print("  font.ttf     Source TTF font file")
         print("  sizes        Comma-separated sizes (e.g., 12,14,16)")
-        print("  size_offset  Size offset for actual rendering (default: 0)")
+        print("  prefix       Output filename prefix (default: 'en')")
+        print("  size_offset Size offset for actual rendering (default: 0)")
         print()
         print("Example:")
-        print("  python generate_en_fonts.py fonts/pixel.ttf 12,14,16")
+        print("  python generate_fonts.py fonts/pixel.ttf 12,14,16")
         print("  -> Generates: en_12.bin (12px), en_14.bin (14px), en_16.bin (16px)")
         print()
-        print("  python generate_en_fonts.py fonts/pixel.ttf 12,14,16 2")
-        print("  -> Generates: en_12.bin (14px), en_14.bin (16px), en_16.bin (18px)")
+        print("  python generate_fonts.py fonts/pixel.ttf 12,14,16 pixel")
+        print("  -> Generates: pixel_12.bin (12px), pixel_14.bin (14px), pixel_16.bin (16px)")
+        print()
+        print("  python generate_fonts.py fonts/pixel.ttf 12,14,16 pixel 2")
+        print("  -> Generates: pixel_12.bin (14px), pixel_14.bin (16px), pixel_16.bin (18px)")
         sys.exit(1)
     
     font_path = Path(sys.argv[1])
     sizes_str = sys.argv[2]
-    size_offset = int(sys.argv[3]) if len(sys.argv) > 3 else 0
+    
+    # Parse optional arguments
     prefix = "en"
+    size_offset = 0
+    
+    if len(sys.argv) > 3:
+        # Check if 3rd arg is a number (size_offset) or string (prefix)
+        try:
+            size_offset = int(sys.argv[3])
+            # If 4th arg exists, it's prefix
+            if len(sys.argv) > 4:
+                prefix = sys.argv[4]
+        except ValueError:
+            # 3rd arg is prefix
+            prefix = sys.argv[3]
+            # If 4th arg exists, it's size_offset
+            if len(sys.argv) > 4:
+                try:
+                    size_offset = int(sys.argv[4])
+                except ValueError:
+                    print(f"Error: Invalid size_offset: {sys.argv[4]}")
+                    sys.exit(1)
     
     # Validate font file
     if not font_path.exists():
@@ -125,6 +149,7 @@ def main():
     
     print(f"Font: {font_path}")
     print(f"Sizes: {sizes}")
+    print(f"Prefix: {prefix}")
     if size_offset != 0:
         print(f"Size offset: {size_offset:+d}")
     print(f"Output: {output_dir}/")
