@@ -66,9 +66,10 @@ Adafruit_BMP280 bmp280;
 bool bmp280Available = false;
 
 // Font loaders (streaming from LittleFS)
-TTFontLoader fontLarge;   // 16px for title
-TTFontLoader fontSmall;   // 12px for status
-TTFontLoader fontClock;   // 48px for clock digits
+TTFontLoader font_16;   // 16px for title
+TTFontLoader font_12;   // 12px for status
+TTFontLoader font_14;   // 14px for status
+TTFontLoader font_48;   // 48px for clock digits
 
 // LVGL UI elements
 static lv_obj_t* titleLabel = nullptr;
@@ -119,16 +120,11 @@ void createClockUI() {
     lv_obj_set_style_bg_color(scr, lv_color_white(), 0);
     lv_obj_set_style_bg_opa(scr, LV_OPA_COVER, 0);
     
-    // Get fonts
-    lv_font_t* font16 = fontLarge.getLvglFont();
-    lv_font_t* font12 = fontSmall.getLvglFont();
-    lv_font_t* font48 = fontClock.getLvglFont();
-    
     // Create title label at top (16px font)
     titleLabel = lv_label_create(scr);
     lv_label_set_text(titleLabel, "电子墨水屏时钟 E-Paper Clock");
     lv_obj_set_style_text_color(titleLabel, lv_color_black(), 0);
-    lv_obj_set_style_text_font(titleLabel, font16, 0);
+    lv_obj_set_style_text_font(titleLabel, font_16.getLvglFont(), 0);
     lv_obj_set_style_text_letter_space(titleLabel, 1, 0);
     lv_obj_align(titleLabel, LV_ALIGN_TOP_MID, 0, 4);
     
@@ -136,7 +132,7 @@ void createClockUI() {
     lv_obj_t* testLabel = lv_label_create(scr);
     lv_label_set_text(testLabel, "末日时钟被设定距离午夜85秒\nBulletin of the Atomic Scientists");
     lv_obj_set_style_text_color(testLabel, lv_color_black(), 0);
-    lv_obj_set_style_text_font(testLabel, font12, 0);
+    lv_obj_set_style_text_font(testLabel, font_12.getLvglFont(), 0);
     lv_obj_set_width(testLabel, lv_pct(100));
     lv_obj_set_style_pad_left(testLabel, 4, 0);
     lv_obj_set_style_pad_right(testLabel, 4, 0);
@@ -149,7 +145,7 @@ void createClockUI() {
     lv_label_set_text(timeLabel, "00:00");
     lv_obj_set_style_text_color(timeLabel, lv_color_black(), 0);
     lv_obj_set_style_text_letter_space(timeLabel, 1, 0);
-    lv_obj_set_style_text_font(timeLabel, font48, 0);
+    lv_obj_set_style_text_font(timeLabel, font_48.getLvglFont(), 0);
     lv_obj_align(timeLabel, LV_ALIGN_CENTER, 0, 18);
     
     // Create status label at bottom (12px font) for sensor data
@@ -162,7 +158,7 @@ void createClockUI() {
     lv_label_set_long_mode(statusLabel, LV_LABEL_LONG_WRAP);
     lv_label_set_text(statusLabel, "正在读取传感器... / Reading sensor...");
     lv_obj_set_style_text_color(statusLabel, lv_color_black(), 0);
-    lv_obj_set_style_text_font(statusLabel, font12, 0);
+    lv_obj_set_style_text_font(statusLabel, font_14.getLvglFont(), 0);
     lv_obj_align(statusLabel, LV_ALIGN_BOTTOM_LEFT, 0, -4);
     
     LOG_I("LVGL UI created with dual fonts");
@@ -206,15 +202,8 @@ void updateSensorDisplay() {
     char sensorStr[96];
     if (aht20Available && bmp280Available) {
         snprintf(sensorStr, sizeof(sensorStr), 
-                 "温度: %.1f°C | 湿度: %.1f%% | 气压: %.0f hPa", 
+                 "温度:%.1f°C | 湿度:%.1f%% | 气压:%.0f hPag", 
                  temperature, humidity, pressure);
-    } else if (aht20Available) {
-        snprintf(sensorStr, sizeof(sensorStr), 
-                 "温度: %.1f°C | 湿度: %.1f%%", 
-                 temperature, humidity);
-    } else {
-        snprintf(sensorStr, sizeof(sensorStr), 
-                 "气压: %.0f hPa", pressure);
     }
     lv_label_set_text(statusLabel, sensorStr);
 }
@@ -309,19 +298,25 @@ void setup() {
     
     // Load fonts from LittleFS (streaming mode)
     // Chinese fonts with ASCII fallback for better English rendering
-    if (fontLarge.begin("/fonts/chs_16.bin", "/fonts/en_16.bin")) {
+    if (font_12.begin("/fonts/chs_12.bin", "/fonts/en_12.bin")) {
+        LOG_I("12px font loaded (CHS + EN)");
+    } else {
+        LOG_W("Failed to load 12px font");
+    }
+
+    if (font_14.begin("/fonts/chs_14.bin", "/fonts/en_14.bin")) {
+        LOG_I("14px font loaded (CHS + EN)");
+    } else {
+        LOG_W("Failed to load 14px font");
+    }
+
+    if (font_16.begin("/fonts/chs_16.bin", "/fonts/en_16.bin")) {
         LOG_I("16px font loaded (CHS + EN)");
     } else {
         LOG_W("Failed to load 16px font");
     }
     
-    if (fontSmall.begin("/fonts/chs_12.bin", "/fonts/en_12.bin")) {
-        LOG_I("12px font loaded (CHS + EN)");
-    } else {
-        LOG_W("Failed to load 12px font");
-    }
-    
-    if (fontClock.begin("/fonts/en_48.bin")) {
+    if (font_48.begin("/fonts/en_48.bin")) {
         LOG_I("48px clock font loaded");
     } else {
         LOG_W("Failed to load 48px clock font");
