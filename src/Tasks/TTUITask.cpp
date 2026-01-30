@@ -3,7 +3,7 @@
 #include <SPI.h>
 #include <LittleFS.h>
 #include <memory>
-#include "../LVGLDriver/TTLVGLDriver.h"
+#include "../Base/TTLvglEpdDriver.h"
 #include "../Base/TTInstance.h"
 #include "../Base/Logger.h"
 #include "../Base/ErrorCheck.h"
@@ -24,7 +24,7 @@ void TTUITask::setup() {
     ERR_CHECK_FAIL(TTFontManager::instance().begin());
 
     LOG_I("Initializing LVGL...");
-    ERR_CHECK_FAIL(TTInstanceOf<TTLVGLDriver>().begin(_display));
+    ERR_CHECK_FAIL(TTInstanceOf<TTLvglEpdDriver>().begin(_display));
 
     _nav.setRoot(std::unique_ptr<TTClockScreenPage>(new TTClockScreenPage()));
 

@@ -1,7 +1,7 @@
 #include "TTNavigationController.h"
 #include "Logger.h"
 #include "TTInstance.h"
-#include "../LVGLDriver/TTLVGLDriver.h"
+#include "TTLvglEpdDriver.h"
 
 void TTNavigationController::setRoot(std::unique_ptr<TTScreenPage> page) {
     for (auto& p : _stack) {
@@ -60,6 +60,6 @@ void TTNavigationController::loadScreen(TTScreenPage* page) {
 
 void TTNavigationController::requestRefresh(TTScreenPage* page, bool fullRefresh) {
     if (getCurrentPage() == page) {
-        TTInstanceOf<TTLVGLDriver>().requestRefresh(fullRefresh);
+        TTInstanceOf<TTLvglEpdDriver>().requestRefresh(fullRefresh);
     }
 }

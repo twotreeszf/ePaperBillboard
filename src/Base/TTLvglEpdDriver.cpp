@@ -1,5 +1,5 @@
-#include "TTLVGLDriver.h"
-#include "../Base/Logger.h"
+#include "TTLvglEpdDriver.h"
+#include "Logger.h"
 
 // Static draw buffer - must be aligned for LVGL 9.x
 static uint8_t _drawBuf[EPD_BUF_SIZE] __attribute__((aligned(4)));
@@ -8,7 +8,7 @@ static uint32_t lvglTickCallback() {
     return millis();
 }
 
-bool TTLVGLDriver::begin(EPaperDisplay& display) {
+bool TTLvglEpdDriver::begin(EPaperDisplay& display) {
     _epd = &display;
     
     // Initialize LVGL
@@ -43,8 +43,8 @@ bool TTLVGLDriver::begin(EPaperDisplay& display) {
     return true;
 }
 
-void TTLVGLDriver::flushCallback(lv_display_t* disp, const lv_area_t* area, uint8_t* px_map) {
-    TTLVGLDriver* pThis = (TTLVGLDriver*)lv_display_get_user_data(disp);
+void TTLvglEpdDriver::flushCallback(lv_display_t* disp, const lv_area_t* area, uint8_t* px_map) {
+    TTLvglEpdDriver* pThis = (TTLvglEpdDriver*)lv_display_get_user_data(disp);
     if (!pThis || !pThis->_epd) {
         LOG_E("Flush callback: invalid driver or display");
         lv_display_flush_ready(disp);
@@ -113,7 +113,7 @@ void TTLVGLDriver::flushCallback(lv_display_t* disp, const lv_area_t* area, uint
     lv_display_flush_ready(disp);
 }
 
-void TTLVGLDriver::requestRefresh(bool fullRefresh) {
+void TTLvglEpdDriver::requestRefresh(bool fullRefresh) {
     if (fullRefresh) {
         _needFullRefresh = true;
     }
