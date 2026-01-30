@@ -10,6 +10,45 @@ from pathlib import Path
 from fontTools.ttLib import TTFont
 
 
+# Unicode ranges to exclude (Traditional Chinese / CJK extensions)
+# Excluding these reduces font size when only Simplified Chinese is needed
+EXCLUDED_RANGES = [
+    (0x3400, 0x4DBF),   # CJK Unified Ideographs Extension A
+    (0xF900, 0xFAFF),   # CJK Compatibility Ideographs
+    (0x20000, 0x2A6DF), # CJK Unified Ideographs Extension B
+    (0x2A700, 0x2B73F), # CJK Unified Ideographs Extension C
+    (0x2B740, 0x2B81F), # CJK Unified Ideographs Extension D
+    (0x2B820, 0x2CEAF), # CJK Unified Ideographs Extension E
+    (0x2CEB0, 0x2EBEF), # CJK Unified Ideographs Extension F
+    (0x30000, 0x3134F), # CJK Unified Ideographs Extension G
+]
+
+
+def _subtract_range(from_range, exclude_range):
+    """Subtract exclude_range from from_range. Returns list of 0, 1, or 2 sub-ranges."""
+    a, b = from_range
+    e_start, e_end = exclude_range
+    if b < e_start or a > e_end:
+        return [from_range]
+    out = []
+    if a < e_start and e_start - 1 >= a:
+        out.append((a, min(b, e_start - 1)))
+    if e_end < b and e_end + 1 <= b:
+        out.append((max(a, e_end + 1), b))
+    return out
+
+
+def _subtract_excluded_from_ranges(ranges):
+    """Subtract all EXCLUDED_RANGES from ranges (set difference on ranges)."""
+    result = list(ranges)
+    for excl in EXCLUDED_RANGES:
+        next_result = []
+        for r in result:
+            next_result.extend(_subtract_range(r, excl))
+        result = next_result
+    return result
+
+
 def find_continuous_ranges(codepoints):
     """Find continuous ranges in a sorted list of codepoints"""
     if not codepoints:
@@ -41,7 +80,8 @@ def get_font_ranges(font_path):
     
     codepoints = sorted(cmap.keys())
     ranges = find_continuous_ranges(codepoints)
-    
+    ranges = _subtract_excluded_from_ranges(ranges)
+
     # Format as lv_font_conv --range parameter
     range_args = []
     for start, end in ranges:
