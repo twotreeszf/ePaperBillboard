@@ -5,6 +5,7 @@
 #include <memory>
 #include "../Base/TTLvglEpdDriver.h"
 #include "../Base/TTInstance.h"
+#include "../Base/TTPopupLayer.h"
 #include "../Base/Logger.h"
 #include "../Base/ErrorCheck.h"
 #include "../Base/TTFontManager.h"
@@ -25,6 +26,7 @@ void TTUITask::setup() {
 
     LOG_I("Initializing LVGL...");
     ERR_CHECK_FAIL(TTInstanceOf<TTLvglEpdDriver>().begin(_display));
+    TTInstanceOf<TTPopupLayer>().begin(TTInstanceOf<TTLvglEpdDriver>().getDisplay());
 
     _nav.setRoot(std::unique_ptr<TTClockScreenPage>(new TTClockScreenPage()));
 

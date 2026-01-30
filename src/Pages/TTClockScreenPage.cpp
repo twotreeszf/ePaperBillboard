@@ -5,6 +5,7 @@
 #include "../Base/TTNotificationCenter.h"
 #include "../Base/TTNotificationPayloads.h"
 #include "../Base/TTNavigationController.h"
+#include "../Base/TTPopupLayer.h"
 
 void TTClockScreenPage::buildContent(lv_obj_t* screen) {
     TTFontManager& fm = TTFontManager::instance();
@@ -39,7 +40,7 @@ void TTClockScreenPage::buildContent(lv_obj_t* screen) {
     lv_obj_align(_timeLabel, LV_ALIGN_CENTER, 0, 18);
 
     _statusLabel = lv_label_create(screen);
-    lv_label_set_text(_statusLabel, "正在读取传感器... / Reading sensor...");
+    lv_label_set_text(_statusLabel, "");
     lv_obj_set_style_text_color(_statusLabel, lv_color_black(), 0);
     lv_obj_set_style_text_font(_statusLabel, font_12, 0);
     lv_obj_align(_statusLabel, LV_ALIGN_BOTTOM_MID, 0, -4);
@@ -51,6 +52,7 @@ void TTClockScreenPage::setup() {
     TTScreenPage::setup();
     _lastUpdateMs = millis();
     updateClockDisplay();
+    TTInstanceOf<TTPopupLayer>().showToast("正在读取传感器...", 2000);
     TTInstanceOf<TTNotificationCenter>().subscribe<TTSensorDataPayload>(
         TT_NOTIFICATION_SENSOR_DATA_UPDATE, this,
         [this](const TTSensorDataPayload& p) {

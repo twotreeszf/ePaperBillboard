@@ -10,6 +10,8 @@
 # macOS
 .DS_Store
 
+fonts/
+
 # Temporary files
 *.swp
 *.swo
