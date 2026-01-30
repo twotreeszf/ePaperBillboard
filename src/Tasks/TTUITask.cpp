@@ -3,7 +3,6 @@
 #include <SPI.h>
 #include <LittleFS.h>
 #include <memory>
-#include <functional>
 #include "../LVGLDriver/TTLVGLDriver.h"
 #include "../Base/TTInstance.h"
 #include "../Base/Logger.h"
@@ -36,15 +35,4 @@ void TTUITask::loop() {
     lv_timer_handler();
     _nav.tick();
     vTaskDelay(pdMS_TO_TICKS(1000));
-}
-
-void TTUITask::submitSensorData(float temperature, float humidity, float pressure,
-    bool ahtAvailable, bool bmp280Available) {
-    auto* f = new std::function<void()>([this, temperature, humidity, pressure, ahtAvailable, bmp280Available]() {
-        TTScreenPage* p = _nav.getCurrentPage();
-        if (p != nullptr) {
-            p->onSensorData(temperature, humidity, pressure, ahtAvailable, bmp280Available);
-        }
-    });
-    enqueue(f);
 }

@@ -8,12 +8,11 @@ public:
     TTClockScreenPage() = default;
 
     void loop() override;
-    void onSensorData(float temperature, float humidity, float pressure,
-        bool ahtAvailable, bool bmp280Available) override;
 
 protected:
     void buildContent() override;
     void didAppear() override;
+    void didDisappear() override;
 
 private:
     void updateTime();
@@ -30,6 +29,4 @@ private:
     float _temperature = 0.0f;
     float _humidity = 0.0f;
     float _pressure = 0.0f;
-    bool _aht20Available = false;
-    bool _bmp280Available = false;
 };

@@ -7,6 +7,8 @@
 #include <freertos/task.h>
 #include <freertos/queue.h>
 #include <functional>
+#include "TTNotificationCenter.h"
+#include "TTInstance.h"
 
 class TTVTask
 {
@@ -15,26 +17,29 @@ public:
         : _name(name), _stackSize(stackSize) {}
     virtual ~TTVTask() = default;
 
-    // Public interface
     void start(int coreId = 0);
-    
 
-// Interface for derived classes
+    template<typename PayloadType>
+    void postNotification(const char* name, const PayloadType& payload);
+
 protected:
-    // Called once when task starts
-    virtual void setup() = 0;    
-
-    // Called repeatedly in task loop
-    virtual void loop() = 0;     
-
-    // Add external task to queue
+    virtual void setup() = 0;
+    virtual void loop() = 0;
     void enqueue(std::function<void()>* func);
-    
+
 private:
-    void _task();           // Main task function
+    void _task();
     QueueHandle_t _queue = nullptr;
     const char* _name;
     uint32_t _stackSize;
 };
+
+template<typename PayloadType>
+void TTVTask::postNotification(const char* name, const PayloadType& payload) {
+    auto* f = new std::function<void()>([name, payload]() {
+        TTInstanceOf<TTNotificationCenter>().post(name, payload);
+    });
+    enqueue(f);
+}
 
 #endif

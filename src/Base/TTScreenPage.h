@@ -21,15 +21,6 @@ public:
     virtual void willDisappear() {}
     virtual void didDisappear() {}
 
-    virtual void onSensorData(float temperature, float humidity, float pressure,
-        bool ahtAvailable, bool bmp280Available) {
-        (void)temperature;
-        (void)humidity;
-        (void)pressure;
-        (void)ahtAvailable;
-        (void)bmp280Available;
-    }
-
 protected:
     TTScreenPage() = default;
     TTScreenPage(const TTScreenPage&) = delete;

@@ -20,9 +20,6 @@ public:
     TTUITask() : TTVTask("TTUITask", 8192),
         _display(GxEPD2_290(TT_UI_EPD_CS, TT_UI_EPD_DC, TT_UI_EPD_RST, TT_UI_EPD_BUSY)) {}
 
-    void submitSensorData(float temperature, float humidity, float pressure,
-        bool ahtAvailable, bool bmp280Available);
-
 protected:
     void setup() override;
     void loop() override;

@@ -19,7 +19,6 @@ protected:
 
 private:
     Adafruit_AHTX0 _aht20;
-    bool _aht20Available = false;
     Adafruit_BMP280 _bmp280;
-    bool _bmp280Available = false;
+    bool _bmp280Ok = false;
 };

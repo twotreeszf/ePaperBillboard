@@ -1,6 +1,10 @@
 #include "TTClockScreenPage.h"
 #include "../Base/Logger.h"
 #include "../Base/TTFontManager.h"
+#include "../Base/TTInstance.h"
+#include "../Base/TTNotificationCenter.h"
+#include "../Base/TTNotificationPayloads.h"
+#include "../Base/TTNavigationController.h"
 
 void TTClockScreenPage::buildContent() {
     TTFontManager& fm = TTFontManager::instance();
@@ -45,8 +49,23 @@ void TTClockScreenPage::buildContent() {
 }
 
 void TTClockScreenPage::didAppear() {
+    TTScreenPage::didAppear();
     _lastUpdateMs = millis();
     updateClockDisplay();
+    TTInstanceOf<TTNotificationCenter>().subscribe<TTSensorDataPayload>(
+        TT_NOTIFICATION_SENSOR_DATA_UPDATE, this,
+        [this](const TTSensorDataPayload& p) {
+            _temperature = p.temperature;
+            _humidity = p.humidity;
+            _pressure = p.pressure;
+            updateSensorDisplay();
+            requestRefresh(false);
+        });
+}
+
+void TTClockScreenPage::didDisappear() {
+    TTScreenPage::didDisappear();
+    TTInstanceOf<TTNotificationCenter>().unsubscribeByObserver(this);
 }
 
 void TTClockScreenPage::updateTime() {
@@ -90,29 +109,11 @@ void TTClockScreenPage::loop() {
     }
 }
 
-void TTClockScreenPage::onSensorData(float temperature, float humidity, float pressure,
-    bool ahtAvailable, bool bmp280Available) {
-    _temperature = temperature;
-    _humidity = humidity;
-    _pressure = pressure;
-    _aht20Available = ahtAvailable;
-    _bmp280Available = bmp280Available;
-    updateSensorDisplay();
-    requestRefresh(false);
-}
-
 void TTClockScreenPage::updateSensorDisplay() {
-    if (!_aht20Available && !_bmp280Available) {
-        lv_label_set_text(_statusLabel, "传感器未连接 / Sensor not found");
-        return;
-    }
-
     char sensorStr[96];
-    if (_aht20Available && _bmp280Available) {
-        snprintf(sensorStr, sizeof(sensorStr),
-                 "温度:%.1f℃ | 湿度:%.1f%% | 气压:%.0f hPag",
-                 _temperature, _humidity, _pressure);
-    }
+    snprintf(sensorStr, sizeof(sensorStr),
+             "温度:%.1f℃ | 湿度:%.1f%% | 气压:%.0f hPag",
+             _temperature, _humidity, _pressure);
     lv_label_set_text(_statusLabel, sensorStr);
 }
 
