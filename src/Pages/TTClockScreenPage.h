@@ -8,11 +8,11 @@ public:
     TTClockScreenPage() = default;
 
     void loop() override;
+    void setup() override;
+    void willDestroy() override;
 
 protected:
-    void buildContent() override;
-    void didAppear() override;
-    void didDisappear() override;
+    void buildContent(lv_obj_t* screen) override;
 
 private:
     void updateTime();

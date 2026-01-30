@@ -14,19 +14,25 @@ public:
     void setNavigationController(TTNavigationController* nav) { _controller = nav; }
     void requestRefresh(bool fullRefresh = false);
 
-    virtual void loop() {}
+    /** Called once in createScreen() right after buildContent(screen). Use for post-build init (e.g. subscribe to notifications). */
+    virtual void setup() {}
+    /** Called just before the page is removed from the nav stack (setRoot: each page; pop: the popped page). Use for teardown (e.g. unsubscribe). */
+    virtual void willDestroy() {}
 
+    /** Called when this page is about to become the active screen (push: new page; pop: previous page). */
     virtual void willAppear() {}
-    virtual void didAppear() {}
+    /** Called when this page is about to leave the top (setRoot/push/pop). */
     virtual void willDisappear() {}
-    virtual void didDisappear() {}
 
+    /** Called every tick by the nav controller for the current top page only. */
+    virtual void loop() {}
+    
 protected:
     TTScreenPage() = default;
     TTScreenPage(const TTScreenPage&) = delete;
     TTScreenPage& operator=(const TTScreenPage&) = delete;
 
-    virtual void buildContent() = 0;
+    virtual void buildContent(lv_obj_t* screen) = 0;
 
     lv_obj_t* _screen = nullptr;
     TTNavigationController* _controller = nullptr;

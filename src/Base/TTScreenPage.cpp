@@ -11,7 +11,8 @@ TTScreenPage::~TTScreenPage() {
 void TTScreenPage::createScreen() {
     if (_screen != nullptr) return;
     _screen = lv_obj_create(NULL);
-    buildContent();
+    buildContent(_screen);
+    setup();
 }
 
 void TTScreenPage::requestRefresh(bool fullRefresh) {

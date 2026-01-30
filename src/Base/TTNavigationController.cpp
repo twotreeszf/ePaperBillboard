@@ -4,13 +4,16 @@
 #include "../LVGLDriver/TTLVGLDriver.h"
 
 void TTNavigationController::setRoot(std::unique_ptr<TTScreenPage> page) {
+    for (auto& p : _stack) {
+        p->willDisappear();
+        p->willDestroy();
+    }
     _stack.clear();
     if (!page) return;
     page->createScreen();
     _stack.push_back(std::move(page));
     _stack.back()->setNavigationController(this);
     loadScreen(_stack.back().get());
-    _stack.back()->didAppear();
 }
 
 void TTNavigationController::push(std::unique_ptr<TTScreenPage> page) {
@@ -22,12 +25,8 @@ void TTNavigationController::push(std::unique_ptr<TTScreenPage> page) {
     }
     raw->willAppear();
     loadScreen(raw);
-    if (!_stack.empty()) {
-        _stack.back()->didDisappear();
-    }
     _stack.push_back(std::move(page));
     _stack.back()->setNavigationController(this);
-    raw->didAppear();
 }
 
 void TTNavigationController::pop() {
@@ -39,9 +38,8 @@ void TTNavigationController::pop() {
     TTScreenPage* prev = _stack[_stack.size() - 2].get();
     prev->willAppear();
     loadScreen(prev);
-    _stack.back()->didDisappear();
+    _stack.back()->willDestroy();
     _stack.pop_back();
-    prev->didAppear();
 }
 
 void TTNavigationController::tick() {

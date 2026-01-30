@@ -6,24 +6,23 @@
 #include "../Base/TTNotificationPayloads.h"
 #include "../Base/TTNavigationController.h"
 
-void TTClockScreenPage::buildContent() {
+void TTClockScreenPage::buildContent(lv_obj_t* screen) {
     TTFontManager& fm = TTFontManager::instance();
     lv_font_t* font_16 = fm.getFont(16);
     lv_font_t* font_10 = fm.getFont(10);
     lv_font_t* font_12 = fm.getFont(12);
     lv_font_t* font_48 = fm.getFont(48);
 
-    lv_obj_t* scr = getScreen();
-    lv_obj_set_style_bg_color(scr, lv_color_white(), 0);
-    lv_obj_set_style_bg_opa(scr, LV_OPA_COVER, 0);
+    lv_obj_set_style_bg_color(screen, lv_color_white(), 0);
+    lv_obj_set_style_bg_opa(screen, LV_OPA_COVER, 0);
 
-    _titleLabel = lv_label_create(scr);
+    _titleLabel = lv_label_create(screen);
     lv_label_set_text(_titleLabel, "电子墨水屏时钟 E-Paper Clock");
     lv_obj_set_style_text_color(_titleLabel, lv_color_black(), 0);
     lv_obj_set_style_text_font(_titleLabel, font_16, 0);
     lv_obj_align(_titleLabel, LV_ALIGN_TOP_MID, 0, 4);
 
-    lv_obj_t* testLabel = lv_label_create(scr);
+    lv_obj_t* testLabel = lv_label_create(screen);
     lv_label_set_text(testLabel, "Claude Code、Cursor 和 Lovable 等 AI 辅助编程助手让用户几乎无需手动编码就能将其意图转化为可工作的应用。");
     lv_obj_set_style_text_color(testLabel, lv_color_black(), 0);
     lv_obj_set_style_text_font(testLabel, font_10, 0);
@@ -33,13 +32,13 @@ void TTClockScreenPage::buildContent() {
     lv_obj_set_style_text_line_space(testLabel, 4, 0);
     lv_obj_align(testLabel, LV_ALIGN_TOP_MID, 0, 24);
 
-    _timeLabel = lv_label_create(scr);
+    _timeLabel = lv_label_create(screen);
     lv_label_set_text(_timeLabel, "00:00");
     lv_obj_set_style_text_color(_timeLabel, lv_color_black(), 0);
     lv_obj_set_style_text_font(_timeLabel, font_48, 0);
     lv_obj_align(_timeLabel, LV_ALIGN_CENTER, 0, 18);
 
-    _statusLabel = lv_label_create(scr);
+    _statusLabel = lv_label_create(screen);
     lv_label_set_text(_statusLabel, "正在读取传感器... / Reading sensor...");
     lv_obj_set_style_text_color(_statusLabel, lv_color_black(), 0);
     lv_obj_set_style_text_font(_statusLabel, font_12, 0);
@@ -48,8 +47,8 @@ void TTClockScreenPage::buildContent() {
     LOG_I("ClockScreenPage UI created");
 }
 
-void TTClockScreenPage::didAppear() {
-    TTScreenPage::didAppear();
+void TTClockScreenPage::setup() {
+    TTScreenPage::setup();
     _lastUpdateMs = millis();
     updateClockDisplay();
     TTInstanceOf<TTNotificationCenter>().subscribe<TTSensorDataPayload>(
@@ -63,9 +62,9 @@ void TTClockScreenPage::didAppear() {
         });
 }
 
-void TTClockScreenPage::didDisappear() {
-    TTScreenPage::didDisappear();
+void TTClockScreenPage::willDestroy() {
     TTInstanceOf<TTNotificationCenter>().unsubscribeByObserver(this);
+    TTScreenPage::willDestroy();
 }
 
 void TTClockScreenPage::updateTime() {
