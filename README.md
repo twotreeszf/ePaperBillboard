@@ -1,6 +1,8 @@
 # ESP32 E-Paper Billboard
 
-ESP32-WROOM-32E + 2.9" E-Paper Display (E029A01) project with custom Chinese font support.
+ESP32-WROOM-32E + 2.9" E-Paper Display (E029A01) project with LVGL 9, custom binary fonts (Chinese/English), and optional I2C sensors (AHT20, BMP280). UI is built as a page stack (navigation + notifications) with E-Paper-optimized partial/full refresh.
+
+**Contents:** [Hardware](#hardware) · [Build & Flash](#build--flash) · [Font Generation](#font-generation) · [E-Ink / LVGL](#e-ink-refresh-strategy) · [Software Architecture](#software-architecture) · [Project Structure](#project-structure)
 
 ## Hardware
 
@@ -10,6 +12,8 @@ ESP32-WROOM-32E + 2.9" E-Paper Display (E029A01) project with custom Chinese fon
 - **Display**: E029A01 2.9" E-Paper (128x296, IL3820 driver)
 
 ### Wiring
+
+**E-Paper (SPI)**
 
 | E-Paper | ESP32 GPIO | Description |
 |---------|------------|-------------|
@@ -21,6 +25,15 @@ ESP32-WROOM-32E + 2.9" E-Paper Display (E029A01) project with custom Chinese fon
 | DC | GPIO5 | Data/Command |
 | RST | GPIO18 | Reset |
 | BUSY | GPIO19 | Busy Signal |
+
+**Sensors (I2C, optional)**
+
+| Sensor | ESP32 GPIO | Description |
+|--------|------------|-------------|
+| SDA | GPIO23 | I2C Data |
+| SCL | GPIO22 | I2C Clock |
+
+AHT20 (0x38) and BMP280 (0x76/0x77) share the same I2C bus.
 
 ## Build & Flash
 
@@ -68,7 +81,7 @@ This project uses a custom 8MB partition table (`partitions_8MB.csv`):
 |-----------|------|-------------|
 | app0 | 2 MB | Main application (OTA slot 0) |
 | app1 | 2 MB | OTA slot 1 |
-| spiffs | 3.875 MB | LittleFS filesystem |
+| spiffs | ~3.875 MB | LittleFS filesystem (fonts, config) |
 | coredump | 64 KB | Core dump storage |
 
 ### Troubleshooting
@@ -85,15 +98,54 @@ This project uses a custom 8MB partition table (`partitions_8MB.csv`):
 
 ## Font Generation
 
-Generate custom binary fonts for the TTFontLoader using `lv_font_conv`.
+Binary fonts for TTFontLoader are produced by `lv_font_conv`. The project provides **generate_fonts.py** for batch generation with automatic range extraction.
 
-### Prerequisites
+### Batch Generation (generate_fonts.py)
+
+Generates multiple sizes from one TTF: reads the font cmap, optionally excludes CJK extension ranges to reduce size (Simplified Chinese), and calls `lv_font_conv` for each size. Output goes to `data/fonts/`.
+
+#### Prerequisites
 
 ```bash
 npm install -g lv_font_conv
+cd tools
+python3 -m venv venv
+source venv/bin/activate   # macOS/Linux
+pip install -r requirements.txt   # fonttools
 ```
 
-### Basic Command
+#### Usage
+
+```text
+python tools/generate_fonts.py <font.ttf> <sizes> [prefix] [size_offset]
+```
+
+| Argument     | Description |
+|-------------|-------------|
+| `font.ttf`  | Source TTF font path |
+| `sizes`     | Comma-separated sizes (e.g. `12,14,16`) |
+| `prefix`    | Output filename prefix (default `en`) → `{prefix}_{size}.bin` |
+| `size_offset` | Added to each size for actual rendering (default 0) |
+
+#### Examples
+
+```bash
+# From project root
+python tools/generate_fonts.py fonts/pixel.ttf 12,14,16
+# → data/fonts/en_12.bin, en_14.bin, en_16.bin
+
+python tools/generate_fonts.py fonts/pixel.ttf 12,14,16 pixel
+# → data/fonts/pixel_12.bin, pixel_14.bin, pixel_16.bin
+
+python tools/generate_fonts.py fonts/pixel.ttf 12,14,16 pixel 2
+# → pixel_12.bin (14px), pixel_14.bin (16px), pixel_16.bin (18px)
+```
+
+Script behavior: encoding ranges are read from the TTF; ranges in `EXCLUDED_RANGES` (CJK Extension A/B/C/…, Compatibility Ideographs) are subtracted to keep files smaller when only Simplified Chinese is needed.
+
+### Manual lv_font_conv
+
+For a single size or fixed ranges:
 
 ```bash
 lv_font_conv \
@@ -109,108 +161,61 @@ lv_font_conv \
   -o data/fonts/chs_14.bin
 ```
 
-### Parameters
+| Parameter     | Description |
+|---------------|-------------|
+| `--font`      | Source TTF |
+| `--size`      | Font size (px) |
+| `--bpp`       | 1 = monochrome |
+| `--format bin`| Output for TTFontLoader |
+| `--no-compress` | Required |
+| `--range`     | Unicode range(s) |
+| `-o`          | Output path |
 
-| Parameter | Description |
-|-----------|-------------|
-| `--font` | Source TTF font file |
-| `--size` | Font size in pixels |
-| `--bpp` | Bits per pixel (1 = monochrome) |
-| `--format bin` | Output format for TTFontLoader |
-| `--no-compress` | Disable compression (required) |
-| `--range` | Unicode range to include |
-| `-o` | Output file path |
+Common ranges: `0x20-0x7E` (ASCII), `0x3000-0x303F` (CJK punctuation), `0xFF00-0xFFEF` (fullwidth), `0x4E00-0x9FFF` (CJK Unified Ideographs). File size: ASCII only ~5 KB; ASCII + CJK (e.g. GB) ~500 KB–2 MB depending on ranges.
 
-### Character Ranges
+### Getting Ranges for Manual Use (analyze_ttf_cmap.py)
 
-| Range | Description |
-|-------|-------------|
-| `0x20-0x7E` | ASCII (Basic Latin) |
-| `0x3000-0x303F` | CJK Symbols and Punctuation (`。`、`「」` etc.) |
-| `0xFF00-0xFFEF` | Fullwidth Forms (`，`、`：`、`？`、`！` etc.) |
-| `0x4E00-0x9FFF` | CJK Unified Ideographs |
-
-### File Size Estimates
-
-| Content | Approximate Size |
-|---------|------------------|
-| ASCII only (95 chars) | ~5 KB |
-| ASCII + GB2312 (~7000 chars) | ~500-600 KB |
-| Full CJK (~20000 chars) | ~1.5-2 MB |
-
-### English Font Extraction
-
-For English-only fonts (e.g., pixel fonts), use `analyze_ttf_cmap.py` to extract encoding ranges.
-
-#### 1. Setup Python Environment
-
-```bash
-cd tools
-python3 -m venv venv
-source venv/bin/activate  # macOS/Linux
-pip install -r requirements.txt
-```
-
-#### 2. Analyze TTF Font Encoding
+When using `lv_font_conv` by hand, you can get `--range=...` from the TTF:
 
 ```bash
 source tools/venv/bin/activate
 python tools/analyze_ttf_cmap.py fonts/your_font.ttf
 ```
 
-Output example:
-```
+Example output:
+
+```text
 # Font: Post Pixel-7
 # Total Characters: 312
 # Total Ranges: 25
-
 --range=0x0020-0x007E,0x00A0-0x00AE,0x00B0-0x00FF,...
 ```
 
-#### 3. Generate Font with Extracted Ranges
+Copy the `--range=...` line into your `lv_font_conv` command.
 
-Copy the `--range=...` output and use it directly:
+### Dual-Font Setup (Chinese + English)
 
-```bash
-lv_font_conv \
-  --font fonts/post_pixel-7.ttf \
-  --size 16 \
-  --bpp 1 \
-  --format bin \
-  --no-compress \
-  --range=0x0020-0x007E,0x00A0-0x00AE,0x00B0-0x00FF,... \
-  -o data/fonts/en_16.bin
-```
-
-#### 4. Dual-Font Setup (Chinese + English)
-
-TTFontLoader supports fallback fonts. Characters in the fallback font are rendered with priority:
+TTFontLoader supports a main font plus fallback; the fallback is used with priority for characters it contains:
 
 ```cpp
-// Load Chinese as main font, English as fallback (priority)
 fontLoader.begin("/fonts/chs_16.bin", "/fonts/en_16.bin");
 ```
 
-This allows mixing Chinese text with stylized English fonts (e.g., pixel fonts).
+Useful for mixing Chinese with a stylized English font (e.g. pixel). Font paths are configured in `TTFontManager.cpp` (e.g. `TT_FONT_ENTRIES`).
 
 ### Usage in Code
 
+Fonts are managed by `TTFontManager` (uses `TTFontLoader` per size). LittleFS must be mounted first.
+
 ```cpp
-#include "Base/TTFontLoader.h"
+#include "Base/TTFontManager.h"
 
-TTFontLoader font;
+// In setup (after LittleFS.begin()):
+TTFontManager::instance().begin();  // Loads fonts from data/fonts/ (see TTFontManager.cpp)
 
-void setup() {
-    LittleFS.begin();
-    // Single font
-    font.begin("/fonts/chs_14.bin");
-    // Or dual font (English font has priority)
-    font.begin("/fonts/chs_14.bin", "/fonts/en_14.bin");
-}
-
-void loop() {
-    font.drawUTF8(display, 10, 30, "Hello 你好世界");
-}
+// In page buildContent():
+lv_font_t* font_16 = TTFontManager::instance().getFont(16);
+lv_obj_set_style_text_font(label, font_16, 0);
 ```
 
 ---
@@ -262,9 +267,9 @@ LVGL 9.x integration for E-Paper displays with optimized monochrome rendering.
 └─────────────┘     └──────────────┘     └─────────────┘
 ```
 
-#### Display Configuration (`lv_conf.h`)
+#### Display Configuration
 
-Key settings for E-Paper:
+LVGL config: `include/lv_conf.h`. Key settings for E-Paper:
 
 ```c
 // Monochrome color depth
@@ -290,25 +295,17 @@ Key settings for E-Paper:
 
 #### Display Driver Initialization
 
+`TTLvglEpdDriver` wraps LVGL display and GxEPD2. In code:
+
 ```cpp
-#include "LvglDriver.h"
+#include "Base/TTLvglEpdDriver.h"
 
-// Create display with landscape dimensions
-lv_display_t* disp = lv_display_create(296, 128);
+// After GxEPD2 display init: begin() creates LVGL display (296×128), I1 format, partial buffer
+TTInstanceOf<TTLvglEpdDriver>().begin(epdDisplay);
+lv_display_t* disp = TTInstanceOf<TTLvglEpdDriver>().getDisplay();
 
-// Set 1-bit color format (I1 = indexed 1-bit)
-lv_display_set_color_format(disp, LV_COLOR_FORMAT_I1);
-
-// Buffer size: (width * height / 8) + 8 bytes palette header
-#define EPD_BUF_SIZE ((296 * 128 / 8) + 8)
-static uint8_t drawBuf[EPD_BUF_SIZE];
-
-// Single buffer, partial render mode
-lv_display_set_buffers(disp, drawBuf, nullptr, sizeof(drawBuf), 
-                       LV_DISPLAY_RENDER_MODE_PARTIAL);
-
-// Set flush callback
-lv_display_set_flush_cb(disp, flushCallback);
+// Request E-Paper refresh (partial by default; full every EPD_FULL_REFRESH_INTERVAL)
+TTInstanceOf<TTLvglEpdDriver>().requestRefresh(false);
 ```
 
 #### Flush Callback Implementation
@@ -392,30 +389,51 @@ void createUI() {
 
 ---
 
-## Project Structure
+## Software Architecture
 
-```
-ePaperBillboard/
-├── src/
-│   ├── main.cpp              # Main application
-│   ├── lv_conf.h             # LVGL configuration
-│   ├── LvglDriver.h/cpp      # LVGL E-Paper display driver
-│   ├── Base/
-│   │   ├── Logger.h/cpp      # Logging utilities
-│   │   ├── ErrorCheck.h      # Error handling macros
-│   │   ├── TTStorage.h/cpp   # LittleFS wrapper
-│   │   ├── TTPreference.h/cpp # Preferences storage
-│   │   ├── TTWiFiManager.h/cpp # WiFi configuration
-│   │   └── TTVTask.h/cpp     # FreeRTOS task wrapper
-│   └── Tasks/
-│       └── TTWiFiTask.h/cpp  # WiFi management task
-├── data/
-│   └── font14.bin            # Binary font file
-├── fonts/
-│   └── WenQuanZhengHei.ttf   # Source font
-├── partitions_8MB.csv        # Custom partition table
-└── platformio.ini            # PlatformIO configuration
-```
+### Entry Point
+
+`main.cpp` starts two FreeRTOS tasks and then idles:
+
+- **TTUITask** (core 0): SPI, LittleFS, LVGL, E-Paper driver, navigation, popup layer; root page is `TTClockScreenPage`. Runs `lv_timer_handler()` and `_nav.tick()` every 1 s.
+- **TTSensorTask** (core 1): I2C, AHT20 (temp/humidity), BMP280 (pressure). Reads sensors every `TT_SENSOR_UPDATE_INTERVAL` (10 min), then posts `TT_NOTIFICATION_SENSOR_DATA_UPDATE` to the UI task.
+
+**TTWiFiTask** exists but is not started in `main.cpp`; add it if you need WiFi/AP config.
+
+### Task Model (TTVTask)
+
+- Base class for all tasks: `setup()` once, `loop()` in a FreeRTOS task, plus an internal queue.
+- Cross-task messaging: `postNotification(name, payload)` enqueues a call that runs in the task’s loop and forwards to `TTNotificationCenter::post()`.
+- Observers (e.g. pages) subscribe via `TTNotificationCenter::subscribe<PayloadType>(name, observer, callback)` and must `unsubscribeByObserver(this)` in `willDestroy()`.
+
+### UI Stack
+
+- **TTNavigationController**: Stack of `TTScreenPage`; `setRoot` / `push` / `pop`; `tick()` calls `loop()` on the top page only.
+- **TTScreenPage**: Lifecycle: `createScreen()` → `buildContent(screen)` → `setup()` (e.g. subscribe); then `willAppear` / `willDisappear` on navigation; `willDestroy()` on teardown (unsubscribe). Call `requestRefresh(fullRefresh)` to trigger E-Paper update.
+- **TTPopupLayer**: Top LVGL layer for toasts/overlays; `showToast(text, durationMs)`, `dismissToast()`.
+
+### Display and Fonts
+
+- **TTLvglEpdDriver**: Creates LVGL display (296×128, I1, partial buffer), flush callback to GxEPD2; `requestRefresh(fullRefresh)` with automatic full refresh every `EPD_FULL_REFRESH_INTERVAL`.
+- **TTFontManager**: Singleton; `begin()` loads binary fonts from LittleFS (paths in `TTFontManager.cpp`); `getFont(size)` returns `lv_font_t*` for use in LVGL widgets.
+- **TTFontLoader**: Loads one or two binary font files (main + optional fallback); used by TTFontManager per size.
+
+### Storage and Config
+
+- **TTStorage**: LittleFS wrapper; `saveConfig` / `loadConfig` with `ArduinoJson`; default file `/config.json`.
+- **TTPreference**: Key-value config in memory + JSON file; `get` / `set` / `sync`; used by TTWiFiManager for WiFi credentials.
+
+### Utilities
+
+- **TTInstanceOf\<T\>()**: Singleton access.
+- **Logger** / **LOG_I**, **LOG_W**, **LOG_E**, etc.: Leveled logging.
+- **ErrorCheck.h**: `ERR_CHECK_RET`, `ERR_CHECK_FAIL`, `ERR_CHECK_LOG`.
+- **Util**: `runOnceAfter`, `format`, `printChipInfo`, `disableBrownoutDetector`, etc.
+- **TTReleasePool**: RAII-style release callbacks in reverse order.
+
+### Notifications
+
+Event names and payloads are in `TTNotificationPayloads.h`, e.g. `TT_NOTIFICATION_SENSOR_DATA_UPDATE` with `TTSensorDataPayload` (temperature, humidity, pressure).
 
 ## License
 

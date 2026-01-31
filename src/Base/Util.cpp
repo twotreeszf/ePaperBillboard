@@ -14,7 +14,6 @@
 
 namespace Util  
 {
-#ifdef ESP32
     static void _delay_task_callback(void* arg) {
         auto pfunc = (std::function<void()>*)arg;
         (*pfunc)();
@@ -33,16 +32,7 @@ namespace Util
         ESP_ERROR_CHECK(esp_timer_create(&one_time_timer_args, &one_time_timer));
         ESP_ERROR_CHECK(esp_timer_start_once(one_time_timer, delayMS * 1000));
     }
-#elif defined(ESP8266)
-    static Ticker _ticker;
-    void runOnceAfter(std::function<void()> func, int32_t delayMS) {
-        auto pfunc = new std::function<void()>(func);
-        _ticker.once_ms(delayMS, [pfunc]() {
-            (*pfunc)();
-            delete pfunc;
-        });
-    }
-#endif
+
 
     float trimSmallValue(float v) {
         return (abs(v) < 0.05) ? 0. : v;
