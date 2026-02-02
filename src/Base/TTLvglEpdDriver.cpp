@@ -10,7 +10,7 @@ static uint32_t lvglTickCallback() {
 
 bool TTLvglEpdDriver::begin(EPaperDisplay& display) {
     _epd = &display;
-    
+
     // Initialize LVGL
     lv_init();
     
@@ -63,10 +63,10 @@ void TTLvglEpdDriver::flushCallback(lv_display_t* disp, const lv_area_t* area, u
 
     LOG_I("Flush area: (%d,%d)-(%d,%d), size %dx%d", x1, y1, x2, y2, w, h);
 
-    // Set rotation: 3 = landscape 180° (upside down)
-    pThis->_epd->setRotation(3);
+    // Set rotation: 0 = 0° (was 3; user requested +90° CW → 270°+90° = 0°)
+    pThis->_epd->setRotation(0);
 
-    bool doFullRefresh = pThis->_needFullRefresh || 
+    bool doFullRefresh = pThis->_needFullRefresh ||
                          (pThis->_partialCount >= EPD_FULL_REFRESH_INTERVAL);
 
     if (doFullRefresh) {
@@ -76,38 +76,27 @@ void TTLvglEpdDriver::flushCallback(lv_display_t* disp, const lv_area_t* area, u
         pThis->_needFullRefresh = false;
     } else {
         LOG_I("E-Paper partial refresh at (%d,%d) %dx%d", x1, y1, w, h);
-        pThis->_epd->setPartialWindow(x1, y1, w, h);
+        pThis->_epd->setPartialWindow(x1, y1, (uint16_t)w, (uint16_t)h);
         pThis->_partialCount++;
     }
-    
-    // For PARTIAL render mode, buffer contains only the flush area
-    // Stride is based on the area width, rounded up to bytes
+
     int32_t buf_stride = (w + 7) / 8;
-    
-    // Draw pixels using GxEPD2's paged drawing
+
     pThis->_epd->firstPage();
     do {
         for (int32_t y = y1; y <= y2; y++) {
             for (int32_t x = x1; x <= x2; x++) {
-                // Convert screen coordinates to buffer-relative coordinates
                 int32_t rel_x = x - x1;
                 int32_t rel_y = y - y1;
-                
-                // Calculate byte and bit index in the buffer
                 int32_t byte_idx = rel_y * buf_stride + (rel_x / 8);
-                int32_t bit_idx = 7 - (rel_x % 8);  // MSB first
-                
-                // Get pixel value from LVGL buffer
+                int32_t bit_idx = 7 - (rel_x % 8);
                 bool isSet = (px_map[byte_idx] >> bit_idx) & 0x01;
-                
-                // LVGL I1: 1 = foreground, 0 = background
-                // For E-Paper: invert - 1 should be white (paper), 0 should be black (ink)
                 uint16_t color = isSet ? GxEPD_WHITE : GxEPD_BLACK;
                 pThis->_epd->drawPixel(x, y, color);
             }
         }
     } while (pThis->_epd->nextPage());
-    
+
     LOG_I("E-Paper flush complete");
 
     lv_display_flush_ready(disp);
