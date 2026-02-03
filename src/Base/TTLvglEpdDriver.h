@@ -1,10 +1,10 @@
 #pragma once
 
 #include <GxEPD2_BW.h>
-#include <GxEPD2_420_SSD1619.h>
+#include <GxEPD2_420_HinkE042A13.h>
 #include <lvgl.h>
 
-// Display dimensions (E042A13-A0 4.2" 400x300, SSD1619 with partial refresh)
+// Display dimensions (HINK-E042A13-A0 4.2" 400x300, SSD1619 with partial refresh)
 #define EPD_WIDTH   400
 #define EPD_HEIGHT  300
 
@@ -16,7 +16,7 @@
 
 class TTLvglEpdDriver {
 public:
-    using EPaperDisplay = GxEPD2_BW<GxEPD2_420_SSD1619, GxEPD2_420_SSD1619::HEIGHT>;
+    using EPaperDisplay = GxEPD2_BW<GxEPD2_420_HinkE042A13, GxEPD2_420_HinkE042A13::HEIGHT>;
 
     bool begin(EPaperDisplay& display);
     void requestRefresh(bool fullRefresh = false);

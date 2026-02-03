@@ -1,7 +1,7 @@
-// Copy of GxEPD2_420_GDEY042T81 implementation for 400x300 panel (SSD1619/SSD1683).
+// Panel: HINK-E042A13-A0, 4.2" 400x300 BW. Controller: SSD1619.
 // Partial update uses OPM42 (SSD1619) flow: 0x21 0x00 + partial LUT (0x32) on first use, then 0x20 only.
 
-#include "GxEPD2_420_SSD1619.h"
+#include "GxEPD2_420_HinkE042A13.h"
 
 #define LUT_PARTIAL_BYTES 70U
 
@@ -20,19 +20,19 @@ static const uint8_t LUT_PARTIAL_SSD1619[LUT_PARTIAL_BYTES] = {
     0x00, 0x00, 0x00, 0x00, 0x00,
 };
 
-GxEPD2_420_SSD1619::GxEPD2_420_SSD1619(int16_t cs, int16_t dc, int16_t rst, int16_t busy) :
+GxEPD2_420_HinkE042A13::GxEPD2_420_HinkE042A13(int16_t cs, int16_t dc, int16_t rst, int16_t busy) :
   GxEPD2_EPD(cs, dc, rst, busy, HIGH, 10000000, WIDTH, HEIGHT, panel, hasColor, hasPartialUpdate, hasFastPartialUpdate)
 {
   _use_fast_update = useFastFullUpdate;
   _partial_lut_loaded = false;
 }
 
-void GxEPD2_420_SSD1619::selectFastFullUpdate(bool ff)
+void GxEPD2_420_HinkE042A13::selectFastFullUpdate(bool ff)
 {
   _use_fast_update = ff;
 }
 
-void GxEPD2_420_SSD1619::clearScreen(uint8_t value)
+void GxEPD2_420_HinkE042A13::clearScreen(uint8_t value)
 {
   _writeScreenBuffer(0x26, value);
   _writeScreenBuffer(0x24, value);
@@ -40,19 +40,19 @@ void GxEPD2_420_SSD1619::clearScreen(uint8_t value)
   _initial_write = false;
 }
 
-void GxEPD2_420_SSD1619::writeScreenBuffer(uint8_t value)
+void GxEPD2_420_HinkE042A13::writeScreenBuffer(uint8_t value)
 {
   if (_initial_write) return clearScreen(value);
   _writeScreenBuffer(0x24, value);
 }
 
-void GxEPD2_420_SSD1619::writeScreenBufferAgain(uint8_t value)
+void GxEPD2_420_HinkE042A13::writeScreenBufferAgain(uint8_t value)
 {
   _writeScreenBuffer(0x24, value);
   _writeScreenBuffer(0x26, value);
 }
 
-void GxEPD2_420_SSD1619::_writeScreenBuffer(uint8_t command, uint8_t value)
+void GxEPD2_420_HinkE042A13::_writeScreenBuffer(uint8_t command, uint8_t value)
 {
   if (!_init_display_done) _InitDisplay();
   _setPartialRamArea(0, 0, WIDTH, HEIGHT);
@@ -65,24 +65,24 @@ void GxEPD2_420_SSD1619::_writeScreenBuffer(uint8_t command, uint8_t value)
   _endTransfer();
 }
 
-void GxEPD2_420_SSD1619::writeImage(const uint8_t bitmap[], int16_t x, int16_t y, int16_t w, int16_t h, bool invert, bool mirror_y, bool pgm)
+void GxEPD2_420_HinkE042A13::writeImage(const uint8_t bitmap[], int16_t x, int16_t y, int16_t w, int16_t h, bool invert, bool mirror_y, bool pgm)
 {
   _writeImage(0x24, bitmap, x, y, w, h, invert, mirror_y, pgm);
 }
 
-void GxEPD2_420_SSD1619::writeImageForFullRefresh(const uint8_t bitmap[], int16_t x, int16_t y, int16_t w, int16_t h, bool invert, bool mirror_y, bool pgm)
-{
-  _writeImage(0x26, bitmap, x, y, w, h, invert, mirror_y, pgm);
-  _writeImage(0x24, bitmap, x, y, w, h, invert, mirror_y, pgm);
-}
-
-void GxEPD2_420_SSD1619::writeImageAgain(const uint8_t bitmap[], int16_t x, int16_t y, int16_t w, int16_t h, bool invert, bool mirror_y, bool pgm)
+void GxEPD2_420_HinkE042A13::writeImageForFullRefresh(const uint8_t bitmap[], int16_t x, int16_t y, int16_t w, int16_t h, bool invert, bool mirror_y, bool pgm)
 {
   _writeImage(0x26, bitmap, x, y, w, h, invert, mirror_y, pgm);
   _writeImage(0x24, bitmap, x, y, w, h, invert, mirror_y, pgm);
 }
 
-void GxEPD2_420_SSD1619::_writeImage(uint8_t command, const uint8_t bitmap[], int16_t x, int16_t y, int16_t w, int16_t h, bool invert, bool mirror_y, bool pgm)
+void GxEPD2_420_HinkE042A13::writeImageAgain(const uint8_t bitmap[], int16_t x, int16_t y, int16_t w, int16_t h, bool invert, bool mirror_y, bool pgm)
+{
+  _writeImage(0x26, bitmap, x, y, w, h, invert, mirror_y, pgm);
+  _writeImage(0x24, bitmap, x, y, w, h, invert, mirror_y, pgm);
+}
+
+void GxEPD2_420_HinkE042A13::_writeImage(uint8_t command, const uint8_t bitmap[], int16_t x, int16_t y, int16_t w, int16_t h, bool invert, bool mirror_y, bool pgm)
 {
   delay(1);
   int16_t wb = (w + 7) / 8;
@@ -128,20 +128,20 @@ void GxEPD2_420_SSD1619::_writeImage(uint8_t command, const uint8_t bitmap[], in
   delay(1);
 }
 
-void GxEPD2_420_SSD1619::writeImagePart(const uint8_t bitmap[], int16_t x_part, int16_t y_part, int16_t w_bitmap, int16_t h_bitmap,
+void GxEPD2_420_HinkE042A13::writeImagePart(const uint8_t bitmap[], int16_t x_part, int16_t y_part, int16_t w_bitmap, int16_t h_bitmap,
     int16_t x, int16_t y, int16_t w, int16_t h, bool invert, bool mirror_y, bool pgm)
 {
   _writeImagePart(0x24, bitmap, x_part, y_part, w_bitmap, h_bitmap, x, y, w, h, invert, mirror_y, pgm);
 }
 
-void GxEPD2_420_SSD1619::writeImagePartAgain(const uint8_t bitmap[], int16_t x_part, int16_t y_part, int16_t w_bitmap, int16_t h_bitmap,
+void GxEPD2_420_HinkE042A13::writeImagePartAgain(const uint8_t bitmap[], int16_t x_part, int16_t y_part, int16_t w_bitmap, int16_t h_bitmap,
     int16_t x, int16_t y, int16_t w, int16_t h, bool invert, bool mirror_y, bool pgm)
 {
   _writeImagePart(0x24, bitmap, x_part, y_part, w_bitmap, h_bitmap, x, y, w, h, invert, mirror_y, pgm);
   _writeImagePart(0x26, bitmap, x_part, y_part, w_bitmap, h_bitmap, x, y, w, h, invert, mirror_y, pgm);
 }
 
-void GxEPD2_420_SSD1619::_writeImagePart(uint8_t command, const uint8_t bitmap[], int16_t x_part, int16_t y_part, int16_t w_bitmap, int16_t h_bitmap,
+void GxEPD2_420_HinkE042A13::_writeImagePart(uint8_t command, const uint8_t bitmap[], int16_t x_part, int16_t y_part, int16_t w_bitmap, int16_t h_bitmap,
     int16_t x, int16_t y, int16_t w, int16_t h, bool invert, bool mirror_y, bool pgm)
 {
   delay(1);
@@ -194,7 +194,7 @@ void GxEPD2_420_SSD1619::_writeImagePart(uint8_t command, const uint8_t bitmap[]
   delay(1);
 }
 
-void GxEPD2_420_SSD1619::writeImage(const uint8_t* black, const uint8_t* color, int16_t x, int16_t y, int16_t w, int16_t h, bool invert, bool mirror_y, bool pgm)
+void GxEPD2_420_HinkE042A13::writeImage(const uint8_t* black, const uint8_t* color, int16_t x, int16_t y, int16_t w, int16_t h, bool invert, bool mirror_y, bool pgm)
 {
   if (black)
   {
@@ -202,7 +202,7 @@ void GxEPD2_420_SSD1619::writeImage(const uint8_t* black, const uint8_t* color, 
   }
 }
 
-void GxEPD2_420_SSD1619::writeImagePart(const uint8_t* black, const uint8_t* color, int16_t x_part, int16_t y_part, int16_t w_bitmap, int16_t h_bitmap,
+void GxEPD2_420_HinkE042A13::writeImagePart(const uint8_t* black, const uint8_t* color, int16_t x_part, int16_t y_part, int16_t w_bitmap, int16_t h_bitmap,
     int16_t x, int16_t y, int16_t w, int16_t h, bool invert, bool mirror_y, bool pgm)
 {
   if (black)
@@ -211,7 +211,7 @@ void GxEPD2_420_SSD1619::writeImagePart(const uint8_t* black, const uint8_t* col
   }
 }
 
-void GxEPD2_420_SSD1619::writeNative(const uint8_t* data1, const uint8_t* data2, int16_t x, int16_t y, int16_t w, int16_t h, bool invert, bool mirror_y, bool pgm)
+void GxEPD2_420_HinkE042A13::writeNative(const uint8_t* data1, const uint8_t* data2, int16_t x, int16_t y, int16_t w, int16_t h, bool invert, bool mirror_y, bool pgm)
 {
   if (data1)
   {
@@ -219,14 +219,14 @@ void GxEPD2_420_SSD1619::writeNative(const uint8_t* data1, const uint8_t* data2,
   }
 }
 
-void GxEPD2_420_SSD1619::drawImage(const uint8_t bitmap[], int16_t x, int16_t y, int16_t w, int16_t h, bool invert, bool mirror_y, bool pgm)
+void GxEPD2_420_HinkE042A13::drawImage(const uint8_t bitmap[], int16_t x, int16_t y, int16_t w, int16_t h, bool invert, bool mirror_y, bool pgm)
 {
   writeImage(bitmap, x, y, w, h, invert, mirror_y, pgm);
   refresh(x, y, w, h);
   writeImageAgain(bitmap, x, y, w, h, invert, mirror_y, pgm);
 }
 
-void GxEPD2_420_SSD1619::drawImagePart(const uint8_t bitmap[], int16_t x_part, int16_t y_part, int16_t w_bitmap, int16_t h_bitmap,
+void GxEPD2_420_HinkE042A13::drawImagePart(const uint8_t bitmap[], int16_t x_part, int16_t y_part, int16_t w_bitmap, int16_t h_bitmap,
     int16_t x, int16_t y, int16_t w, int16_t h, bool invert, bool mirror_y, bool pgm)
 {
   writeImagePart(bitmap, x_part, y_part, w_bitmap, h_bitmap, x, y, w, h, invert, mirror_y, pgm);
@@ -234,7 +234,7 @@ void GxEPD2_420_SSD1619::drawImagePart(const uint8_t bitmap[], int16_t x_part, i
   writeImagePartAgain(bitmap, x_part, y_part, w_bitmap, h_bitmap, x, y, w, h, invert, mirror_y, pgm);
 }
 
-void GxEPD2_420_SSD1619::drawImage(const uint8_t* black, const uint8_t* color, int16_t x, int16_t y, int16_t w, int16_t h, bool invert, bool mirror_y, bool pgm)
+void GxEPD2_420_HinkE042A13::drawImage(const uint8_t* black, const uint8_t* color, int16_t x, int16_t y, int16_t w, int16_t h, bool invert, bool mirror_y, bool pgm)
 {
   if (black)
   {
@@ -242,7 +242,7 @@ void GxEPD2_420_SSD1619::drawImage(const uint8_t* black, const uint8_t* color, i
   }
 }
 
-void GxEPD2_420_SSD1619::drawImagePart(const uint8_t* black, const uint8_t* color, int16_t x_part, int16_t y_part, int16_t w_bitmap, int16_t h_bitmap,
+void GxEPD2_420_HinkE042A13::drawImagePart(const uint8_t* black, const uint8_t* color, int16_t x_part, int16_t y_part, int16_t w_bitmap, int16_t h_bitmap,
     int16_t x, int16_t y, int16_t w, int16_t h, bool invert, bool mirror_y, bool pgm)
 {
   if (black)
@@ -251,7 +251,7 @@ void GxEPD2_420_SSD1619::drawImagePart(const uint8_t* black, const uint8_t* colo
   }
 }
 
-void GxEPD2_420_SSD1619::drawNative(const uint8_t* data1, const uint8_t* data2, int16_t x, int16_t y, int16_t w, int16_t h, bool invert, bool mirror_y, bool pgm)
+void GxEPD2_420_HinkE042A13::drawNative(const uint8_t* data1, const uint8_t* data2, int16_t x, int16_t y, int16_t w, int16_t h, bool invert, bool mirror_y, bool pgm)
 {
   if (data1)
   {
@@ -259,7 +259,7 @@ void GxEPD2_420_SSD1619::drawNative(const uint8_t* data1, const uint8_t* data2, 
   }
 }
 
-void GxEPD2_420_SSD1619::refresh(bool partial_update_mode)
+void GxEPD2_420_HinkE042A13::refresh(bool partial_update_mode)
 {
   if (partial_update_mode) refresh(0, 0, WIDTH, HEIGHT);
   else
@@ -269,7 +269,7 @@ void GxEPD2_420_SSD1619::refresh(bool partial_update_mode)
   }
 }
 
-void GxEPD2_420_SSD1619::refresh(int16_t x, int16_t y, int16_t w, int16_t h)
+void GxEPD2_420_HinkE042A13::refresh(int16_t x, int16_t y, int16_t w, int16_t h)
 {
   if (_initial_refresh) return refresh(false);
   int16_t w1 = x < 0 ? w + x : w;
@@ -286,12 +286,12 @@ void GxEPD2_420_SSD1619::refresh(int16_t x, int16_t y, int16_t w, int16_t h)
   _Update_Part();
 }
 
-void GxEPD2_420_SSD1619::powerOff()
+void GxEPD2_420_HinkE042A13::powerOff()
 {
   _PowerOff();
 }
 
-void GxEPD2_420_SSD1619::hibernate()
+void GxEPD2_420_HinkE042A13::hibernate()
 {
   _PowerOff();
   if (_rst >= 0)
@@ -303,7 +303,7 @@ void GxEPD2_420_SSD1619::hibernate()
   }
 }
 
-void GxEPD2_420_SSD1619::_setPartialRamArea(uint16_t x, uint16_t y, uint16_t w, uint16_t h)
+void GxEPD2_420_HinkE042A13::_setPartialRamArea(uint16_t x, uint16_t y, uint16_t w, uint16_t h)
 {
   _writeCommand(0x11);
   _writeData(0x03);
@@ -322,7 +322,7 @@ void GxEPD2_420_SSD1619::_setPartialRamArea(uint16_t x, uint16_t y, uint16_t w, 
   _writeData(y / 256);
 }
 
-void GxEPD2_420_SSD1619::_PowerOn()
+void GxEPD2_420_HinkE042A13::_PowerOn()
 {
   if (!_power_is_on)
   {
@@ -334,7 +334,7 @@ void GxEPD2_420_SSD1619::_PowerOn()
   _power_is_on = true;
 }
 
-void GxEPD2_420_SSD1619::_PowerOff()
+void GxEPD2_420_HinkE042A13::_PowerOff()
 {
   if (_power_is_on)
   {
@@ -348,7 +348,7 @@ void GxEPD2_420_SSD1619::_PowerOff()
   _partial_lut_loaded = false;
 }
 
-void GxEPD2_420_SSD1619::_InitDisplay()
+void GxEPD2_420_HinkE042A13::_InitDisplay()
 {
   if (_hibernating) _reset();
   delay(10);
@@ -366,7 +366,7 @@ void GxEPD2_420_SSD1619::_InitDisplay()
   _init_display_done = true;
 }
 
-void GxEPD2_420_SSD1619::_Update_Full()
+void GxEPD2_420_HinkE042A13::_Update_Full()
 {
   _writeCommand(0x21);
   _writeData(0x40);
@@ -389,7 +389,7 @@ void GxEPD2_420_SSD1619::_Update_Full()
   _partial_lut_loaded = false;
 }
 
-void GxEPD2_420_SSD1619::_Update_Part()
+void GxEPD2_420_HinkE042A13::_Update_Part()
 {
   if (!_partial_lut_loaded)
   {

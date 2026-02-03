@@ -1,6 +1,6 @@
 # SSD1619 局部刷新实现分析
 
-## 最终实现小结（lib/GxEPD2_420_SSD1619）
+## 最终实现小结（lib/GxEPD2_420_HinkE042A13，屏型号 HINK-E042A13-A0）
 
 - **局刷窗口**：`_setPartialRamArea()` 使用 0x11 0x03、0x44（X 起/止）、0x45（Y 起/止）、0x4e/0x4f（RAM 指针），与数据手册及 EPaperDrive OPM42 一致。
 - **局刷 LUT**：首次局刷时发送 0x21 0x00，再 0x32 + 70 字节 `LUT_PARTIAL_SSD1619`（源于 OPM42 `LUTDefault_part_opm42`），第一组 TP 取 0x0c,0x0c,0x00,0x0c,0x01 以减轻残影。
@@ -126,7 +126,7 @@
 
 ---
 
-下文参考 `demo/EPaperDrive-main`（**OPM42 = SSD1619**，WF42 = UC8176）与数据手册，对照 `lib/GxEPD2_420_SSD1619` 的最终实现与排查要点。
+下文参考 `demo/EPaperDrive-main`（**OPM42 = SSD1619**，WF42 = UC8176）与数据手册，对照 `lib/GxEPD2_420_HinkE042A13`（HINK-E042A13-A0）的最终实现与排查要点。
 
 ---
 
@@ -179,7 +179,7 @@
 
 ## 三、当前项目中的实现（最终）
 
-### 1. GxEPD2_420_SSD1619（lib）
+### 1. GxEPD2_420_HinkE042A13（lib，屏 HINK-E042A13-A0）
 
 - **局部窗口** `_setPartialRamArea()`：
   - **0x11 0x03**、**0x44**（X 起/止，按 8 像素）、**0x45**（Y 起/止，各 2 字节）、**0x4e/0x4f**（RAM 指针），与数据手册及 OPM42 一致。
@@ -202,11 +202,11 @@
 
 ## 四、与 EPaperDrive OPM42 的对应关系（最终）
 
-| 项目           | EPaperDrive OPM42 (SSD1619) | GxEPD2_420_SSD1619（最终） |
+| 项目           | EPaperDrive OPM42 (SSD1619) | GxEPD2_420_HinkE042A13（最终） |
 |----------------|-----------------------------|-----------------------------|
 | 局部窗口       | 0x44 (X起/止), 0x45 (Y起/止) | 0x11 0x03, 0x44, 0x45, 0x4e, 0x4f（一致） |
 | RAM 指针       | 0x4e, 0x4f                  | 0x4e, 0x4f（一致）         |
-| 局刷 LUT       | LUTDefault_part_opm42，0x21 0x00 后 0x32 写入 | LUT_PARTIAL_SSD1619（同源），首次局刷时 0x21 0x00 + 0x32 |
+| 局刷 LUT       | LUTDefault_part_opm42，0x21 0x00 后 0x32 写入 | LUT_PARTIAL_SSD1619（同源，控制器 SSD1619），首次局刷时 0x21 0x00 + 0x32 |
 | 局刷 LUT 微调  | —                           | 第一组 TP 0x0c,0x0c,0x00,0x0c（减轻残影） |
 | 局部刷新触发   | 仅 **0x20**                 | **0x22 0xC7** + **0x20**（0xC7 使能 Clock+ANALOG 再 DISPLAY，不 Load OTP） |
 | 数据写 RAM     | 0x24                        | 0x24（一致）               |

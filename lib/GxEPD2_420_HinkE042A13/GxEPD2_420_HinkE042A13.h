@@ -1,14 +1,12 @@
-// Copy of GxEPD2_420_GDEY042T81 for 400x300 panel (SSD1619 or SSD1683 compatible).
-// Full implementation from GxEPD2 to ensure basic display works.
-//
-// Panel: 4.2" 400x300 BW. Controller: SSD1683 (GDEY042T81) sequence.
+// Panel: HINK-E042A13-A0, 4.2" 400x300 BW. Controller: SSD1619.
+// Driver derived from GxEPD2 420-style EPD, with partial refresh (OPM42/SSD1619 flow).
 
-#ifndef _GxEPD2_420_SSD1619_H_
-#define _GxEPD2_420_SSD1619_H_
+#ifndef _GxEPD2_420_HinkE042A13_H_
+#define _GxEPD2_420_HinkE042A13_H_
 
 #include <GxEPD2_EPD.h>
 
-class GxEPD2_420_SSD1619 : public GxEPD2_EPD
+class GxEPD2_420_HinkE042A13 : public GxEPD2_EPD
 {
 public:
     static const uint16_t WIDTH = 400;
@@ -24,7 +22,7 @@ public:
     static const uint16_t full_refresh_time = 1200;
     static const uint16_t partial_refresh_time = 400;
 
-    GxEPD2_420_SSD1619(int16_t cs, int16_t dc, int16_t rst, int16_t busy);
+    GxEPD2_420_HinkE042A13(int16_t cs, int16_t dc, int16_t rst, int16_t busy);
 
     void clearScreen(uint8_t value = 0xFF);
     void writeScreenBuffer(uint8_t value = 0xFF);
