@@ -70,6 +70,7 @@ private:
 
 private:
     bool _use_fast_update;
+    bool _partial_lut_loaded;
 };
 
 #endif
