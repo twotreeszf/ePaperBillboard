@@ -1,4 +1,5 @@
 #include "TTLvglEpdDriver.h"
+#include <EPDConfig.h>
 #include "Logger.h"
 
 // Static draw buffer - must be aligned for LVGL 9.x
@@ -63,8 +64,7 @@ void TTLvglEpdDriver::flushCallback(lv_display_t* disp, const lv_area_t* area, u
 
     LOG_I("Flush area: (%d,%d)-(%d,%d), size %dx%d", x1, y1, x2, y2, w, h);
 
-    // Set rotation: 0 = 0° (was 3; user requested +90° CW → 270°+90° = 0°)
-    pThis->_epd->setRotation(0);
+    pThis->_epd->setRotation(EPD_ROTATION);
 
     bool doFullRefresh = pThis->_needFullRefresh ||
                          (pThis->_partialCount >= EPD_FULL_REFRESH_INTERVAL);

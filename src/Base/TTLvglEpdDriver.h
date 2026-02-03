@@ -1,22 +1,10 @@
 #pragma once
 
-#include <GxEPD2_BW.h>
-#include <GxEPD2_420_HinkE042A13.h>
+#include <EPDConfig.h>
 #include <lvgl.h>
-
-// Display dimensions (HINK-E042A13-A0 4.2" 400x300, SSD1619 with partial refresh)
-#define EPD_WIDTH   400
-#define EPD_HEIGHT  300
-
-// Buffer size for 1bpp: (width * height / 8) + 8 bytes for palette
-#define EPD_BUF_SIZE ((EPD_WIDTH * EPD_HEIGHT / 8) + 8)
-
-// Full refresh interval to prevent ghosting
-#define EPD_FULL_REFRESH_INTERVAL 10
 
 class TTLvglEpdDriver {
 public:
-    using EPaperDisplay = GxEPD2_BW<GxEPD2_420_HinkE042A13, GxEPD2_420_HinkE042A13::HEIGHT>;
 
     bool begin(EPaperDisplay& display);
     void requestRefresh(bool fullRefresh = false);
