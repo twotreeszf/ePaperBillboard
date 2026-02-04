@@ -27,8 +27,6 @@ void TTKeypadInput::keypadReadCb(lv_indev_t* indev, lv_indev_data_t* data) {
 void TTKeypadInput::emitKey(uint32_t key) {
     _pendingKey = key;
     _pendingPress = true;
-    lv_indev_read(_indev);
-    lv_indev_read(_indev);
 }
 
 bool TTKeypadInput::begin(lv_display_t* display) {
@@ -49,9 +47,9 @@ bool TTKeypadInput::begin(lv_display_t* display) {
     lv_indev_set_read_cb(_indev, keypadReadCb);
     lv_indev_set_user_data(_indev, this);
     lv_indev_set_display(_indev, display);
-    lv_indev_set_mode(_indev, LV_INDEV_MODE_EVENT);
+    lv_indev_set_mode(_indev, LV_INDEV_MODE_TIMER);
 
-    LOG_I("Keypad input: L=%d R=%d C=%d (event-driven, no pullup)", PIN_BUTTONL, PIN_BUTTONR, PIN_BUTTONC);
+    LOG_I("Keypad input: L=%d R=%d C=%d (indev TIMER mode)", PIN_BUTTONL, PIN_BUTTONR, PIN_BUTTONC);
     return true;
 }
 
