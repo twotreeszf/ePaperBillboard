@@ -19,7 +19,7 @@ private:
     static void timerCb(lv_timer_t* t);
     void onTimerTick();
     void updateTime();
-    void updateSensorDisplay();
+    void updateSensorDisplay(float temperature, float humidity, float pressure);
     void updateClockDisplay();
 
     lv_timer_t* _timer = nullptr;
@@ -30,7 +30,4 @@ private:
     uint8_t _minutes = 0;
     uint8_t _seconds = 0;
     unsigned long _lastUpdateMs = 0;
-    float _temperature = 0.0f;
-    float _humidity = 0.0f;
-    float _pressure = 0.0f;
 };

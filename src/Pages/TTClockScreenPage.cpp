@@ -60,11 +60,9 @@ void TTClockScreenPage::setup() {
     TTInstanceOf<TTNotificationCenter>().subscribe<TTSensorDataPayload>(
         TT_NOTIFICATION_SENSOR_DATA_UPDATE, this,
         [this](const TTSensorDataPayload& p) {
-            _temperature = p.temperature;
-            _humidity = p.humidity;
-            _pressure = p.pressure;
-            updateSensorDisplay();
+            updateSensorDisplay(p.temperature, p.humidity, p.pressure);
             requestRefresh(false);
+            LOG_I("Sensor data updated.");
         });
 }
 
@@ -114,15 +112,16 @@ void TTClockScreenPage::onTimerTick() {
 
     if (needRefresh) {
         updateClockDisplay();
-        LOG_I("Display refreshed.");
+        requestRefresh(false);
+        LOG_I("Clock refreshed.");
     }
 }
 
-void TTClockScreenPage::updateSensorDisplay() {
+void TTClockScreenPage::updateSensorDisplay(float temperature, float humidity, float pressure) {
     char sensorStr[96];
     snprintf(sensorStr, sizeof(sensorStr),
              "温度:%.1f℃ | 湿度:%.1f%% | 气压:%.0f hPag",
-             _temperature, _humidity, _pressure);
+             temperature, humidity, pressure);
     lv_label_set_text(_statusLabel, sensorStr);
 }
 
@@ -130,5 +129,4 @@ void TTClockScreenPage::updateClockDisplay() {
     char timeStr[8];
     snprintf(timeStr, sizeof(timeStr), "%02d:%02d", _hours, _minutes);
     lv_label_set_text(_timeLabel, timeStr);
-    requestRefresh(false);
 }
