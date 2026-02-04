@@ -15,6 +15,7 @@ void TTNavigationController::setRoot(std::unique_ptr<TTScreenPage> page) {
     _stack.push_back(std::move(page));
     _stack.back()->setNavigationController(this);
     loadScreen(_stack.back().get());
+    requestRefresh(_stack.back().get(), false);
 }
 
 void TTNavigationController::push(std::unique_ptr<TTScreenPage> page) {
@@ -28,6 +29,7 @@ void TTNavigationController::push(std::unique_ptr<TTScreenPage> page) {
     loadScreen(raw);
     _stack.push_back(std::move(page));
     _stack.back()->setNavigationController(this);
+    requestRefresh(_stack.back().get(), false);
 }
 
 void TTNavigationController::pop() {
@@ -41,12 +43,7 @@ void TTNavigationController::pop() {
     loadScreen(prev);
     _stack.back()->willDestroy();
     _stack.pop_back();
-}
-
-void TTNavigationController::tick() {
-    if (!_stack.empty()) {
-        _stack.back()->loop();
-    }
+    requestRefresh(_stack.back().get(), false);
 }
 
 TTScreenPage* TTNavigationController::getCurrentPage() {

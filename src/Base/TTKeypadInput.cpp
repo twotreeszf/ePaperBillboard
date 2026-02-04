@@ -2,19 +2,6 @@
 #include "Logger.h"
 #include <OneButton.h>
 
-#define BUTTON_ACTIVE_LOW  true
-#define BUTTON_PULLUP      false
-
-static void onLeftClickCb(void* param) {
-    ((TTKeypadInput*)param)->onLeftClick();
-}
-static void onRightClickCb(void* param) {
-    ((TTKeypadInput*)param)->onRightClick();
-}
-static void onCenterClickCb(void* param) {
-    ((TTKeypadInput*)param)->onCenterClick();
-}
-
 void TTKeypadInput::keypadReadCb(lv_indev_t* indev, lv_indev_data_t* data) {
     TTKeypadInput* self = (TTKeypadInput*)lv_indev_get_user_data(indev);
     if (self == nullptr) {
@@ -37,35 +24,21 @@ void TTKeypadInput::keypadReadCb(lv_indev_t* indev, lv_indev_data_t* data) {
     }
 }
 
-void TTKeypadInput::onLeftClick() {
-    _pendingKey = LV_KEY_LEFT;
-    _pendingPress = true;
-    lv_indev_read(_indev);
-    lv_indev_read(_indev);
-}
-
-void TTKeypadInput::onRightClick() {
-    _pendingKey = LV_KEY_RIGHT;
-    _pendingPress = true;
-    lv_indev_read(_indev);
-    lv_indev_read(_indev);
-}
-
-void TTKeypadInput::onCenterClick() {
-    _pendingKey = LV_KEY_ENTER;
+void TTKeypadInput::emitKey(uint32_t key) {
+    _pendingKey = key;
     _pendingPress = true;
     lv_indev_read(_indev);
     lv_indev_read(_indev);
 }
 
 bool TTKeypadInput::begin(lv_display_t* display) {
-    _btnL = new OneButton(PIN_BUTTONL, BUTTON_ACTIVE_LOW, BUTTON_PULLUP);
-    _btnR = new OneButton(PIN_BUTTONR, BUTTON_ACTIVE_LOW, BUTTON_PULLUP);
-    _btnC = new OneButton(PIN_BUTTONC, BUTTON_ACTIVE_LOW, BUTTON_PULLUP);
+    _btnL = new OneButton(PIN_BUTTONL);
+    _btnR = new OneButton(PIN_BUTTONR);
+    _btnC = new OneButton(PIN_BUTTONC);
 
-    _btnL->attachClick(onLeftClickCb, this);
-    _btnR->attachClick(onRightClickCb, this);
-    _btnC->attachClick(onCenterClickCb, this);
+    _btnL->attachClick([](void* param) { static_cast<TTKeypadInput*>(param)->emitKey(LV_KEY_LEFT); }, this);
+    _btnR->attachClick([](void* param) { static_cast<TTKeypadInput*>(param)->emitKey(LV_KEY_RIGHT); }, this);
+    _btnC->attachClick([](void* param) { static_cast<TTKeypadInput*>(param)->emitKey(LV_KEY_ENTER); }, this);
 
     pinMode(PIN_BUTTONL, INPUT);
     pinMode(PIN_BUTTONR, INPUT);

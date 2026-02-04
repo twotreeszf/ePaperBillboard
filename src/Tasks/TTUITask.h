@@ -7,6 +7,8 @@
 #include "../Base/TTNavigationController.h"
 #include "../Base/TTKeypadInput.h"
 
+#define TT_UI_LOOP_DELAY_MS  5
+
 #define TT_UI_EPD_MOSI  4
 #define TT_UI_EPD_SCK   16
 #define TT_UI_EPD_CS    17

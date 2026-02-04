@@ -14,8 +14,6 @@ public:
     void push(std::unique_ptr<TTScreenPage> page);
     void pop();
 
-    void tick();
-
     TTScreenPage* getCurrentPage();
     void requestRefresh(TTScreenPage* page, bool fullRefresh);
 

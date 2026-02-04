@@ -1,5 +1,4 @@
 #include "TTUITask.h"
-#include "TTKeypadTask.h"
 #include "../Pages/TTClockScreenPage.h"
 #include <SPI.h>
 #include <LittleFS.h>
@@ -35,13 +34,11 @@ void TTUITask::setup() {
     ERR_CHECK_FAIL(_keypad.begin(disp));
     _nav.setKeypadInput(&_keypad);
 
-    TTInstanceOf<TTKeypadTask>().setKeypad(&_keypad);
-    TTInstanceOf<TTKeypadTask>().start(0);
     LOG_I("UI task started.");
 }
 
 void TTUITask::loop() {
     lv_timer_handler();
-    _nav.tick();
-    vTaskDelay(pdMS_TO_TICKS(1000));
+    _keypad.tick();
+    vTaskDelay(pdMS_TO_TICKS(TT_UI_LOOP_DELAY_MS));
 }

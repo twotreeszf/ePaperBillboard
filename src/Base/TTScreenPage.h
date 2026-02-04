@@ -26,9 +26,6 @@ public:
     /** Called when this page is about to leave the top (setRoot/push/pop). */
     virtual void willDisappear() {}
 
-    /** Called every tick by the nav controller for the current top page only. */
-    virtual void loop() {}
-
 protected:
     lv_group_t* createGroup();
 

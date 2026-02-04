@@ -395,7 +395,7 @@ void createUI() {
 
 `main.cpp` starts two FreeRTOS tasks and then idles:
 
-- **TTUITask** (core 0): SPI, LittleFS, LVGL, E-Paper driver, navigation, popup layer; root page is `TTClockScreenPage`. Runs `lv_timer_handler()` and `_nav.tick()` every 1 s.
+- **TTUITask** (core 0): SPI, LittleFS, LVGL, E-Paper driver, navigation, popup layer; root page is `TTClockScreenPage`. Runs `lv_timer_handler()` and `_keypad.tick()` every `TT_UI_LOOP_DELAY_MS` (5 ms). Pages that need periodic work use their own timers (e.g. LVGL `lv_timer_t`).
 - **TTSensorTask** (core 1): I2C, AHT20 (temp/humidity), BMP280 (pressure). Reads sensors every `TT_SENSOR_UPDATE_INTERVAL` (10 min), then posts `TT_NOTIFICATION_SENSOR_DATA_UPDATE` to the UI task.
 
 **TTWiFiTask** exists but is not started in `main.cpp`; add it if you need WiFi/AP config.
@@ -408,13 +408,13 @@ void createUI() {
 
 ### UI Stack
 
-- **TTNavigationController**: Stack of `TTScreenPage`; `setRoot` / `push` / `pop`; `tick()` calls `loop()` on the top page only. Binds keypad indev to the current page’s group on each `loadScreen()`.
+- **TTNavigationController**: Stack of `TTScreenPage`; `setRoot` / `push` / `pop`; Binds keypad indev to the current page’s group on each `loadScreen()`. No built-in tick; pages use their own timers for periodic work.
 - **TTScreenPage**: Lifecycle: `createScreen()` → `buildContent(screen)` → `setup()` (e.g. subscribe); then `willAppear` / `willDisappear` on navigation; `willDestroy()` on teardown (unsubscribe). Call `requestRefresh(fullRefresh)` to trigger E-Paper update. Optional focus: call `createGroup()` then `addToFocusGroup(obj)` for widgets that should receive keypad focus (see [Keypad & focus](#keypad--focus)).
 - **TTPopupLayer**: Top LVGL layer for toasts/overlays; `showToast(text, durationMs)`, `dismissToast()`.
 
 ### Keypad & focus
 
-Hardware: three-button dial (Left GPIO 35, Right GPIO 39, Center GPIO 34) via **TTKeypadInput**; **TTKeypadTask** runs `tick()` at 15 ms on core 0. Keypad is event-driven and does not create or own LVGL groups. **TTNavigationController** switches the keypad’s group when the active page changes.
+Hardware: three-button dial (Left GPIO 35, Right GPIO 39, Center GPIO 34) via **TTKeypadInput**; **TTUITask** calls `_keypad.tick()` in its loop (every `TT_UI_LOOP_DELAY_MS`). Keypad is event-driven and does not create or own LVGL groups. **TTNavigationController** switches the keypad’s group when the active page changes.
 
 #### Button mapping
 

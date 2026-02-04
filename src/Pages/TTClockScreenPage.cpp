@@ -52,6 +52,10 @@ void TTClockScreenPage::setup() {
     TTScreenPage::setup();
     _lastUpdateMs = millis();
     updateClockDisplay();
+    _timer = lv_timer_create([](lv_timer_t* t) {
+        auto* page = static_cast<TTClockScreenPage*>(lv_timer_get_user_data(t));
+        if (page != nullptr) page->onTimerTick();
+    }, TT_CLOCK_TIMER_MS, this);
     TTInstanceOf<TTPopupLayer>().showToast("正在读取传感器...", 2000);
     TTInstanceOf<TTNotificationCenter>().subscribe<TTSensorDataPayload>(
         TT_NOTIFICATION_SENSOR_DATA_UPDATE, this,
@@ -65,6 +69,10 @@ void TTClockScreenPage::setup() {
 }
 
 void TTClockScreenPage::willDestroy() {
+    if (_timer != nullptr) {
+        lv_timer_delete(_timer);
+        _timer = nullptr;
+    }
     TTInstanceOf<TTNotificationCenter>().unsubscribeByObserver(this);
     TTScreenPage::willDestroy();
 }
@@ -92,7 +100,7 @@ void TTClockScreenPage::updateTime() {
     }
 }
 
-void TTClockScreenPage::loop() {
+void TTClockScreenPage::onTimerTick() {
     updateTime();
 
     static uint8_t lastMinute = 255;

@@ -18,9 +18,7 @@ public:
 
     lv_indev_t* getIndev() const { return _indev; }
 
-    void onLeftClick();
-    void onRightClick();
-    void onCenterClick();
+    void emitKey(uint32_t key);
 
 private:
     static void keypadReadCb(lv_indev_t* indev, lv_indev_data_t* data);
