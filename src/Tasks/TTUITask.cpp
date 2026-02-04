@@ -1,4 +1,5 @@
 #include "TTUITask.h"
+#include "TTKeypadTask.h"
 #include "../Pages/TTClockScreenPage.h"
 #include <SPI.h>
 #include <LittleFS.h>
@@ -30,6 +31,12 @@ void TTUITask::setup() {
 
     _nav.setRoot(std::unique_ptr<TTClockScreenPage>(new TTClockScreenPage()));
 
+    lv_display_t* disp = TTInstanceOf<TTLvglEpdDriver>().getDisplay();
+    ERR_CHECK_FAIL(_keypad.begin(disp));
+    _nav.setKeypadInput(&_keypad);
+
+    TTInstanceOf<TTKeypadTask>().setKeypad(&_keypad);
+    TTInstanceOf<TTKeypadTask>().start(0);
     LOG_I("UI task started.");
 }
 

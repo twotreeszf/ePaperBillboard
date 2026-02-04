@@ -1,4 +1,5 @@
 #include "TTNavigationController.h"
+#include "TTKeypadInput.h"
 #include "Logger.h"
 #include "TTInstance.h"
 #include "TTLvglEpdDriver.h"
@@ -53,8 +54,10 @@ TTScreenPage* TTNavigationController::getCurrentPage() {
 }
 
 void TTNavigationController::loadScreen(TTScreenPage* page) {
-    if (page != nullptr && page->getScreen() != nullptr) {
-        lv_screen_load(page->getScreen());
+    lv_screen_load(page->getScreen());
+    if (_keypad != nullptr) {
+        /* nullptr when page has no group: clears keypad focus so it does not target previous page. */
+        lv_indev_set_group(_keypad->getIndev(), page->getGroup());
     }
 }
 

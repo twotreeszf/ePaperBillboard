@@ -2,7 +2,7 @@
 
 ESP32-WROOM-32E + 2.9" E-Paper Display (E029A01) project with LVGL 9, custom binary fonts (Chinese/English), and optional I2C sensors (AHT20, BMP280). UI is built as a page stack (navigation + notifications) with E-Paper-optimized partial/full refresh.
 
-**Contents:** [Hardware](#hardware) · [Build & Flash](#build--flash) · [Font Generation](#font-generation) · [E-Ink / LVGL](#e-ink-refresh-strategy) · [Software Architecture](#software-architecture) · [Project Structure](#project-structure)
+**Contents:** [Hardware](#hardware) · [Build & Flash](#build--flash) · [Font Generation](#font-generation) · [E-Ink / LVGL](#e-ink-refresh-strategy) · [Software Architecture](#software-architecture) · [Keypad & focus](#keypad--focus) · [Project Structure](#project-structure)
 
 ## Hardware
 
@@ -408,9 +408,70 @@ void createUI() {
 
 ### UI Stack
 
-- **TTNavigationController**: Stack of `TTScreenPage`; `setRoot` / `push` / `pop`; `tick()` calls `loop()` on the top page only.
-- **TTScreenPage**: Lifecycle: `createScreen()` → `buildContent(screen)` → `setup()` (e.g. subscribe); then `willAppear` / `willDisappear` on navigation; `willDestroy()` on teardown (unsubscribe). Call `requestRefresh(fullRefresh)` to trigger E-Paper update.
+- **TTNavigationController**: Stack of `TTScreenPage`; `setRoot` / `push` / `pop`; `tick()` calls `loop()` on the top page only. Binds keypad indev to the current page’s group on each `loadScreen()`.
+- **TTScreenPage**: Lifecycle: `createScreen()` → `buildContent(screen)` → `setup()` (e.g. subscribe); then `willAppear` / `willDisappear` on navigation; `willDestroy()` on teardown (unsubscribe). Call `requestRefresh(fullRefresh)` to trigger E-Paper update. Optional focus: call `createGroup()` then `addToFocusGroup(obj)` for widgets that should receive keypad focus (see [Keypad & focus](#keypad--focus)).
 - **TTPopupLayer**: Top LVGL layer for toasts/overlays; `showToast(text, durationMs)`, `dismissToast()`.
+
+### Keypad & focus
+
+Hardware: three-button dial (Left GPIO 35, Right GPIO 39, Center GPIO 34) via **TTKeypadInput**; **TTKeypadTask** runs `tick()` at 15 ms on core 0. Keypad is event-driven and does not create or own LVGL groups. **TTNavigationController** switches the keypad’s group when the active page changes.
+
+#### Button mapping
+
+| Button | GPIO | LVGL key       | Effect in LVGL |
+|--------|------|----------------|----------------|
+| Left   | 35   | LV_KEY_LEFT    | Sent to focused object (e.g. focus prev in group) |
+| Right  | 39   | LV_KEY_RIGHT   | Sent to focused object (e.g. focus next in group) |
+| Center | 34   | LV_KEY_ENTER   | Confirm / press focused object |
+
+LVGL uses **LV_KEY_NEXT** / **LV_KEY_PREV** for moving focus; Left/Right are passed to the focused widget. To use strict NEXT/PREV, change the mapping in `TTKeypadInput.cpp`.
+
+#### How to add keypad focus to a page
+
+If a page has no group, the keypad has no focus target. To make a page respond to the dial:
+
+1. **Create a group** once: in `buildContent(screen)` (or `setup()`), call **`createGroup()`**.
+2. **Add focusable widgets** in order: for each widget that should receive focus, call **`addToFocusGroup(obj)`**.
+
+Example:
+
+```cpp
+void MyPage::buildContent(lv_obj_t* screen) {
+    createGroup();
+
+    lv_obj_t* btn1 = lv_btn_create(screen);
+    // ... style, label ...
+    addToFocusGroup(btn1);
+
+    lv_obj_t* btn2 = lv_btn_create(screen);
+    // ...
+    addToFocusGroup(btn2);
+}
+```
+
+- **Order**: The order of `addToFocusGroup` defines focus order (Right = next, Left = prev).
+- **Widgets**: Only add objects that support focus (e.g. `lv_btn`, `lv_slider`). Enable the widget in `lv_conf.h` (e.g. `LV_USE_BUTTON`).
+- **No group**: If you never call `createGroup()`, the keypad has no focus on that page (no crash).
+
+To react to Center (Enter) on a widget, add an event handler; many widgets already handle ENTER as click:
+
+```cpp
+lv_obj_add_event_cb(btn, [](lv_event_t* e) {
+    if (lv_event_get_code(e) == LV_EVENT_CLICKED) { /* Center pressed */ }
+}, LV_EVENT_CLICKED, nullptr);
+```
+
+#### TTScreenPage API (focus)
+
+| Method | Description |
+|--------|-------------|
+| `lv_group_t* getGroup() const` | This page’s group, or `nullptr` if none. |
+| `lv_group_t* createGroup()` | (protected) Creates the page’s group; call from `buildContent()` or `setup()`. |
+| `void addToFocusGroup(lv_obj_t* obj)` | Adds `obj` to this page’s group. No-op if no group. |
+
+On setRoot / push / pop, **TTNavigationController::loadScreen()** calls `lv_indev_set_group(keypad_indev, page->getGroup())`. If `getGroup()` is `nullptr`, the keypad’s group is set to `nullptr`.
+
+**Hardware**: GPIOs 34, 35, 39 are input-only on ESP32 (no internal pull-up). Use external pull-up resistors (e.g. 10 kΩ to 3.3 V); buttons are active-low in `TTKeypadInput`.
 
 ### Display and Fonts
 

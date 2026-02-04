@@ -5,6 +5,7 @@
 #include <lvgl.h>
 #include "../Base/TTVTask.h"
 #include "../Base/TTNavigationController.h"
+#include "../Base/TTKeypadInput.h"
 
 #define TT_UI_EPD_MOSI  4
 #define TT_UI_EPD_SCK   16
@@ -25,4 +26,5 @@ protected:
 private:
     EPaperDisplay _display;
     TTNavigationController _nav;
+    TTKeypadInput _keypad;
 };
