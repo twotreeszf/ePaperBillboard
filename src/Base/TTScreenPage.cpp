@@ -1,5 +1,5 @@
 #include "TTScreenPage.h"
-#include "TTNavigationController.h"
+#include "ITTNavigationController.h"
 
 TTScreenPage::~TTScreenPage() {
     if (_group != nullptr) {

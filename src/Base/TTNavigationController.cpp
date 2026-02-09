@@ -1,10 +1,11 @@
 #include "TTNavigationController.h"
+#include "TTScreenPage.h"
 #include "TTKeypadInput.h"
 #include "Logger.h"
 #include "TTInstance.h"
 #include "TTLvglEpdDriver.h"
 
-void TTNavigationController::setRoot(std::unique_ptr<TTScreenPage> page) {
+void TTNavigationController::setRoot(std::unique_ptr<ITTScreenPage> page) {
     for (auto& p : _stack) {
         p->willDisappear();
         p->willDestroy();
@@ -18,9 +19,9 @@ void TTNavigationController::setRoot(std::unique_ptr<TTScreenPage> page) {
     requestRefresh(_stack.back().get(), false);
 }
 
-void TTNavigationController::push(std::unique_ptr<TTScreenPage> page) {
+void TTNavigationController::push(std::unique_ptr<ITTScreenPage> page) {
     if (!page) return;
-    TTScreenPage* raw = page.get();
+    ITTScreenPage* raw = page.get();
     raw->createScreen();
     if (!_stack.empty()) {
         _stack.back()->willDisappear();
@@ -38,7 +39,7 @@ void TTNavigationController::pop() {
         return;
     }
     _stack.back()->willDisappear();
-    TTScreenPage* prev = _stack[_stack.size() - 2].get();
+    ITTScreenPage* prev = _stack[_stack.size() - 2].get();
     prev->willAppear();
     loadScreen(prev);
     _stack.back()->willDestroy();
@@ -46,18 +47,18 @@ void TTNavigationController::pop() {
     requestRefresh(_stack.back().get(), false);
 }
 
-TTScreenPage* TTNavigationController::getCurrentPage() {
+ITTScreenPage* TTNavigationController::getCurrentPage() {
     return _stack.empty() ? nullptr : _stack.back().get();
 }
 
-void TTNavigationController::loadScreen(TTScreenPage* page) {
+void TTNavigationController::loadScreen(ITTScreenPage* page) {
     lv_screen_load(page->getScreen());
     if (_keypad != nullptr) {
         lv_indev_set_group(_keypad->getIndev(), page->getGroup());
     }
 }
 
-void TTNavigationController::requestRefresh(TTScreenPage* page, bool fullRefresh) {
+void TTNavigationController::requestRefresh(ITTScreenPage* page, bool fullRefresh) {
     if (getCurrentPage() == page) {
         TTInstanceOf<TTLvglEpdDriver>().requestRefresh(fullRefresh);
     }

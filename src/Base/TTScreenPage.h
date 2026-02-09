@@ -1,30 +1,31 @@
 #pragma once
 
 #include <lvgl.h>
+#include "ITTScreenPage.h"
+#include "ITTNavigationController.h"
 
-class TTNavigationController;
-
-class TTScreenPage {
+class TTScreenPage : public ITTScreenPage {
 public:
     virtual ~TTScreenPage();
 
-    void createScreen();
-    lv_obj_t* getScreen() const { return _screen; }
-    lv_group_t* getGroup() const { return _group; }
+    void createScreen() override;
+    lv_obj_t* getScreen() const override { return _screen; }
+    lv_group_t* getGroup() const override { return _group; }
 
-    void setNavigationController(TTNavigationController* nav) { _controller = nav; }
-    void addToFocusGroup(lv_obj_t* obj);
-    void requestRefresh(bool fullRefresh = false);
+    void setNavigationController(ITTNavigationController* nav) override { _controller = nav; }
+    ITTNavigationController* getNavigationController() const override { return _controller; }
+    void addToFocusGroup(lv_obj_t* obj) override;
+    void requestRefresh(bool fullRefresh = false) override;
 
     /** Called once in createScreen() right after buildContent(screen). Use for post-build init (e.g. subscribe to notifications). */
-    virtual void setup() {}
+    void setup() override {}
     /** Called just before the page is removed from the nav stack (setRoot: each page; pop: the popped page). Use for teardown (e.g. unsubscribe). */
-    virtual void willDestroy() {}
+    void willDestroy() override {}
 
     /** Called when this page is about to become the active screen (push: new page; pop: previous page). */
-    virtual void willAppear() {}
+    void willAppear() override {}
     /** Called when this page is about to leave the top (setRoot/push/pop). */
-    virtual void willDisappear() {}
+    void willDisappear() override {}
 
 protected:
     lv_group_t* createGroup();
@@ -37,5 +38,5 @@ protected:
 
     lv_obj_t* _screen = nullptr;
     lv_group_t* _group = nullptr;
-    TTNavigationController* _controller = nullptr;
+    ITTNavigationController* _controller = nullptr;
 };

@@ -5,7 +5,6 @@
 #include "../Base/TTInstance.h"
 #include "../Base/TTNotificationCenter.h"
 #include "../Base/TTNotificationPayloads.h"
-#include "../Base/TTNavigationController.h"
 #include "../Base/TTPopupLayer.h"
 
 void TTClockScreenPage::buildContent(lv_obj_t* screen) {
@@ -51,27 +50,8 @@ void TTClockScreenPage::buildContent(lv_obj_t* screen) {
     lv_obj_align(_statusLabel, LV_ALIGN_BOTTOM_MID, 0, -4);
 
     createGroup();
-    _btnBack = lv_btn_create(screen);
-    lv_obj_set_size(_btnBack, 60, 24);
-    lv_obj_align(_btnBack, LV_ALIGN_BOTTOM_LEFT, 8, -8);
-    lv_obj_set_style_bg_color(_btnBack, lv_color_white(), 0);
-    lv_obj_set_style_border_color(_btnBack, lv_color_black(), 0);
-    lv_obj_set_style_border_width(_btnBack, 1, 0);
-    lv_obj_t* lblBack = lv_label_create(_btnBack);
-    lv_label_set_text(lblBack, "Back");
-    lv_obj_set_style_text_color(lblBack, lv_color_black(), 0);
-    lv_obj_center(lblBack);
-    lv_obj_add_event_cb(_btnBack, onBackClicked, LV_EVENT_CLICKED, this);
-    addToFocusGroup(_btnBack);
 
     LOG_I("ClockScreenPage UI created");
-}
-
-void TTClockScreenPage::onBackClicked(lv_event_t* e) {
-    TTClockScreenPage* self = (TTClockScreenPage*)lv_event_get_user_data(e);
-    if (self != nullptr && self->_controller != nullptr) {
-        self->_controller->pop();
-    }
 }
 
 void TTClockScreenPage::setup() {

@@ -1,6 +1,5 @@
 #include "TTWiFiDemoPage.h"
 #include "../Base/TTFontManager.h"
-#include "../Base/TTNavigationController.h"
 
 void TTWiFiDemoPage::buildContent(lv_obj_t* screen) {
     TTFontManager& fm = TTFontManager::instance();
@@ -23,23 +22,4 @@ void TTWiFiDemoPage::buildContent(lv_obj_t* screen) {
     lv_obj_align(desc, LV_ALIGN_CENTER, 0, 0);
 
     createGroup();
-    lv_obj_t* back = lv_btn_create(screen);
-    lv_obj_set_size(back, 60, 24);
-    lv_obj_align(back, LV_ALIGN_BOTTOM_LEFT, 8, -8);
-    lv_obj_set_style_bg_color(back, lv_color_white(), 0);
-    lv_obj_set_style_border_color(back, lv_color_black(), 0);
-    lv_obj_set_style_border_width(back, 1, 0);
-    lv_obj_t* lblBack = lv_label_create(back);
-    lv_label_set_text(lblBack, "Back");
-    lv_obj_set_style_text_color(lblBack, lv_color_black(), 0);
-    lv_obj_center(lblBack);
-    lv_obj_add_event_cb(back, onBackClicked, LV_EVENT_CLICKED, this);
-    addToFocusGroup(back);
-}
-
-void TTWiFiDemoPage::onBackClicked(lv_event_t* e) {
-    TTWiFiDemoPage* self = (TTWiFiDemoPage*)lv_event_get_user_data(e);
-    if (self != nullptr && self->_controller != nullptr) {
-        self->_controller->pop();
-    }
 }

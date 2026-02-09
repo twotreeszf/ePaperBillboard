@@ -8,6 +8,7 @@
 #define PIN_BUTTONC 34
 
 class OneButton;
+class ITTNavigationController;
 
 class TTKeypadInput {
 public:
@@ -19,6 +20,7 @@ public:
     lv_indev_t* getIndev() const { return _indev; }
 
     void emitKey(uint32_t key);
+    void setNavigationController(ITTNavigationController* nav) { _nav = nav; }
 
 private:
     static void keypadReadCb(lv_indev_t* indev, lv_indev_data_t* data);
@@ -29,4 +31,5 @@ private:
     lv_indev_t* _indev = nullptr;
     volatile uint32_t _pendingKey = 0;
     volatile bool _pendingPress = false;
+    ITTNavigationController* _nav = nullptr;
 };

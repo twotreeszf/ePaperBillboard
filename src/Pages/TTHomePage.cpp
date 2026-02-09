@@ -3,7 +3,6 @@
 #include "TTNTPDemoPage.h"
 #include "TTClockScreenPage.h"
 #include "../Base/TTFontManager.h"
-#include "../Base/TTNavigationController.h"
 #include "../Base/TTStreamImage.h"
 #include <memory>
 
@@ -119,11 +118,11 @@ void TTHomePage::buildContent(lv_obj_t* screen) {
     lv_obj_set_style_pad_column(container, TT_HOME_ITEMS_GAP, 0);
 
     HomeItem::create(&_items[0], container, this, "/icons/wifi.png", "WiFi", fontBtn, 
-        [this]() { _controller->push(std::unique_ptr<TTScreenPage>(new TTWiFiDemoPage())); });
+        [this]() { getNavigationController()->pushPage(std::unique_ptr<TTScreenPage>(new TTWiFiDemoPage())); });
 
     HomeItem::create(&_items[1], container, this, "/icons/watch.png", "NTP", fontBtn,
-        [this]() { _controller->push(std::unique_ptr<TTScreenPage>(new TTNTPDemoPage())); });
+        [this]() { getNavigationController()->pushPage(std::unique_ptr<TTScreenPage>(new TTNTPDemoPage())); });
 
     HomeItem::create(&_items[2], container, this, "/icons/clock.png", "Clock", fontBtn,
-        [this]() { _controller->push(std::unique_ptr<TTScreenPage>(new TTClockScreenPage())); });
+        [this]() { getNavigationController()->pushPage(std::unique_ptr<TTScreenPage>(new TTClockScreenPage())); });
 }

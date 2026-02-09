@@ -4,27 +4,29 @@
 #include <memory>
 #include <vector>
 
-#include "TTScreenPage.h"
+#include "ITTNavigationController.h"
+#include "ITTScreenPage.h"
 
 class TTKeypadInput;
+class TTScreenPage;
 
-class TTNavigationController {
+class TTNavigationController : public ITTNavigationController {
 public:
-    void setRoot(std::unique_ptr<TTScreenPage> page);
-    void push(std::unique_ptr<TTScreenPage> page);
-    void pop();
+    void setRoot(std::unique_ptr<ITTScreenPage> page) override;
+    void push(std::unique_ptr<ITTScreenPage> page) override;
+    void pop() override;
 
-    TTScreenPage* getCurrentPage();
-    void requestRefresh(TTScreenPage* page, bool fullRefresh);
+    ITTScreenPage* getCurrentPage() override;
+    void requestRefresh(ITTScreenPage* page, bool fullRefresh) override;
 
     void setKeypadInput(TTKeypadInput* keypad) { _keypad = keypad; }
 
-    bool canPop() const { return _stack.size() > 1; }
-    size_t stackSize() const { return _stack.size(); }
+    bool canPop() const override { return _stack.size() > 1; }
+    size_t stackSize() const override { return _stack.size(); }
 
 private:
-    void loadScreen(TTScreenPage* page);
+    void loadScreen(ITTScreenPage* page);
 
-    std::vector<std::unique_ptr<TTScreenPage>> _stack;
+    std::vector<std::unique_ptr<ITTScreenPage>> _stack;
     TTKeypadInput* _keypad = nullptr;
 };

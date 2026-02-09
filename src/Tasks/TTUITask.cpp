@@ -31,8 +31,9 @@ void TTUITask::setup() {
     lv_display_t* disp = TTInstanceOf<TTLvglEpdDriver>().getDisplay();
     ERR_CHECK_FAIL(_keypad.begin(disp));
     _nav.setKeypadInput(&_keypad);
+    _keypad.setNavigationController(&_nav);
 
-    _nav.setRoot(std::unique_ptr<TTScreenPage>(new TTHomePage()));
+    _nav.setRootPage(std::unique_ptr<TTScreenPage>(new TTHomePage()));
 
     LOG_I("UI task started.");
 }

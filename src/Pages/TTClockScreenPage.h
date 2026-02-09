@@ -16,7 +16,6 @@ protected:
     void buildContent(lv_obj_t* screen) override;
 
 private:
-    static void onBackClicked(lv_event_t* e);
     static void timerCb(lv_timer_t* t);
     void onTimerTick();
     void updateTime();
@@ -24,7 +23,6 @@ private:
     void updateClockDisplay();
 
     lv_timer_t* _timer = nullptr;
-    lv_obj_t* _btnBack = nullptr;
     lv_obj_t* _titleLabel = nullptr;
     lv_obj_t* _timeLabel = nullptr;
     lv_obj_t* _statusLabel = nullptr;
