@@ -4,7 +4,7 @@
 
 class TTWiFiDemoPage : public TTScreenPage {
 public:
-    TTWiFiDemoPage() = default;
+    TTWiFiDemoPage() : TTScreenPage("WiFi") {}
 
 protected:
     void buildContent(lv_obj_t* screen) override;

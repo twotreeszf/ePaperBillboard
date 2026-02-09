@@ -4,7 +4,7 @@
 
 class TTNTPDemoPage : public TTScreenPage {
 public:
-    TTNTPDemoPage() = default;
+    TTNTPDemoPage() : TTScreenPage("NTP") {}
 
 protected:
     void buildContent(lv_obj_t* screen) override;

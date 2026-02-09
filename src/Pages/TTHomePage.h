@@ -27,7 +27,7 @@ struct HomeItem {
 
 class TTHomePage : public TTScreenPage {
 public:
-    TTHomePage() = default;
+    TTHomePage() : TTScreenPage("Home") {}
 
 protected:
     void buildContent(lv_obj_t* screen) override;

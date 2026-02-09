@@ -8,6 +8,7 @@ class ITTScreenPage {
 public:
     virtual ~ITTScreenPage() = default;
 
+    virtual const char* getName() const = 0;
     virtual void createScreen() = 0;
     virtual lv_obj_t* getScreen() const = 0;
     virtual lv_group_t* getGroup() const = 0;
