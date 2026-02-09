@@ -1,5 +1,7 @@
 #include "TTLvglEpdDriver.h"
 #include "TTDrawBufPassthroughDecoder.h"
+#include "TTInstance.h"
+#include "Tasks/TTUITask.h"
 #include <EPDConfig.h>
 #include "Logger.h"
 
@@ -69,9 +71,9 @@ void TTLvglEpdDriver::flushCallback(lv_display_t* disp, const lv_area_t* area, u
 
     pThis->_epd->setRotation(EPD_ROTATION);
 
-    bool doFullRefresh = pThis->_needFullRefresh ||
-                         (pThis->_partialCount >= EPD_FULL_REFRESH_INTERVAL);
-
+    bool isFullArea = (x1 == 0 && y1 == 0 && x2 == EPD_WIDTH - 1 && y2 == EPD_HEIGHT - 1);
+    bool doFullRefresh = isFullArea && (pThis->_needFullRefresh ||
+                         (pThis->_partialCount >= EPD_FULL_REFRESH_INTERVAL));
     if (doFullRefresh) {
         LOG_I("E-Paper full refresh");
         pThis->_epd->setFullWindow();
@@ -103,6 +105,11 @@ void TTLvglEpdDriver::flushCallback(lv_display_t* disp, const lv_area_t* area, u
     LOG_I("E-Paper flush complete");
 
     lv_display_flush_ready(disp);
+
+    // Notify UI task to request full refresh if partial count exceeds threshold but no chance for full refresh
+    if (!doFullRefresh && pThis->_partialCount >= EPD_FULL_REFRESH_INTERVAL) {        
+        TTInstanceOf<TTUITask>().requestFullRefreshAsync();
+    }
 }
 
 void TTLvglEpdDriver::requestRefresh(bool fullRefresh) {

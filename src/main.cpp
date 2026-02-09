@@ -30,6 +30,7 @@
 #include "Tasks/TTSensorTask.h"
 
 void setup() {
+    _logger.setLevel(LOG_LEVEL_DEBUG);
     Serial.begin(115200);
     delay(100);
     LOG_I("");

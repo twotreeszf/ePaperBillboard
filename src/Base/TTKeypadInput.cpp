@@ -30,17 +30,26 @@ void TTKeypadInput::emitKey(uint32_t key) {
 }
 
 bool TTKeypadInput::begin(lv_display_t* display) {
-    _btnL = new OneButton(PIN_BUTTONL);
-    _btnR = new OneButton(PIN_BUTTONR);
-    _btnC = new OneButton(PIN_BUTTONC);
-
-    _btnL->attachClick([](void* param) { static_cast<TTKeypadInput*>(param)->emitKey(LV_KEY_LEFT); }, this);
-    _btnR->attachClick([](void* param) { static_cast<TTKeypadInput*>(param)->emitKey(LV_KEY_RIGHT); }, this);
-    _btnC->attachClick([](void* param) { static_cast<TTKeypadInput*>(param)->emitKey(LV_KEY_ENTER); }, this);
-
+    /* PCB: BUTTON1/2/3 have 100kΩ pull-down to GND, C has 10kΩ pull-up to 3V3.
+     * When pressed, button connects C (HIGH) to BUTTON pin, so BUTTON goes HIGH.
+     * So idle = LOW (100kΩ pull-down), pressed = HIGH (active-high).
+     * GPIO 34/35/39 have no internal pull-up, use INPUT and rely on circuit. */
     pinMode(PIN_BUTTONL, INPUT);
     pinMode(PIN_BUTTONR, INPUT);
     pinMode(PIN_BUTTONC, INPUT);
+
+    _btnL = new OneButton(PIN_BUTTONL, false, false);
+    _btnR = new OneButton(PIN_BUTTONR, false, false);
+    _btnC = new OneButton(PIN_BUTTONC, false, false);
+
+    _btnL->attachClick([](void* param) { static_cast<TTKeypadInput*>(param)->emitKey(LV_KEY_PREV); }, this);
+    _btnR->attachClick([](void* param) { static_cast<TTKeypadInput*>(param)->emitKey(LV_KEY_NEXT); }, this);
+    _btnC->attachClick([](void* param) { static_cast<TTKeypadInput*>(param)->emitKey(LV_KEY_ENTER); }, this);
+
+    delay(50);
+    _btnL->reset();
+    _btnR->reset();
+    _btnC->reset();
 
     _indev = lv_indev_create();
     lv_indev_set_type(_indev, LV_INDEV_TYPE_KEYPAD);

@@ -1,5 +1,5 @@
 #include "TTUITask.h"
-#include "../Pages/TTClockScreenPage.h"
+#include "../Pages/TTHomePage.h"
 #include <SPI.h>
 #include <LittleFS.h>
 #include <memory>
@@ -28,13 +28,20 @@ void TTUITask::setup() {
     ERR_CHECK_FAIL(TTInstanceOf<TTLvglEpdDriver>().begin(_display));
     TTInstanceOf<TTPopupLayer>().begin(TTInstanceOf<TTLvglEpdDriver>().getDisplay());
 
-    _nav.setRoot(std::unique_ptr<TTClockScreenPage>(new TTClockScreenPage()));
-
     lv_display_t* disp = TTInstanceOf<TTLvglEpdDriver>().getDisplay();
     ERR_CHECK_FAIL(_keypad.begin(disp));
     _nav.setKeypadInput(&_keypad);
 
+    _nav.setRoot(std::unique_ptr<TTScreenPage>(new TTHomePage()));
+
     LOG_I("UI task started.");
+}
+
+void TTUITask::requestFullRefreshAsync() {
+    auto* f = new std::function<void()>([]() {
+        TTInstanceOf<TTLvglEpdDriver>().requestRefresh(true);
+    });
+    enqueue(f);
 }
 
 void TTUITask::loop() {

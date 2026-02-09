@@ -53,7 +53,6 @@ TTScreenPage* TTNavigationController::getCurrentPage() {
 void TTNavigationController::loadScreen(TTScreenPage* page) {
     lv_screen_load(page->getScreen());
     if (_keypad != nullptr) {
-        /* nullptr when page has no group: clears keypad focus so it does not target previous page. */
         lv_indev_set_group(_keypad->getIndev(), page->getGroup());
     }
 }
