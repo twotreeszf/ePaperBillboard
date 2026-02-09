@@ -66,6 +66,7 @@ void tt_stream_image_set_src(lv_obj_t* obj, const char* path) {
         return;
     }
     memcpy(img->path, path, len + 1);
+    
     File f = LittleFS.open(path, "r");
     if (!f) {
         LOG_E("TTStreamImage: open failed %s", path);
@@ -83,6 +84,7 @@ void tt_stream_image_set_src(lv_obj_t* obj, const char* path) {
         lv_obj_invalidate(obj);
         return;
     }
+    
     f.close();
     if (w <= 0 || w > TT_STREAM_IMAGE_MAX_W || h <= 0 || h > TT_STREAM_IMAGE_MAX_H) {
         LOG_E("TTStreamImage: size %" LV_PRId32 "x%" LV_PRId32 " out of range", w, h);

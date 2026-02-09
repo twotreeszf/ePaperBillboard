@@ -75,3 +75,40 @@ void TTPopupLayer::toastTimerCallback(lv_timer_t* timer) {
         }
     }
 }
+
+void TTPopupLayer::showLoading() {
+    if (_topLayer == nullptr) return;
+    dismissLoading();
+
+    _loadingPanel = lv_obj_create(_topLayer);
+    lv_obj_add_flag(_loadingPanel, LV_OBJ_FLAG_IGNORE_LAYOUT);
+    lv_obj_set_size(_loadingPanel, LV_SIZE_CONTENT, LV_SIZE_CONTENT);
+    lv_obj_set_style_bg_color(_loadingPanel, lv_color_white(), 0);
+    lv_obj_set_style_bg_opa(_loadingPanel, LV_OPA_COVER, 0);
+    lv_obj_set_style_border_color(_loadingPanel, lv_color_black(), 0);
+    lv_obj_set_style_border_width(_loadingPanel, 1, 0);
+    lv_obj_set_style_radius(_loadingPanel, 1, 0);
+    lv_obj_set_style_pad_all(_loadingPanel, 12, 0);
+    lv_obj_remove_flag(_loadingPanel, LV_OBJ_FLAG_SCROLLABLE);
+
+    lv_obj_t* label = lv_label_create(_loadingPanel);
+    lv_label_set_text(label, "Loading...");
+    lv_obj_set_style_text_color(label, lv_color_black(), 0);
+    lv_font_t* font = TTFontManager::instance().getFont(12);
+    if (font != nullptr) {
+        lv_obj_set_style_text_font(label, font, 0);
+    }
+
+    lv_obj_update_layout(_loadingPanel);
+    lv_obj_align(_loadingPanel, LV_ALIGN_CENTER, 0, 0);
+
+    TTInstanceOf<TTLvglEpdDriver>().requestRefresh(false);
+}
+
+void TTPopupLayer::dismissLoading() {
+    if (_loadingPanel != nullptr) {
+        lv_obj_delete(_loadingPanel);
+        _loadingPanel = nullptr;
+        TTInstanceOf<TTLvglEpdDriver>().requestRefresh(false);
+    }
+}

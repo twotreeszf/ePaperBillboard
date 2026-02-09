@@ -2,6 +2,7 @@
 #include "Logger.h"
 #include "ErrorCheck.h"
 #include <freertos/task.h>
+#include <Arduino.h>
 
 void TTVTask::start(int coreId, uint32_t loopDelayMs)
 {
@@ -41,16 +42,15 @@ void TTVTask::registerPeriodicTask(std::function<void()> callback, uint32_t inte
     TTPeriodicTask task;
     task.callback = callback;
     task.intervalMs = intervalMs;
-    uint32_t nowTicks = xTaskGetTickCount();
     
     if (executeImmediately) {
         // Execute immediately on registration
         callback();
         // Record timestamp after execution
-        task.lastExecuteTimeMs = (nowTicks * 1000) / configTICK_RATE_HZ;
+        task.lastExecuteTimeMs = millis();
     } else {
         // Set timestamp to past so it executes on next check
-        task.lastExecuteTimeMs = ((nowTicks * 1000) / configTICK_RATE_HZ) - intervalMs;
+        task.lastExecuteTimeMs = millis() - intervalMs;
     }
     
     _periodicTasks.push_back(task);
@@ -58,8 +58,7 @@ void TTVTask::registerPeriodicTask(std::function<void()> callback, uint32_t inte
 
 void TTVTask::_checkPeriodicTasks()
 {
-    uint32_t nowTicks = xTaskGetTickCount();
-    uint32_t nowMs = (nowTicks * 1000) / configTICK_RATE_HZ;
+    uint32_t nowMs = millis();
 
     for (auto& task : _periodicTasks)
     {
@@ -74,7 +73,7 @@ void TTVTask::_checkPeriodicTasks()
 void TTVTask::_task()
 {
     // Call setup once
-    _taskStartTime = xTaskGetTickCount();
+    _taskStartTime = millis();
     setup();
 
     std::function<void()> *func;

@@ -20,6 +20,4 @@ void TTWiFiDemoPage::buildContent(lv_obj_t* screen) {
     lv_obj_set_style_text_color(desc, lv_color_black(), 0);
     lv_obj_set_style_text_font(desc, fontText, 0);
     lv_obj_align(desc, LV_ALIGN_CENTER, 0, 0);
-
-    createGroup();
 }

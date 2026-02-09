@@ -48,10 +48,6 @@ void TTClockScreenPage::buildContent(lv_obj_t* screen) {
     lv_obj_set_style_text_color(_statusLabel, lv_color_black(), 0);
     lv_obj_set_style_text_font(_statusLabel, font_12, 0);
     lv_obj_align(_statusLabel, LV_ALIGN_BOTTOM_MID, 0, -4);
-
-    createGroup();
-
-    LOG_I("ClockScreenPage UI created");
 }
 
 void TTClockScreenPage::setup() {

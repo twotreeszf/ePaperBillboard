@@ -4,6 +4,7 @@
 #include "Logger.h"
 #include "TTInstance.h"
 #include "TTLvglEpdDriver.h"
+#include "TTPopupLayer.h"
 
 void TTNavigationController::setRoot(std::unique_ptr<ITTScreenPage> page) {
     for (auto& p : _stack) {
@@ -22,7 +23,11 @@ void TTNavigationController::setRoot(std::unique_ptr<ITTScreenPage> page) {
 void TTNavigationController::push(std::unique_ptr<ITTScreenPage> page) {
     if (!page) return;
     ITTScreenPage* raw = page.get();
+    
+    TTInstanceOf<TTPopupLayer>().showLoading();
     raw->createScreen();
+    TTInstanceOf<TTPopupLayer>().dismissLoading();
+    
     if (!_stack.empty()) {
         _stack.back()->willDisappear();
     }
