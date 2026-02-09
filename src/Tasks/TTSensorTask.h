@@ -25,5 +25,4 @@ private:
     Adafruit_AHTX0 _aht20;
     Adafruit_BMP280 _bmp280;
     bool _bmp280Ok = false;
-    uint32_t _lastUpdateTime = 0;
 };

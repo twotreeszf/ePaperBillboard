@@ -6,7 +6,6 @@
 #include "TTUITask.h"
 #include <freertos/FreeRTOS.h>
 #include <freertos/task.h>
-#include <freertos/timers.h>
 
 void TTSensorTask::setup() {
     LOG_I("Initializing I2C (SDA=%d, SCL=%d)...", TT_SENSOR_I2C_SDA, TT_SENSOR_I2C_SCL);
@@ -27,7 +26,9 @@ void TTSensorTask::setup() {
         LOG_W("BMP280 sensor not found! Check wiring or I2C address.");
     }
 
-    _lastUpdateTime = xTaskGetTickCount();
+    registerPeriodicTask([this]() {
+        performSensorRead();
+    }, TT_SENSOR_UPDATE_INTERVAL * 1000);
 }
 
 void TTSensorTask::performSensorRead() {
@@ -59,13 +60,5 @@ void TTSensorTask::requestSensorUpdateAsync() {
 }
 
 void TTSensorTask::loop() {
-    uint32_t currentTime = xTaskGetTickCount();
-    uint32_t elapsedSeconds = (currentTime - _lastUpdateTime) / configTICK_RATE_HZ;
-
-    if (elapsedSeconds >= TT_SENSOR_UPDATE_INTERVAL) {
-        performSensorRead();
-        _lastUpdateTime = currentTime;
-    }
-
-    vTaskDelay(pdMS_TO_TICKS(100));
+    // Empty loop to keep the task running
 }

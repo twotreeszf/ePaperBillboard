@@ -48,5 +48,4 @@ void TTUITask::requestFullRefreshAsync() {
 void TTUITask::loop() {
     _keypad.tick();
     lv_timer_handler();
-    vTaskDelay(pdMS_TO_TICKS(TT_UI_LOOP_DELAY_MS));
 }

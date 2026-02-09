@@ -41,7 +41,7 @@ void setup() {
     Util::printChipInfo();
     delay(200);
 
-    TTInstanceOf<TTUITask>().start(0);
+    TTInstanceOf<TTUITask>().start(0, TT_UI_LOOP_DELAY_MS);
     TTInstanceOf<TTSensorTask>().start(1);
 }
 

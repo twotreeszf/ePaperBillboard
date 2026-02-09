@@ -17,7 +17,6 @@ protected:
     void buildContent(lv_obj_t* screen) override;
 
 private:
-    static void timerCb(lv_timer_t* t);
     void onTimerTick();
     void updateTime();
     void updateSensorDisplay(float temperature, float humidity, float pressure);

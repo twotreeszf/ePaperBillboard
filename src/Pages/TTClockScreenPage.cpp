@@ -58,6 +58,7 @@ void TTClockScreenPage::setup() {
     TTScreenPage::setup();
     _lastUpdateMs = millis();
     updateClockDisplay();
+    
     _timer = lv_timer_create([](lv_timer_t* t) {
         auto* page = static_cast<TTClockScreenPage*>(lv_timer_get_user_data(t));
         if (page != nullptr) page->onTimerTick();
