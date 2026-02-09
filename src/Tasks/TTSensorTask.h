@@ -13,12 +13,17 @@ class TTSensorTask : public TTVTask {
 public:
     TTSensorTask() : TTVTask("TTSensorTask", 4096) {}
 
+    void requestSensorUpdateAsync();
+
 protected:
     void setup() override;
     void loop() override;
 
 private:
+    void performSensorRead();
+
     Adafruit_AHTX0 _aht20;
     Adafruit_BMP280 _bmp280;
     bool _bmp280Ok = false;
+    uint32_t _lastUpdateTime = 0;
 };

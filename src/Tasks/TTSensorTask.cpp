@@ -6,6 +6,7 @@
 #include "TTUITask.h"
 #include <freertos/FreeRTOS.h>
 #include <freertos/task.h>
+#include <freertos/timers.h>
 
 void TTSensorTask::setup() {
     LOG_I("Initializing I2C (SDA=%d, SCL=%d)...", TT_SENSOR_I2C_SDA, TT_SENSOR_I2C_SCL);
@@ -25,9 +26,11 @@ void TTSensorTask::setup() {
     } else {
         LOG_W("BMP280 sensor not found! Check wiring or I2C address.");
     }
+
+    _lastUpdateTime = xTaskGetTickCount();
 }
 
-void TTSensorTask::loop() {
+void TTSensorTask::performSensorRead() {
     float temperature = 0.0f;
     float humidity = 0.0f;
     float pressure = 0.0f;
@@ -46,6 +49,23 @@ void TTSensorTask::loop() {
 
     TTSensorDataPayload payload = { temperature, humidity, pressure };
     TTInstanceOf<TTUITask>().postNotification(TT_NOTIFICATION_SENSOR_DATA_UPDATE, payload);
+}
 
-    vTaskDelay(pdMS_TO_TICKS((uint32_t)TT_SENSOR_UPDATE_INTERVAL * 1000));
+void TTSensorTask::requestSensorUpdateAsync() {
+    auto* f = new std::function<void()>([this]() {
+        performSensorRead();
+    });
+    enqueue(f);
+}
+
+void TTSensorTask::loop() {
+    uint32_t currentTime = xTaskGetTickCount();
+    uint32_t elapsedSeconds = (currentTime - _lastUpdateTime) / configTICK_RATE_HZ;
+
+    if (elapsedSeconds >= TT_SENSOR_UPDATE_INTERVAL) {
+        performSensorRead();
+        _lastUpdateTime = currentTime;
+    }
+
+    vTaskDelay(pdMS_TO_TICKS(100));
 }

@@ -5,7 +5,7 @@
 #include "../Base/TTInstance.h"
 #include "../Base/TTNotificationCenter.h"
 #include "../Base/TTNotificationPayloads.h"
-#include "../Base/TTPopupLayer.h"
+#include "../Tasks/TTSensorTask.h"
 
 void TTClockScreenPage::buildContent(lv_obj_t* screen) {
     TTFontManager& fm = TTFontManager::instance();
@@ -62,7 +62,7 @@ void TTClockScreenPage::setup() {
         auto* page = static_cast<TTClockScreenPage*>(lv_timer_get_user_data(t));
         if (page != nullptr) page->onTimerTick();
     }, TT_CLOCK_TIMER_MS, this);
-    TTInstanceOf<TTPopupLayer>().showToast("正在读取传感器...", 2000);
+
     TTInstanceOf<TTNotificationCenter>().subscribe<TTSensorDataPayload>(
         TT_NOTIFICATION_SENSOR_DATA_UPDATE, this,
         [this](const TTSensorDataPayload& p) {
@@ -70,6 +70,11 @@ void TTClockScreenPage::setup() {
             requestRefresh(false);
             LOG_I("Sensor data updated.");
         });
+}
+
+void TTClockScreenPage::willAppear() {
+    TTScreenPage::willAppear();
+    TTInstanceOf<TTSensorTask>().requestSensorUpdateAsync();
 }
 
 void TTClockScreenPage::willDestroy() {

@@ -10,6 +10,7 @@ public:
     TTClockScreenPage() = default;
 
     void setup() override;
+    void willAppear() override;
     void willDestroy() override;
 
 protected:
