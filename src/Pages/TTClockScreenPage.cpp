@@ -1,6 +1,7 @@
 #include "TTClockScreenPage.h"
 #include "../Base/Logger.h"
 #include "../Base/TTFontManager.h"
+#include "../Base/TTStreamImage.h"
 #include "../Base/TTInstance.h"
 #include "../Base/TTNotificationCenter.h"
 #include "../Base/TTNotificationPayloads.h"
@@ -38,6 +39,10 @@ void TTClockScreenPage::buildContent(lv_obj_t* screen) {
     lv_obj_set_style_text_color(_timeLabel, lv_color_black(), 0);
     lv_obj_set_style_text_font(_timeLabel, font_48, 0);
     lv_obj_align(_timeLabel, LV_ALIGN_CENTER, 0, 18);
+
+    lv_obj_t* timeIcon = tt_stream_image_create(screen);
+    tt_stream_image_set_src(timeIcon, "/icons/clock.png");
+    lv_obj_align_to(timeIcon, _timeLabel, LV_ALIGN_OUT_LEFT_MID, -6, 0);
 
     _statusLabel = lv_label_create(screen);
     lv_label_set_text(_statusLabel, "");

@@ -1,4 +1,5 @@
 #include "TTLvglEpdDriver.h"
+#include "TTDrawBufPassthroughDecoder.h"
 #include <EPDConfig.h>
 #include "Logger.h"
 
@@ -14,7 +15,9 @@ bool TTLvglEpdDriver::begin(EPaperDisplay& display) {
 
     // Initialize LVGL
     lv_init();
-    
+
+    TTDrawBufPassthroughDecoder_init();
+
     // Set tick callback for LVGL timing
     lv_tick_set_cb(lvglTickCallback);
     
