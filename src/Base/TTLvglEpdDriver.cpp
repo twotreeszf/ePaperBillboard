@@ -115,7 +115,8 @@ void TTLvglEpdDriver::flushCallback(lv_display_t* disp, const lv_area_t* area, u
 void TTLvglEpdDriver::requestRefresh(bool fullRefresh) {
     if (fullRefresh) {
         _needFullRefresh = true;
+        lv_obj_invalidate(lv_scr_act());
     }
-    lv_obj_invalidate(lv_scr_act());
+    
     lv_refr_now(_lvDisplay);
 }

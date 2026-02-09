@@ -408,9 +408,9 @@ void createUI() {
 
 ### UI Stack
 
-- **TTNavigationController**: Stack of `TTScreenPage`; `setRoot` / `push` / `pop`; Binds keypad indev to the current page’s group on each `loadScreen()`. No built-in tick; pages use their own timers for periodic work.
+- **TTNavigationController**: Stack of `TTScreenPage`; `setRoot` / `push` / `pop`; Binds keypad indev to the current page’s group on each `loadScreen()`. When pushing a new page, automatically shows a loading overlay via `TTPopupLayer` during `createScreen()` and dismisses it after completion. No built-in tick; pages use their own timers for periodic work.
 - **TTScreenPage**: Lifecycle: `createScreen()` → `buildContent(screen)` → `setup()` (e.g. subscribe); then `willAppear` / `willDisappear` on navigation; `willDestroy()` on teardown (unsubscribe). Call `requestRefresh(fullRefresh)` to trigger E-Paper update. Optional focus: call `createGroup()` then `addToFocusGroup(obj)` for widgets that should receive keypad focus (see [Keypad & focus](#keypad--focus)).
-- **TTPopupLayer**: Top LVGL layer for toasts/overlays; `showToast(text, durationMs)`, `dismissToast()`.
+- **TTPopupLayer**: Top LVGL layer for toasts/overlays; `showToast(text, durationMs)`, `dismissToast()`, `showLoading()`, `dismissLoading()`. The loading overlay is automatically shown during page push operations.
 
 ### Keypad & focus
 
