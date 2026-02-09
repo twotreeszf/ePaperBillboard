@@ -7,12 +7,11 @@
 #include "../Base/TTStreamImage.h"
 #include <memory>
 
-void HomeItem::create(HomeItem* item, lv_obj_t* parent, TTHomePage* page, int x, int y, const char* iconPath, const char* labelText, lv_font_t* font, std::function<void()> onClick) {
+void HomeItem::create(HomeItem* item, lv_obj_t* parent, TTHomePage* page, const char* iconPath, const char* labelText, lv_font_t* font, std::function<void()> onClick) {
     item->onClick = onClick;
 
     item->btn = lv_btn_create(parent);
     lv_obj_set_size(item->btn, TT_HOME_ITEM_W, TT_HOME_ITEM_H);
-    lv_obj_align(item->btn, LV_ALIGN_TOP_LEFT, x, y);
     lv_obj_set_style_radius(item->btn, TT_HOME_ITEM_RADIUS, 0);
     lv_obj_set_style_bg_color(item->btn, lv_color_white(), 0);
     lv_obj_set_style_border_width(item->btn, 0, 0);
@@ -29,17 +28,14 @@ void HomeItem::create(HomeItem* item, lv_obj_t* parent, TTHomePage* page, int x,
     lv_obj_set_style_text_font(label, font, 0);
     lv_obj_align_to(label, icon, LV_ALIGN_OUT_BOTTOM_MID, 0, TT_HOME_ICON_PAD);
 
-    lv_obj_update_layout(label);
-    int labelWidth = lv_obj_get_content_width(label);
-    if (labelWidth == 0) labelWidth = 28;
     item->underline = lv_obj_create(item->btn);
-    lv_obj_set_size(item->underline, labelWidth, 1);
+    lv_obj_set_size(item->underline, TT_HOME_INDICATOR_W, TT_HOME_INDICATOR_H);
     lv_obj_set_style_bg_color(item->underline, lv_color_black(), 0);
     lv_obj_set_style_bg_opa(item->underline, LV_OPA_COVER, 0);
     lv_obj_set_style_border_width(item->underline, 0, 0);
     lv_obj_set_style_pad_all(item->underline, 0, 0);
     lv_obj_set_style_radius(item->underline, 0, 0);
-    lv_obj_align_to(item->underline, label, LV_ALIGN_OUT_BOTTOM_MID, 0, 1);
+    lv_obj_align(item->underline, LV_ALIGN_BOTTOM_MID, 0, 0);
     lv_obj_add_flag(item->underline, LV_OBJ_FLAG_HIDDEN);
 
     lv_obj_add_event_cb(item->btn, HomeItem::onEntryClicked, LV_EVENT_CLICKED, item);
@@ -85,20 +81,49 @@ void TTHomePage::buildContent(lv_obj_t* screen) {
     lv_obj_set_style_text_font(title, fontTitle, 0);
     lv_obj_align(title, LV_ALIGN_TOP_MID, 0, 4);
 
+    lv_obj_t* divider = lv_obj_create(screen);
+    lv_obj_set_size(divider, lv_pct(100), 1);
+    lv_obj_set_style_bg_color(divider, lv_color_black(), 0);
+    lv_obj_set_style_bg_opa(divider, LV_OPA_COVER, 0);
+    lv_obj_set_style_border_width(divider, 0, 0);
+    lv_obj_set_style_pad_all(divider, 0, 0);
+    lv_obj_set_style_radius(divider, 0, 0);
+    lv_obj_align_to(divider, title, LV_ALIGN_OUT_BOTTOM_MID, 0, 4);
+
     createGroup();
 
-    const int pad = 8;
-    const int yStart = 28;
-    int x = pad;
+    lv_obj_update_layout(divider);
+    int32_t divider_bottom = lv_obj_get_y2(divider);
+    int32_t screen_height = lv_obj_get_height(screen);
+    int32_t remaining_height = screen_height - divider_bottom;
 
-    HomeItem::create(&_items[0], screen, this, x, yStart, "/icons/wifi.png", "WiFi", fontBtn, 
+    lv_obj_t* wrapper = lv_obj_create(screen);
+    lv_obj_set_width(wrapper, lv_pct(100));
+    lv_obj_set_height(wrapper, remaining_height);
+    lv_obj_set_pos(wrapper, 0, divider_bottom);
+    lv_obj_set_style_bg_opa(wrapper, LV_OPA_TRANSP, 0);
+    lv_obj_set_style_border_width(wrapper, 0, 0);
+    lv_obj_set_style_pad_all(wrapper, 0, 0);
+    lv_obj_set_layout(wrapper, LV_LAYOUT_FLEX);
+    lv_obj_set_flex_flow(wrapper, LV_FLEX_FLOW_COLUMN);
+    lv_obj_set_flex_align(wrapper, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
+
+    lv_obj_t* container = lv_obj_create(wrapper);
+    lv_obj_set_size(container, LV_SIZE_CONTENT, LV_SIZE_CONTENT);
+    lv_obj_set_style_bg_opa(container, LV_OPA_TRANSP, 0);
+    lv_obj_set_style_border_width(container, 0, 0);
+    lv_obj_set_style_pad_all(container, 0, 0);
+    lv_obj_set_layout(container, LV_LAYOUT_FLEX);
+    lv_obj_set_flex_flow(container, LV_FLEX_FLOW_ROW);
+    lv_obj_set_flex_align(container, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_START);
+    lv_obj_set_style_pad_column(container, TT_HOME_ITEMS_GAP, 0);
+
+    HomeItem::create(&_items[0], container, this, "/icons/wifi.png", "WiFi", fontBtn, 
         [this]() { _controller->push(std::unique_ptr<TTScreenPage>(new TTWiFiDemoPage())); });
-    x += TT_HOME_ITEM_W + TT_HOME_ITEMS_GAP;
 
-    HomeItem::create(&_items[1], screen, this, x, yStart, "/icons/watch.png", "NTP", fontBtn,
+    HomeItem::create(&_items[1], container, this, "/icons/watch.png", "NTP", fontBtn,
         [this]() { _controller->push(std::unique_ptr<TTScreenPage>(new TTNTPDemoPage())); });
-    x += TT_HOME_ITEM_W + TT_HOME_ITEMS_GAP;
 
-    HomeItem::create(&_items[2], screen, this, x, yStart, "/icons/clock.png", "Clock", fontBtn,
+    HomeItem::create(&_items[2], container, this, "/icons/clock.png", "Clock", fontBtn,
         [this]() { _controller->push(std::unique_ptr<TTScreenPage>(new TTClockScreenPage())); });
 }
