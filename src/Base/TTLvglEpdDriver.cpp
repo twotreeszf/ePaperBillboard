@@ -37,7 +37,7 @@ bool TTLvglEpdDriver::begin(EPaperDisplay& display) {
     lv_display_set_buffers(_lvDisplay, _drawBuf, nullptr, sizeof(_drawBuf), LV_DISPLAY_RENDER_MODE_PARTIAL);
     
     // Set flush callback
-    lv_display_set_flush_cb(_lvDisplay, flushCallback);
+    lv_display_set_flush_cb(_lvDisplay, _flushCallback);
     
     // Store 'this' pointer in user data for callback access
     lv_display_set_user_data(_lvDisplay, this);
@@ -49,7 +49,7 @@ bool TTLvglEpdDriver::begin(EPaperDisplay& display) {
     return true;
 }
 
-void TTLvglEpdDriver::flushCallback(lv_display_t* disp, const lv_area_t* area, uint8_t* px_map) {
+void TTLvglEpdDriver::_flushCallback(lv_display_t* disp, const lv_area_t* area, uint8_t* px_map) {
     TTLvglEpdDriver* pThis = (TTLvglEpdDriver*)lv_display_get_user_data(disp);
     if (!pThis || !pThis->_epd) {
         LOG_E("Flush callback: invalid driver or display");
@@ -72,13 +72,13 @@ void TTLvglEpdDriver::flushCallback(lv_display_t* disp, const lv_area_t* area, u
     pThis->_epd->setRotation(EPD_ROTATION);
 
     bool isFullArea = (x1 == 0 && y1 == 0 && x2 == EPD_WIDTH - 1 && y2 == EPD_HEIGHT - 1);
-    bool doFullRefresh = isFullArea && (pThis->_needFullRefresh ||
+    bool doFullRefresh = isFullArea && (pThis->_needDeepRefresh ||
                          (pThis->_partialCount >= EPD_FULL_REFRESH_INTERVAL));
     if (doFullRefresh) {        
         pThis->_epd->setFullWindow();
         pThis->_partialCount = 0;
-        pThis->_needFullRefresh = false;
-        pThis->_fullRefreshPending = false;
+        pThis->_needDeepRefresh = false;
+        pThis->_deepRefreshPending = false;
         LOG_I("E-Paper full refresh");
     } else {        
         pThis->_epd->setPartialWindow(x1, y1, (uint16_t)w, (uint16_t)h);
@@ -107,18 +107,31 @@ void TTLvglEpdDriver::flushCallback(lv_display_t* disp, const lv_area_t* area, u
 
     lv_display_flush_ready(disp);
 
-    if (!doFullRefresh && pThis->_partialCount >= EPD_FULL_REFRESH_INTERVAL && !pThis->_fullRefreshPending) {
-        pThis->_fullRefreshPending = true;
-        TTInstanceOf<TTUITask>().requestFullRefreshAsync();
+    if (!doFullRefresh && pThis->_partialCount >= EPD_FULL_REFRESH_INTERVAL && !pThis->_deepRefreshPending) {
+        pThis->_deepRefreshPending = true;
+        TTInstanceOf<TTUITask>().requestDeepRefreshAsync();
     }
 }
 
-void TTLvglEpdDriver::requestRefresh(bool fullRefresh) {
-    if (fullRefresh) {
-        _needFullRefresh = true;
-        _partialCount = 0;
-        lv_obj_invalidate(lv_scr_act());
+void TTLvglEpdDriver::requestRefresh(TTRefreshLevel level) {
+    switch (level) {
+        case TT_REFRESH_PARTIAL:
+            // Partial refresh: rely on existing invalidation; LVGL will only redraw dirty areas.
+            lv_refr_now(_lvDisplay);
+            break;
+
+        case TT_REFRESH_FULL:
+            // Full-screen LVGL redraw, but still using E-Paper partial refresh waveform.
+            lv_obj_invalidate(lv_scr_act());
+            lv_refr_now(_lvDisplay);
+            break;
+
+        case TT_REFRESH_DEEP:
+            // Deep refresh: full-screen redraw plus hardware full refresh waveform.
+            _needDeepRefresh = true;
+            _partialCount = 0;
+            lv_obj_invalidate(lv_scr_act());
+            lv_refr_now(_lvDisplay);
+            break;
     }
-    
-    lv_refr_now(_lvDisplay);
 }

@@ -2,20 +2,21 @@
 
 #include <EPDConfig.h>
 #include <lvgl.h>
+#include "TTRefreshLevel.h"
 
 class TTLvglEpdDriver {
 public:
 
     bool begin(EPaperDisplay& display);
-    void requestRefresh(bool fullRefresh = false);
+    void requestRefresh(TTRefreshLevel level = TT_REFRESH_PARTIAL);
     lv_display_t* getDisplay() { return _lvDisplay; }
 
 private:
-    static void flushCallback(lv_display_t* disp, const lv_area_t* area, uint8_t* px_map);
+    static void _flushCallback(lv_display_t* disp, const lv_area_t* area, uint8_t* px_map);
 
     EPaperDisplay* _epd = nullptr;
     lv_display_t* _lvDisplay = nullptr;
     uint8_t _partialCount = 0;
-    bool _needFullRefresh = true;
-    bool _fullRefreshPending = false;
+    bool _needDeepRefresh = true;
+    bool _deepRefreshPending = false;
 };

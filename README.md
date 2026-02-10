@@ -1,8 +1,8 @@
 # ESP32 E-Paper Billboard
 
-ESP32-WROOM-32E + 2.9" E-Paper Display (E029A01) project with LVGL 9, custom binary fonts (Chinese/English), and optional I2C sensors (AHT20, BMP280). UI is built as a page stack (navigation + notifications) with E-Paper-optimized partial/full refresh.
+ESP32-WROOM-32E + 2.9" E-Paper Display (E029A01) project with LVGL 9, custom binary fonts (Chinese/English), and optional I2C sensors (AHT20, BMP280). UI is built as a page stack (navigation + notifications) with E-Paper-optimized three-level refresh (partial / full-screen partial / deep full).
 
-**Contents:** [Hardware](#hardware) · [Build & Flash](#build--flash) · [Font Generation](#font-generation) · [E-Ink / LVGL](#e-ink-refresh-strategy) · [Software Architecture](#software-architecture) · [Keypad & focus](#keypad--focus) · [Project Structure](#project-structure)
+**Contents:** [Hardware](#hardware) · [Build & Flash](#build--flash) · [Font Generation](#font-generation) · [E-Ink / LVGL](#e-ink-refresh-strategy) · [Software Architecture](#software-architecture) · [Keypad & focus](#keypad--focus)
 
 ## Hardware
 
@@ -222,38 +222,6 @@ lv_obj_set_style_text_font(label, font_16, 0);
 
 ## E-Ink Refresh Strategy
 
-### Partial vs Full Refresh
-
-E-Ink displays support two refresh modes:
-
-| Mode | Speed | Ghosting | Use Case |
-|------|-------|----------|----------|
-| Partial | Fast (~300ms) | May accumulate | Frequent updates |
-| Full | Slow (~2s) | Clears completely | Periodic cleanup |
-
-### Recommended Strategy
-
-```cpp
-#define FULL_REFRESH_INTERVAL 10  // Full refresh every 10 partial refreshes
-
-static uint8_t partialRefreshCount = 0;
-
-void refreshDisplay() {
-    partialRefreshCount++;
-    
-    if (partialRefreshCount >= FULL_REFRESH_INTERVAL) {
-        display.setFullWindow();
-        // ... draw content
-        display.display(false);  // Full refresh
-        partialRefreshCount = 0;
-    } else {
-        display.setPartialWindow(x, y, w, h);
-        // ... draw content
-        display.display(true);   // Partial refresh
-    }
-}
-```
-
 ### LVGL Integration
 
 LVGL 9.x integration for E-Paper displays with optimized monochrome rendering.
@@ -304,8 +272,8 @@ LVGL config: `include/lv_conf.h`. Key settings for E-Paper:
 TTInstanceOf<TTLvglEpdDriver>().begin(epdDisplay);
 lv_display_t* disp = TTInstanceOf<TTLvglEpdDriver>().getDisplay();
 
-// Request E-Paper refresh (partial by default; full every EPD_FULL_REFRESH_INTERVAL)
-TTInstanceOf<TTLvglEpdDriver>().requestRefresh(false);
+// Request E-Paper refresh: TT_REFRESH_PARTIAL, TT_REFRESH_FULL (full-screen redraw, partial waveform), or TT_REFRESH_DEEP (hardware full refresh)
+TTInstanceOf<TTLvglEpdDriver>().requestRefresh(TT_REFRESH_PARTIAL);
 ```
 
 #### Flush Callback Implementation
@@ -348,16 +316,23 @@ void flushCallback(lv_display_t* disp, const lv_area_t* area, uint8_t* px_map) {
 }
 ```
 
-#### Refresh Control
+#### Refresh levels (TTRefreshLevel)
+
+Three levels are defined in `TTRefreshLevel.h` and used by `TTLvglEpdDriver`, navigation, and pages:
+
+| Level | LVGL | E-Paper hardware | Use case |
+|-------|------|------------------|----------|
+| `TT_REFRESH_PARTIAL` | Redraw dirty areas only | Partial waveform | Frequent updates, minimal ghosting |
+| `TT_REFRESH_FULL` | `lv_obj_invalidate(lv_scr_act())` then redraw | Partial waveform (full-screen area) | Full-screen content change without deep refresh |
+| `TT_REFRESH_DEEP` | Full-screen invalidate + redraw | Full refresh waveform | Clear ghosting; used periodically (e.g. every `EPD_FULL_REFRESH_INTERVAL` partials) |
 
 ```cpp
-void requestRefresh(bool fullRefresh) {
-    // Invalidate screen to mark as dirty
-    lv_obj_invalidate(lv_scr_act());
-    
-    // Trigger immediate render
-    lv_refr_now(display);
-}
+#include "Base/TTRefreshLevel.h"
+#include "Base/TTLvglEpdDriver.h"
+
+TTInstanceOf<TTLvglEpdDriver>().requestRefresh(TT_REFRESH_PARTIAL);  // default
+TTInstanceOf<TTLvglEpdDriver>().requestRefresh(TT_REFRESH_FULL);     // full-screen partial
+TTInstanceOf<TTLvglEpdDriver>().requestRefresh(TT_REFRESH_DEEP);     // hardware full
 ```
 
 | Setting | Value | Reason |
@@ -395,22 +370,23 @@ void createUI() {
 
 `main.cpp` starts two FreeRTOS tasks and then idles:
 
-- **TTUITask** (core 0): SPI, LittleFS, LVGL, E-Paper driver, navigation, popup layer; root page is `TTClockScreenPage`. Runs `lv_timer_handler()` and `_keypad.tick()` every `TT_UI_LOOP_DELAY_MS` (5 ms). Pages that need periodic work use their own timers (e.g. LVGL `lv_timer_t`).
-- **TTSensorTask** (core 1): I2C, AHT20 (temp/humidity), BMP280 (pressure). Reads sensors every `TT_SENSOR_UPDATE_INTERVAL` (10 min), then posts `TT_NOTIFICATION_SENSOR_DATA_UPDATE` to the UI task.
+- **TTUITask** (core 0): SPI, LittleFS, LVGL, E-Paper driver, navigation, popup layer; root page is **TTHomePage** (WiFi / NTP / Clock entries). Runs `lv_timer_handler()` and `_keypad.tick()` every `TT_UI_LOOP_DELAY_MS` (5 ms). Page-level timing uses **runRepeat** / **runOnce** / **cancelRepeat** (driven in the same task loop; no LVGL timers required).
+- **TTSensorTask** (core 1): I2C, AHT20 (temp/humidity), BMP280 (pressure). Reads sensors every `TT_SENSOR_UPDATE_INTERVAL` (60 s), posts `TT_NOTIFICATION_SENSOR_DATA_UPDATE` to the UI task. **requestSensorUpdateAsync()** allows other tasks to request an immediate read.
 
 **TTWiFiTask** exists but is not started in `main.cpp`; add it if you need WiFi/AP config.
 
 ### Task Model (TTVTask)
 
-- Base class for all tasks: `setup()` once, `loop()` in a FreeRTOS task, plus an internal queue.
+- Base class for all tasks: `setup()` once, `loop()` in a FreeRTOS task, plus an internal queue and periodic task list.
+- **Scheduling**: `runOnce(delayMs, callback)` runs the callback once after the delay; `runRepeat(intervalMs, callback, executeImmediately)` runs repeatedly (returns a handle); `cancelRepeat(handle)` cancels a repeat task immediately.
 - Cross-task messaging: `postNotification(name, payload)` enqueues a call that runs in the task’s loop and forwards to `TTNotificationCenter::post()`.
 - Observers (e.g. pages) subscribe via `TTNotificationCenter::subscribe<PayloadType>(name, observer, callback)` and must `unsubscribeByObserver(this)` in `willDestroy()`.
 
 ### UI Stack
 
-- **TTNavigationController**: Stack of `TTScreenPage`; `setRoot` / `push` / `pop`; Binds keypad indev to the current page’s group on each `loadScreen()`. When pushing a new page, automatically shows a loading overlay via `TTPopupLayer` during `createScreen()` and dismisses it after completion. No built-in tick; pages use their own timers for periodic work.
-- **TTScreenPage**: Lifecycle: `createScreen()` → `buildContent(screen)` → `setup()` (e.g. subscribe); then `willAppear` / `willDisappear` on navigation; `willDestroy()` on teardown (unsubscribe). Call `requestRefresh(fullRefresh)` to trigger E-Paper update. Optional focus: call `createGroup()` then `addToFocusGroup(obj)` for widgets that should receive keypad focus (see [Keypad & focus](#keypad--focus)).
-- **TTPopupLayer**: Top LVGL layer for toasts/overlays; `showToast(text, durationMs)`, `dismissToast()`, `showLoading()`, `dismissLoading()`. The loading overlay is automatically shown during page push operations.
+- **ITTNavigationController** / **TTNavigationController**: Stack of **ITTScreenPage**; `setRoot` / `push` / `pop`; `requestRefresh(page, TTRefreshLevel)`. Binds keypad indev to the current page’s group on each `loadScreen()`. On setRoot, the root page gets `willAppear()` before load. When pushing a new page, shows a loading overlay via **TTPopupLayer** during `createScreen()` and dismisses after. Use **pushPage\<T\>()** / **setRootPage\<T\>()** for typed page pointers.
+- **ITTScreenPage** / **TTScreenPage**: Lifecycle: `createScreen()` → `buildContent(screen)` → `setup()` (e.g. subscribe); then `willAppear` / `willDisappear` on navigation; `willDestroy()` on teardown (unsubscribe). **requestRefresh(TTRefreshLevel)** triggers E-Paper update (partial / full / deep). **runOnce(delayMs, callback)**, **runRepeat(intervalMs, callback, executeImmediately)** (returns handle), **cancelRepeat(handle)** for timing (all run in the UI task). Optional focus: **createGroup()** then **addToFocusGroup(obj)** (see [Keypad & focus](#keypad--focus)). **getName()** returns the page name (set in constructor).
+- **TTPopupLayer**: Top LVGL layer; `showToast(text, durationMs)`, `dismissToast()`, `showLoading()`, `dismissLoading()`, **showDialog(msg, onOk, onCancel)** / **dismissDialog()**. Dialog has keypad focus (own group), focus indicator (underline under focused button). Loading overlay is shown automatically during page push.
 
 ### Keypad & focus
 
@@ -471,13 +447,15 @@ lv_obj_add_event_cb(btn, [](lv_event_t* e) {
 
 On setRoot / push / pop, **TTNavigationController::loadScreen()** calls `lv_indev_set_group(keypad_indev, page->getGroup())`. If `getGroup()` is `nullptr`, the keypad’s group is set to `nullptr`.
 
-**Hardware**: GPIOs 34, 35, 39 are input-only on ESP32 (no internal pull-up). Use external pull-up resistors (e.g. 10 kΩ to 3.3 V); buttons are active-low in `TTKeypadInput`.
+**Hardware**: GPIOs 34, 35, 39 are input-only on ESP32. Use 100 kΩ pull-down to GND (active-high); **TTKeypadInput** is configured for active-high. TTHomePage uses a bottom indicator bar for focus; dialog buttons use an underline under the focused label.
 
 ### Display and Fonts
 
-- **TTLvglEpdDriver**: Creates LVGL display (296×128, I1, partial buffer), flush callback to GxEPD2; `requestRefresh(fullRefresh)` with automatic full refresh every `EPD_FULL_REFRESH_INTERVAL`.
+- **TTRefreshLevel** (`TTRefreshLevel.h`): Enum `TT_REFRESH_PARTIAL`, `TT_REFRESH_FULL`, `TT_REFRESH_DEEP` for all refresh APIs.
+- **TTLvglEpdDriver**: Creates LVGL display (296×128, I1, partial buffer), flush callback to GxEPD2; **requestRefresh(TTRefreshLevel)**. Deep refresh is used automatically every `EPD_FULL_REFRESH_INTERVAL` partials (and via **requestFullRefreshAsync()**); a pending flag avoids duplicate enqueue. Clock time label is wrapped in a fixed-size container to limit partial refresh area.
 - **TTFontManager**: Singleton; `begin()` loads binary fonts from LittleFS (paths in `TTFontManager.cpp`); `getFont(size)` returns `lv_font_t*` for use in LVGL widgets.
-- **TTFontLoader**: Loads one or two binary font files (main + optional fallback); used by TTFontManager per size.
+- **TTFontLoader**: Loads one or two binary font files (main + optional fallback); **glyph cache** (e.g. up to 1000 entries) reduces LittleFS lookups for repeated characters. Used by TTFontManager per size.
+- **TTStreamImage**: LVGL-compatible stream PNG widget (libspng + zlib, vendored in `lib/spng` and `lib/zlib`); decode to screen with I1 passthrough, no cache. Icons and assets live in `data/icons/` (e.g. `clock.png`, `wifi.png`, `watch.png`).
 
 ### Storage and Config
 
@@ -489,7 +467,7 @@ On setRoot / push / pop, **TTNavigationController::loadScreen()** calls `lv_inde
 - **TTInstanceOf\<T\>()**: Singleton access.
 - **Logger** / **LOG_I**, **LOG_W**, **LOG_E**, etc.: Leveled logging.
 - **ErrorCheck.h**: `ERR_CHECK_RET`, `ERR_CHECK_FAIL`, `ERR_CHECK_LOG`.
-- **Util**: `runOnceAfter`, `format`, `printChipInfo`, `disableBrownoutDetector`, etc.
+- **Util**: `format`, `printChipInfo`, `disableBrownoutDetector`, etc.
 - **TTReleasePool**: RAII-style release callbacks in reverse order.
 
 ### Notifications

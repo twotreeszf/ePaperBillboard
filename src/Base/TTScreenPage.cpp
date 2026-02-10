@@ -52,9 +52,9 @@ void TTScreenPage::addToFocusGroup(lv_obj_t* obj) {
     }
 }
 
-void TTScreenPage::requestRefresh(bool fullRefresh) {
+void TTScreenPage::requestRefresh(TTRefreshLevel level) {
     if (_controller != nullptr) {
-        _controller->requestRefresh(this, fullRefresh);
+        _controller->requestRefresh(this, level);
     }
 }
 

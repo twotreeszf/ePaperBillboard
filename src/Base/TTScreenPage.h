@@ -17,7 +17,7 @@ public:
     void setNavigationController(ITTNavigationController* nav) override { _controller = nav; }
     ITTNavigationController* getNavigationController() const override { return _controller; }
     void addToFocusGroup(lv_obj_t* obj) override;
-    void requestRefresh(bool fullRefresh = false) override;
+    void requestRefresh(TTRefreshLevel level = TT_REFRESH_PARTIAL) override;
 
     void runOnce(uint32_t delayMs, std::function<void()> callback);
     uint32_t runRepeat(uint32_t intervalMs, std::function<void()> callback, bool executeImmediately = true);

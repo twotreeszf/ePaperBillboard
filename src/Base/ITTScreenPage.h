@@ -1,6 +1,7 @@
 #pragma once
 
 #include <lvgl.h>
+#include "TTRefreshLevel.h"
 
 class ITTNavigationController;
 
@@ -16,7 +17,7 @@ public:
     virtual void setNavigationController(ITTNavigationController* nav) = 0;
     virtual ITTNavigationController* getNavigationController() const = 0;
     virtual void addToFocusGroup(lv_obj_t* obj) = 0;
-    virtual void requestRefresh(bool fullRefresh = false) = 0;
+    virtual void requestRefresh(TTRefreshLevel level = TT_REFRESH_PARTIAL) = 0;
 
     virtual void setup() {}
     virtual void willDestroy() {}

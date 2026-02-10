@@ -66,7 +66,7 @@ void TTClockScreenPage::setup() {
         TT_NOTIFICATION_SENSOR_DATA_UPDATE, this,
         [this](const TTSensorDataPayload& p) {
             updateSensorDisplay(p.temperature, p.humidity, p.pressure);
-            requestRefresh(false);
+            requestRefresh(TT_REFRESH_PARTIAL);
             LOG_I("Sensor data updated.");
         });
 }
@@ -122,7 +122,7 @@ void TTClockScreenPage::onTimerTick() {
 
     if (needRefresh) {
         updateClockDisplay();
-        requestRefresh(false);
+        requestRefresh(TT_REFRESH_PARTIAL);
         LOG_I("Clock refreshed.");
     }
 }

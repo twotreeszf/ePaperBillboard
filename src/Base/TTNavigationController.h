@@ -17,7 +17,7 @@ public:
     void pop() override;
 
     ITTScreenPage* getCurrentPage() override;
-    void requestRefresh(ITTScreenPage* page, bool fullRefresh) override;
+    void requestRefresh(ITTScreenPage* page, TTRefreshLevel level = TT_REFRESH_PARTIAL) override;
 
     void setKeypadInput(TTKeypadInput* keypad) { _keypad = keypad; }
 

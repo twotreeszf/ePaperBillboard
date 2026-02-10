@@ -45,7 +45,7 @@ void TTPopupLayer::showToast(const char* text, uint32_t durationMs) {
     lv_obj_update_layout(_toastPanel);
     lv_obj_align(_toastPanel, LV_ALIGN_CENTER, 0, 0);
 
-    TTInstanceOf<TTLvglEpdDriver>().requestRefresh(false);
+    TTInstanceOf<TTLvglEpdDriver>().requestRefresh(TT_REFRESH_FULL);
 
     if (durationMs > 0 && _toastTimer == nullptr) {
         _toastTimer = lv_timer_create(toastTimerCallback, durationMs, this);
@@ -61,7 +61,7 @@ void TTPopupLayer::dismissToast() {
     if (_toastPanel != nullptr) {
         lv_obj_delete(_toastPanel);
         _toastPanel = nullptr;
-        TTInstanceOf<TTLvglEpdDriver>().requestRefresh(false);
+        TTInstanceOf<TTLvglEpdDriver>().requestRefresh(TT_REFRESH_FULL);
     }
 }
 
@@ -72,7 +72,7 @@ void TTPopupLayer::toastTimerCallback(lv_timer_t* timer) {
         if (self->_toastPanel != nullptr) {
             lv_obj_delete(self->_toastPanel);
             self->_toastPanel = nullptr;
-            TTInstanceOf<TTLvglEpdDriver>().requestRefresh(false);
+            TTInstanceOf<TTLvglEpdDriver>().requestRefresh(TT_REFRESH_FULL);
         }
     }
 }
@@ -103,14 +103,14 @@ void TTPopupLayer::showLoading() {
     lv_obj_update_layout(_loadingPanel);
     lv_obj_align(_loadingPanel, LV_ALIGN_CENTER, 0, 0);
 
-    TTInstanceOf<TTLvglEpdDriver>().requestRefresh(false);
+    TTInstanceOf<TTLvglEpdDriver>().requestRefresh(TT_REFRESH_FULL);
 }
 
 void TTPopupLayer::dismissLoading() {
     if (_loadingPanel != nullptr) {
         lv_obj_delete(_loadingPanel);
         _loadingPanel = nullptr;
-        TTInstanceOf<TTLvglEpdDriver>().requestRefresh(false);
+        TTInstanceOf<TTLvglEpdDriver>().requestRefresh(TT_REFRESH_FULL);
     }
 }
 
@@ -132,9 +132,12 @@ void TTPopupLayer::dialogBtnClicked(lv_event_t* e) {
     TTPopupLayer* self = (TTPopupLayer*)lv_obj_get_user_data(panel);
     if (self == nullptr) return;
     intptr_t isOk = (intptr_t)lv_event_get_user_data(e);
+    self->dismissDialog();
+
     if (isOk && self->_onDialogOk) self->_onDialogOk();
     if (!isOk && self->_onDialogCancel) self->_onDialogCancel();
-    self->dismissDialog();
+    self->_onDialogOk = nullptr;
+    self->_onDialogCancel = nullptr;
 }
 
 void TTPopupLayer::showDialog(const char* msg, DialogCallback onOk, DialogCallback onCancel) {
@@ -245,7 +248,7 @@ void TTPopupLayer::showDialog(const char* msg, DialogCallback onOk, DialogCallba
     lv_obj_update_layout(_dialogPanel);
     lv_obj_align(_dialogPanel, LV_ALIGN_CENTER, 0, 0);
 
-    TTInstanceOf<TTLvglEpdDriver>().requestRefresh(false);
+    TTInstanceOf<TTLvglEpdDriver>().requestRefresh(TT_REFRESH_FULL);
 }
 
 void TTPopupLayer::dismissDialog() {
@@ -260,9 +263,6 @@ void TTPopupLayer::dismissDialog() {
     if (_dialogPanel != nullptr) {
         lv_obj_delete(_dialogPanel);
         _dialogPanel = nullptr;
-        TTInstanceOf<TTLvglEpdDriver>().requestRefresh(false);
+        TTInstanceOf<TTLvglEpdDriver>().requestRefresh(TT_REFRESH_FULL);
     }
-
-    _onDialogOk = nullptr;
-    _onDialogCancel = nullptr;
 }

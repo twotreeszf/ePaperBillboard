@@ -3,6 +3,7 @@
 #include <lvgl.h>
 #include <memory>
 #include <type_traits>
+#include "TTRefreshLevel.h"
 
 class ITTScreenPage;
 
@@ -15,7 +16,7 @@ public:
     virtual void pop() = 0;
 
     virtual ITTScreenPage* getCurrentPage() = 0;
-    virtual void requestRefresh(ITTScreenPage* page, bool fullRefresh) = 0;
+    virtual void requestRefresh(ITTScreenPage* page, TTRefreshLevel level = TT_REFRESH_PARTIAL) = 0;
 
     virtual bool canPop() const = 0;
     virtual size_t stackSize() const = 0;
