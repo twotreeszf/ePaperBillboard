@@ -74,15 +74,16 @@ void TTLvglEpdDriver::flushCallback(lv_display_t* disp, const lv_area_t* area, u
     bool isFullArea = (x1 == 0 && y1 == 0 && x2 == EPD_WIDTH - 1 && y2 == EPD_HEIGHT - 1);
     bool doFullRefresh = isFullArea && (pThis->_needFullRefresh ||
                          (pThis->_partialCount >= EPD_FULL_REFRESH_INTERVAL));
-    if (doFullRefresh) {
-        LOG_I("E-Paper full refresh");
+    if (doFullRefresh) {        
         pThis->_epd->setFullWindow();
         pThis->_partialCount = 0;
         pThis->_needFullRefresh = false;
-    } else {
-        LOG_I("E-Paper partial refresh at (%d,%d) %dx%d", x1, y1, w, h);
+        pThis->_fullRefreshPending = false;
+        LOG_I("E-Paper full refresh");
+    } else {        
         pThis->_epd->setPartialWindow(x1, y1, (uint16_t)w, (uint16_t)h);
         pThis->_partialCount++;
+        LOG_I("E-Paper partial refresh at (%d,%d) %dx%d, partial count: %d", x1, y1, w, h, pThis->_partialCount);
     }
 
     int32_t buf_stride = (w + 7) / 8;
@@ -106,8 +107,8 @@ void TTLvglEpdDriver::flushCallback(lv_display_t* disp, const lv_area_t* area, u
 
     lv_display_flush_ready(disp);
 
-    // Notify UI task to request full refresh if partial count exceeds threshold but no chance for full refresh
-    if (!doFullRefresh && pThis->_partialCount >= EPD_FULL_REFRESH_INTERVAL) {        
+    if (!doFullRefresh && pThis->_partialCount >= EPD_FULL_REFRESH_INTERVAL && !pThis->_fullRefreshPending) {
+        pThis->_fullRefreshPending = true;
         TTInstanceOf<TTUITask>().requestFullRefreshAsync();
     }
 }
@@ -115,6 +116,7 @@ void TTLvglEpdDriver::flushCallback(lv_display_t* disp, const lv_area_t* area, u
 void TTLvglEpdDriver::requestRefresh(bool fullRefresh) {
     if (fullRefresh) {
         _needFullRefresh = true;
+        _partialCount = 0;
         lv_obj_invalidate(lv_scr_act());
     }
     

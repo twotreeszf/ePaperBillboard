@@ -17,4 +17,5 @@ private:
     lv_display_t* _lvDisplay = nullptr;
     uint8_t _partialCount = 0;
     bool _needFullRefresh = true;
+    bool _fullRefreshPending = false;
 };
