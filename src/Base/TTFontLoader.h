@@ -1,6 +1,7 @@
 #pragma once
 
 #include <Arduino.h>
+#include <map>
 #include <LittleFS.h>
 #include <Adafruit_GFX.h>
 #include <lvgl.h>
@@ -8,9 +9,11 @@
 // Maximum glyph bitmap size for A8 format (48x48 = 2304 bytes)
 #define TT_FONT_GLYPH_BUF_SIZE 2304
 
+#define TT_FONT_GLYPH_CACHE_MAX 1000
+
 class TTFontLoader {
 public:
-    TTFontLoader() {}
+    TTFontLoader() = default;
     ~TTFontLoader() { end(); }
 
     // Load font file(s)
@@ -90,6 +93,11 @@ private:
     FontData _main;     // Main font (Chinese)
     FontData _ascii;    // ASCII font (English)
     uint16_t _color = 0;
+
+    std::map<uint32_t, GlyphInfo> _glyphCache;
+    void _glyphCacheClear();
+    bool _glyphCacheGet(uint32_t unicode, GlyphInfo& info);
+    void _glyphCachePut(uint32_t unicode, const GlyphInfo& info);
 
     // Shared LVGL font structure and glyph buffer
     lv_font_t _lvFont;

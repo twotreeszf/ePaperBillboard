@@ -70,7 +70,29 @@ void TTFontLoader::_freeFontData(FontData& fd) {
     fd.file.close();
 }
 
+void TTFontLoader::_glyphCacheClear() {
+    _glyphCache.clear();
+}
+
+bool TTFontLoader::_glyphCacheGet(uint32_t unicode, GlyphInfo& info) {
+    auto it = _glyphCache.find(unicode);
+    if (it != _glyphCache.end()) {
+        info = it->second;
+        return true;
+    }
+    return false;
+}
+
+void TTFontLoader::_glyphCachePut(uint32_t unicode, const GlyphInfo& info) {
+    if (_glyphCache.size() >= TT_FONT_GLYPH_CACHE_MAX && _glyphCache.find(unicode) == _glyphCache.end()) {
+        _glyphCache.erase(_glyphCache.begin());
+    }
+    _glyphCache[unicode] = info;
+}
+
 bool TTFontLoader::begin(const char* path, const char* asciiPath) {
+    _glyphCacheClear();
+
     // Load main font
     if (!_loadFontData(_main, path)) {
         return false;
@@ -104,6 +126,7 @@ bool TTFontLoader::begin(const char* path, const char* asciiPath) {
 }
 
 void TTFontLoader::end() {
+    _glyphCacheClear();
     _freeFontData(_ascii);
     _freeFontData(_main);
 }
@@ -214,20 +237,24 @@ bool TTFontLoader::_getGlyphInfoFromFont(FontData& fd, uint32_t unicode, GlyphIn
 }
 
 bool TTFontLoader::getGlyphInfo(uint32_t unicode, GlyphInfo& info) {
-    // Try ASCII font first if loaded (any character in its range)
+    if (_glyphCacheGet(unicode, info)) {
+        return true;
+    }
+
     if (_ascii.isLoaded()) {
         if (_getGlyphInfoFromFont(_ascii, unicode, info)) {
             info.fromAsciiFont = true;
+            _glyphCachePut(unicode, info);
             return true;
         }
     }
-    
-    // Fall back to main font
+
     if (_getGlyphInfoFromFont(_main, unicode, info)) {
         info.fromAsciiFont = false;
+        _glyphCachePut(unicode, info);
         return true;
     }
-    
+
     return false;
 }
 
@@ -297,19 +324,14 @@ const void* TTFontLoader::lvglGetGlyphBitmap(lv_font_glyph_dsc_t* dsc, lv_draw_b
     TTFontLoader* loader = (TTFontLoader*)dsc->resolved_font->dsc;
     if (!loader) return nullptr;
     
-    // Extract unicode and fromAsciiFont flag
     uint32_t letter = dsc->gid.index & 0x7FFFFFFF;
-    bool fromAsciiFont = (dsc->gid.index & 0x80000000) != 0;
-    
-    // Select the correct font data
-    FontData& fd = fromAsciiFont ? loader->_ascii : loader->_main;
-    if (!fd.file) return nullptr;
-    
-    // Get glyph info from the correct font
     GlyphInfo info;
-    if (!loader->_getGlyphInfoFromFont(fd, letter, info)) {
+    if (!loader->getGlyphInfo(letter, info)) {
         return nullptr;
     }
+    
+    FontData& fd = info.fromAsciiFont ? loader->_ascii : loader->_main;
+    if (!fd.file) return nullptr;
     
     uint32_t a8Size = info.box_w * info.box_h;
     if (a8Size > sizeof(loader->_glyphBuf)) {
