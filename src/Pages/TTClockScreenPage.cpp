@@ -59,11 +59,8 @@ void TTClockScreenPage::setup() {
     TTScreenPage::setup();
     _lastUpdateMs = millis();
     updateClockDisplay();
-    
-    _timer = lv_timer_create([](lv_timer_t* t) {
-        auto* page = static_cast<TTClockScreenPage*>(lv_timer_get_user_data(t));
-        if (page != nullptr) page->onTimerTick();
-    }, TT_CLOCK_TIMER_MS, this);
+
+    _repeatHandle = runRepeat(TT_CLOCK_TIMER_MS, [this]() { onTimerTick(); }, false);
 
     TTInstanceOf<TTNotificationCenter>().subscribe<TTSensorDataPayload>(
         TT_NOTIFICATION_SENSOR_DATA_UPDATE, this,
@@ -80,9 +77,9 @@ void TTClockScreenPage::willAppear() {
 }
 
 void TTClockScreenPage::willDestroy() {
-    if (_timer != nullptr) {
-        lv_timer_delete(_timer);
-        _timer = nullptr;
+    if (_repeatHandle != 0) {
+        cancelRepeat(_repeatHandle);
+        _repeatHandle = 0;
     }
     TTInstanceOf<TTNotificationCenter>().unsubscribeByObserver(this);
     TTScreenPage::willDestroy();

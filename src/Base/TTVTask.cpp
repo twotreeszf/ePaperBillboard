@@ -37,37 +37,68 @@ void TTVTask::enqueue(std::function<void()> *func)
     }
 }
 
-void TTVTask::registerPeriodicTask(std::function<void()> callback, uint32_t intervalMs, bool executeImmediately)
+void TTVTask::_registerPeriodicTask(std::function<void()> callback, uint32_t intervalMs, bool executeImmediately, bool runOnce, uint32_t* outId)
 {
     TTPeriodicTask task;
-    task.callback = callback;
+    task.callback = std::move(callback);
     task.intervalMs = intervalMs;
-    
+    task.runOnce = runOnce;
+    if (!runOnce && outId != nullptr) {
+        task.id = ++_nextPeriodicId;
+        *outId = task.id;
+    }
+
     if (executeImmediately) {
-        // Execute immediately on registration
-        callback();
-        // Record timestamp after execution
+        task.callback();
         task.lastExecuteTimeMs = millis();
     } else {
-        // Set timestamp to past so it executes on next check
         task.lastExecuteTimeMs = millis() - intervalMs;
     }
-    
-    _periodicTasks.push_back(task);
+
+    _periodicTasks.push_back(std::move(task));
+}
+
+void TTVTask::runOnce(uint32_t delayMs, std::function<void()> callback)
+{
+    _registerPeriodicTask(std::move(callback), delayMs, false, true, nullptr);
+}
+
+uint32_t TTVTask::runRepeat(uint32_t intervalMs, std::function<void()> callback, bool executeImmediately)
+{
+    uint32_t id = 0;
+    _registerPeriodicTask(std::move(callback), intervalMs, executeImmediately, false, &id);
+    return id;
+}
+
+void TTVTask::cancelRepeat(uint32_t handle)
+{
+    if (handle == 0) return;
+    for (size_t i = 0; i < _periodicTasks.size(); ++i) {
+        if (_periodicTasks[i].id == handle) {
+            _periodicTasks.erase(_periodicTasks.begin() + static_cast<std::ptrdiff_t>(i));
+            break;
+        }
+    }
 }
 
 void TTVTask::_checkPeriodicTasks()
 {
     uint32_t nowMs = millis();
+    std::vector<size_t> toRemove;
 
-    for (auto& task : _periodicTasks)
+    for (size_t i = 0; i < _periodicTasks.size(); ++i)
     {
-        if ((nowMs - task.lastExecuteTimeMs) >= task.intervalMs)
-        {
+        auto& task = _periodicTasks[i];
+        if ((nowMs - task.lastExecuteTimeMs) >= task.intervalMs) {
             task.callback();
-            task.lastExecuteTimeMs = nowMs;
+            if (task.runOnce)
+                toRemove.push_back(i);
+            else
+                task.lastExecuteTimeMs = nowMs;
         }
     }
+    for (auto it = toRemove.rbegin(); it != toRemove.rend(); ++it)
+        _periodicTasks.erase(_periodicTasks.begin() + static_cast<std::ptrdiff_t>(*it));
 }
 
 void TTVTask::_task()

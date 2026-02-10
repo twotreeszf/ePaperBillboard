@@ -16,6 +16,7 @@ void TTNavigationController::setRoot(std::unique_ptr<ITTScreenPage> page) {
     page->createScreen();
     _stack.push_back(std::move(page));
     _stack.back()->setNavigationController(this);
+    _stack.back()->willAppear();
     loadScreen(_stack.back().get());
     requestRefresh(_stack.back().get(), false);
 }

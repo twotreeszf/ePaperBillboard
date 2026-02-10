@@ -32,6 +32,7 @@ void TTUITask::setup() {
     ERR_CHECK_FAIL(_keypad.begin(disp));
     _nav.setKeypadInput(&_keypad);
     _keypad.setNavigationController(&_nav);
+    TTInstanceOf<TTPopupLayer>().setKeypadInput(&_keypad);
 
     _nav.setRootPage(std::unique_ptr<TTScreenPage>(new TTHomePage()));
 

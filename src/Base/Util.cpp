@@ -14,30 +14,6 @@
 
 namespace Util  
 {
-    static void _delay_task_callback(void* arg) {
-        auto pfunc = (std::function<void()>*)arg;
-        (*pfunc)();
-        delete pfunc;
-    }
-
-    void runOnceAfter(std::function<void()> func, int32_t delayMS) {
-        auto pfunc = new std::function<void()>(func);
-        const esp_timer_create_args_t one_time_timer_args = {
-            .callback = &_delay_task_callback,
-            .arg = pfunc,
-            .name = "util-delay-task"
-        };
-
-        esp_timer_handle_t one_time_timer;
-        ESP_ERROR_CHECK(esp_timer_create(&one_time_timer_args, &one_time_timer));
-        ESP_ERROR_CHECK(esp_timer_start_once(one_time_timer, delayMS * 1000));
-    }
-
-
-    float trimSmallValue(float v) {
-        return (abs(v) < 0.05) ? 0. : v;
-    }
-
     std::string format(const char* fmt, va_list args) {
         va_list args_copy;
         va_copy(args_copy, args);

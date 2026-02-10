@@ -31,6 +31,7 @@ public:
 
 protected:
     void buildContent(lv_obj_t* screen) override;
+    void setup() override;
 
 private:
     std::array<HomeItem, 3> _items;

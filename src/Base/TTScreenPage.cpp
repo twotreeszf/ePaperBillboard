@@ -1,6 +1,8 @@
 #include "TTScreenPage.h"
 #include "ITTNavigationController.h"
 #include "Logger.h"
+#include "TTInstance.h"
+#include "../Tasks/TTUITask.h"
 
 TTScreenPage::~TTScreenPage() {
     if (_group != nullptr) {
@@ -54,4 +56,16 @@ void TTScreenPage::requestRefresh(bool fullRefresh) {
     if (_controller != nullptr) {
         _controller->requestRefresh(this, fullRefresh);
     }
+}
+
+void TTScreenPage::runOnce(uint32_t delayMs, std::function<void()> callback) {
+    TTInstanceOf<TTUITask>().runOnce(delayMs, std::move(callback));
+}
+
+uint32_t TTScreenPage::runRepeat(uint32_t intervalMs, std::function<void()> callback, bool executeImmediately) {
+    return TTInstanceOf<TTUITask>().runRepeat(intervalMs, std::move(callback), executeImmediately);
+}
+
+void TTScreenPage::cancelRepeat(uint32_t handle) {
+    TTInstanceOf<TTUITask>().cancelRepeat(handle);
 }

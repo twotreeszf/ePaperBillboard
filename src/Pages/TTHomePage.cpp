@@ -4,6 +4,9 @@
 #include "TTClockScreenPage.h"
 #include "../Base/TTFontManager.h"
 #include "../Base/TTStreamImage.h"
+#include "../Base/TTPopupLayer.h"
+#include "../Base/TTInstance.h"
+#include "../Tasks/TTUITask.h"
 #include <memory>
 
 void HomeItem::create(HomeItem* item, lv_obj_t* parent, TTHomePage* page, const char* iconPath, const char* labelText, lv_font_t* font, std::function<void()> onClick) {
@@ -125,4 +128,24 @@ void TTHomePage::buildContent(lv_obj_t* screen) {
 
     HomeItem::create(&_items[2], container, this, "/icons/clock.png", "Clock", fontBtn,
         [this]() { getNavigationController()->pushPage(std::unique_ptr<TTScreenPage>(new TTClockScreenPage())); });
+}
+
+void TTHomePage::setup() {
+    TTScreenPage::setup();
+
+    runOnce(1000, [this]() {
+        if (getNavigationController() == nullptr)
+            return;
+        if (getNavigationController()->getCurrentPage() != this)
+            return;
+        TTInstanceOf<TTPopupLayer>().showDialog(
+            "Configure WiFi?",
+            [this]() {
+                if (getNavigationController() != nullptr) {
+                    getNavigationController()->pushPage(
+                        std::unique_ptr<TTScreenPage>(new TTWiFiDemoPage()));
+                }
+            },
+            nullptr);
+    });
 }

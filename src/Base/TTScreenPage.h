@@ -1,5 +1,6 @@
 #pragma once
 
+#include <functional>
 #include <lvgl.h>
 #include "ITTScreenPage.h"
 #include "ITTNavigationController.h"
@@ -17,6 +18,10 @@ public:
     ITTNavigationController* getNavigationController() const override { return _controller; }
     void addToFocusGroup(lv_obj_t* obj) override;
     void requestRefresh(bool fullRefresh = false) override;
+
+    void runOnce(uint32_t delayMs, std::function<void()> callback);
+    uint32_t runRepeat(uint32_t intervalMs, std::function<void()> callback, bool executeImmediately = true);
+    void cancelRepeat(uint32_t handle);
 
     /** Called once in createScreen() right after buildContent(screen). Use for post-build init (e.g. subscribe to notifications). */
     void setup() override;
