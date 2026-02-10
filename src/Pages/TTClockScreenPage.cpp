@@ -33,15 +33,20 @@ void TTClockScreenPage::buildContent(lv_obj_t* screen) {
     lv_obj_set_style_text_line_space(testLabel, 4, 0);
     lv_obj_align(testLabel, LV_ALIGN_TOP_MID, 0, 24);
 
-    _timeLabel = lv_label_create(screen);
+    lv_obj_t* timeContainer = lv_obj_create(screen);
+    lv_obj_set_size(timeContainer,124, 44);
+    lv_obj_set_style_bg_opa(timeContainer, LV_OPA_TRANSP, 0);
+    lv_obj_align(timeContainer, LV_ALIGN_CENTER, 0, 18);
+
+    _timeLabel = lv_label_create(timeContainer);
     lv_label_set_text(_timeLabel, "00:00");
     lv_obj_set_style_text_color(_timeLabel, lv_color_black(), 0);
     lv_obj_set_style_text_font(_timeLabel, font_48, 0);
-    lv_obj_align(_timeLabel, LV_ALIGN_CENTER, 0, 18);
+    lv_obj_align(_timeLabel, LV_ALIGN_CENTER, 0, 0);
 
     lv_obj_t* timeIcon = tt_stream_image_create(screen);
     tt_stream_image_set_src(timeIcon, "/icons/clock.png");
-    lv_obj_align_to(timeIcon, _timeLabel, LV_ALIGN_OUT_LEFT_MID, -6, 0);
+    lv_obj_align_to(timeIcon, timeContainer, LV_ALIGN_OUT_LEFT_MID, -6, 0);
 
     _statusLabel = lv_label_create(screen);
     lv_label_set_text(_statusLabel, "");
