@@ -92,8 +92,6 @@ void TTHomePage::buildContent(lv_obj_t* screen) {
     lv_obj_set_style_radius(divider, 0, 0);
     lv_obj_align_to(divider, title, LV_ALIGN_OUT_BOTTOM_MID, 0, 4);
 
-    createGroup();
-
     lv_obj_update_layout(divider);
     int32_t divider_bottom = lv_obj_get_y2(divider);
     int32_t screen_height = lv_obj_get_height(screen);

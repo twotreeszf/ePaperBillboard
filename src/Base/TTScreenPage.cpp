@@ -47,6 +47,9 @@ lv_group_t* TTScreenPage::createGroup() {
 }
 
 void TTScreenPage::addToFocusGroup(lv_obj_t* obj) {
+    if (_group == nullptr) {
+        createGroup();
+    }
     if (_group != nullptr) {
         lv_group_add_obj(_group, obj);
     }
