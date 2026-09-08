@@ -1,5 +1,7 @@
 #pragma once
 
+#include <stdint.h>
+
 #define TT_NOTIFICATION_SENSOR_DATA_UPDATE "TTNotify.SensorDataUpdate"
 #define TT_NOTIFICATION_WIFI_STATUS        "TTNotify.WiFiStatus"
 #define TT_NOTIFICATION_TIME_SYNC          "TTNotify.TimeSync"
@@ -31,6 +33,10 @@ struct TTSensorDataPayload {
     float temperature;
     float humidity;
     float pressure;
+    int16_t voltageMv;
+    uint8_t percent;
+    bool charging;
+    bool usbPlugged;
 };
 
 struct TTWiFiStatusPayload {

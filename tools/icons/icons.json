@@ -57,5 +57,46 @@
       "size": 12,
       "strokeWidth": 4
     }
-  ]
+  ],
+  "pixelart": {
+    "source": "https://pixelarticons.com/",
+    "icons": [
+      {
+        "id": "battery",
+        "file": "battery_sm.png",
+        "width": 18,
+        "height": 12
+      },
+      {
+        "id": "battery-low",
+        "file": "battery_low_sm.png",
+        "width": 18,
+        "height": 12
+      },
+      {
+        "id": "battery-medium",
+        "file": "battery_medium_sm.png",
+        "width": 18,
+        "height": 12
+      },
+      {
+        "id": "battery-full",
+        "file": "battery_full_sm.png",
+        "width": 18,
+        "height": 12
+      },
+      {
+        "id": "battery-plus",
+        "file": "battery_charging_sm.png",
+        "width": 18,
+        "height": 12
+      },
+      {
+        "id": "plug",
+        "file": "plug_sm.png",
+        "width": 18,
+        "height": 12
+      }
+    ]
+  }
 }

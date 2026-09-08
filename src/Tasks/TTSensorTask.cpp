@@ -28,6 +28,11 @@ void TTSensorTask::setup() {
         LOG_W("BMP280 sensor not found! Check wiring or I2C address.");
     }
 
+    pinMode(TT_BATTERY_ADC_PIN, INPUT);
+    pinMode(TT_BATTERY_CHARGE_PIN, INPUT);
+    LOG_I("Battery ADC GPIO%d, charge GPIO%d (low=charging)",
+          TT_BATTERY_ADC_PIN, TT_BATTERY_CHARGE_PIN);
+
     LOG_I("Sensor read interval %d s", TT_SENSOR_UPDATE_INTERVAL);
     runRepeat(TT_SENSOR_UPDATE_INTERVAL * 1000, [this]() {
         performSensorRead();
@@ -51,7 +56,29 @@ void TTSensorTask::performSensorRead() {
         LOG_I("BMP280: Pressure=%.1f hPa", pressure);
     }
 
-    TTSensorDataPayload payload = { temperature, humidity, pressure };
+    const long adc = analogRead(TT_BATTERY_ADC_PIN);
+    const int16_t voltageMv = (int16_t)(adc * TT_BATTERY_ADC_SCALE / TT_BATTERY_ADC_MAX);
+    const bool usbPlugged = voltageMv > TT_BATTERY_USB_MV;
+    const bool charging = digitalRead(TT_BATTERY_CHARGE_PIN) == 0;
+
+    uint8_t percent = 100;
+    if (!usbPlugged) {
+        if (voltageMv <= TT_BATTERY_EMPTY_MV) {
+            percent = 0;
+        } else if (voltageMv >= TT_BATTERY_FULL_MV) {
+            percent = 100;
+        } else {
+            percent = (uint8_t)((voltageMv - TT_BATTERY_EMPTY_MV) * 100
+                                / (TT_BATTERY_FULL_MV - TT_BATTERY_EMPTY_MV));
+        }
+    }
+
+    LOG_I("Battery: %dmV percent=%u usb=%d charging=%d",
+          voltageMv, (unsigned)percent, usbPlugged ? 1 : 0, charging ? 1 : 0);
+
+    TTSensorDataPayload payload = {
+        temperature, humidity, pressure, voltageMv, percent, charging, usbPlugged
+    };
     TTInstanceOf<TTUITask>().postNotification(TT_NOTIFICATION_SENSOR_DATA_UPDATE, payload);
 }
 

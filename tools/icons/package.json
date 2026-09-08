@@ -6,6 +6,7 @@
   "dependencies": {
     "@resvg/resvg-js": "^2.6.2",
     "lucide-static": "^0.544.0",
+    "pixelarticons": "^2.4.1",
     "pngjs": "^7.0.0"
   }
 }

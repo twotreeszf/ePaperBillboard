@@ -99,6 +99,7 @@ void TTNavigationBar::beginStatus(lv_font_t* font) {
     _tempLabel = createValue(_statusRow, font, "温--.-℃");
     _humLabel = createValue(_statusRow, font, "湿--%");
     _pressLabel = createValue(_statusRow, font, "压----p");
+    createBatteryStatus(_statusRow, font);
 }
 
 void TTNavigationBar::createWifiStatus(lv_obj_t* parent, lv_font_t* font) {
@@ -123,10 +124,32 @@ void TTNavigationBar::createWifiStatus(lv_obj_t* parent, lv_font_t* font) {
     lv_obj_set_style_translate_y(_wifiIcon, TT_NAV_WIFI_ICON_Y, 0);
 }
 
-lv_obj_t* TTNavigationBar::createIcon(lv_obj_t* parent, const char* path) {
+void TTNavigationBar::createBatteryStatus(lv_obj_t* parent, lv_font_t* font) {
+    lv_obj_t* group = lv_obj_create(parent);
+    lv_obj_set_size(group, LV_SIZE_CONTENT, LV_SIZE_CONTENT);
+    lv_obj_set_style_bg_opa(group, LV_OPA_TRANSP, 0);
+    lv_obj_set_style_border_width(group, 0, 0);
+    lv_obj_set_style_pad_all(group, 0, 0);
+    lv_obj_set_style_radius(group, 0, 0);
+    lv_obj_set_layout(group, LV_LAYOUT_FLEX);
+    lv_obj_set_flex_flow(group, LV_FLEX_FLOW_ROW);
+    lv_obj_set_flex_align(group, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
+    lv_obj_set_style_pad_column(group, TT_NAV_WIFI_ICON_GAP, 0);
+    lv_obj_remove_flag(group, LV_OBJ_FLAG_SCROLLABLE);
+
+    _batteryIcon = createIcon(group, TT_NAV_ICON_BATTERY_EMPTY, TT_NAV_BATTERY_ICON_W, TT_NAV_BATTERY_ICON_H);
+    lv_obj_set_style_pad_all(_batteryIcon, 0, 0);
+    lv_obj_set_style_translate_y(_batteryIcon, TT_NAV_WIFI_ICON_Y, 0);
+
+    _batteryLabel = createValue(group, font, "--%");
+    lv_obj_set_style_pad_all(_batteryLabel, 0, 0);
+    lv_obj_set_height(_batteryLabel, lv_font_get_line_height(font));
+}
+
+lv_obj_t* TTNavigationBar::createIcon(lv_obj_t* parent, const char* path, int32_t width, int32_t height) {
     lv_obj_t* icon = tt_stream_image_create(parent);
     tt_stream_image_set_src(icon, path);
-    lv_obj_set_size(icon, TT_NAV_STATUS_ICON, TT_NAV_STATUS_ICON);
+    lv_obj_set_size(icon, width, height < 0 ? width : height);
     return icon;
 }
 
@@ -224,19 +247,35 @@ void TTNavigationBar::applyWiFi(const TTWiFiStatusPayload& status) {
 }
 
 void TTNavigationBar::applySensor(const TTSensorDataPayload& data) {
-    if (_tempLabel == nullptr || _humLabel == nullptr || _pressLabel == nullptr) {
+    if (_tempLabel == nullptr || _humLabel == nullptr || _pressLabel == nullptr
+        || _batteryIcon == nullptr || _batteryLabel == nullptr) {
         return;
     }
+    TTSensorDataPayload prev = {};
+    prev.voltageMv = _batteryMv;
+    prev.percent = _batteryPercent;
+    prev.charging = _batteryCharging;
+    prev.usbPlugged = _batteryUsb;
+    const int percentDelta = (int)data.percent - (int)_batteryPercent;
+    const int percentAbs = percentDelta < 0 ? -percentDelta : percentDelta;
     if (_hasSensor
         && fabsf(data.temperature - _temperature) < 0.05f
         && fabsf(data.humidity - _humidity) < 0.05f
-        && fabsf(data.pressure - _pressure) < 0.5f) {
+        && fabsf(data.pressure - _pressure) < 0.5f
+        && data.charging == _batteryCharging
+        && data.usbPlugged == _batteryUsb
+        && percentAbs < TT_NAV_BATTERY_PERCENT_DEADBAND
+        && batteryIconPath(data) == batteryIconPath(prev)) {
         return;
     }
     _hasSensor = true;
     _temperature = data.temperature;
     _humidity = data.humidity;
     _pressure = data.pressure;
+    _batteryMv = data.voltageMv;
+    _batteryPercent = data.percent;
+    _batteryCharging = data.charging;
+    _batteryUsb = data.usbPlugged;
 
     char text[24];
     snprintf(text, sizeof(text), "温%.1f℃", _temperature);
@@ -245,11 +284,35 @@ void TTNavigationBar::applySensor(const TTSensorDataPayload& data) {
     lv_label_set_text(_humLabel, text);
     snprintf(text, sizeof(text), "压%.0fp", _pressure);
     lv_label_set_text(_pressLabel, text);
-    LOG_I("NavBar: sensor T=%.1f H=%.1f P=%.0f", _temperature, _humidity, _pressure);
+    tt_stream_image_set_src(_batteryIcon, batteryIconPath(data));
+    snprintf(text, sizeof(text), "%u%%", (unsigned)_batteryPercent);
+    lv_label_set_text(_batteryLabel, text);
+    LOG_I("NavBar: sensor T=%.1f H=%.1f P=%.0f bat=%dmV %u%% usb=%d charging=%d",
+          _temperature, _humidity, _pressure,
+          _batteryMv, (unsigned)_batteryPercent, _batteryUsb ? 1 : 0, _batteryCharging ? 1 : 0);
     if (_visible) {
         layoutTitle(!lv_obj_has_flag(_backBtn, LV_OBJ_FLAG_HIDDEN));
     }
     requestRedraw();
+}
+
+const char* TTNavigationBar::batteryIconPath(const TTSensorDataPayload& data) const {
+    if (data.charging) {
+        return TT_NAV_ICON_BATTERY_CHARGE;
+    }
+    if (data.usbPlugged) {
+        return TT_NAV_ICON_BATTERY_USB;
+    }
+    if (data.voltageMv < TT_BATTERY_EMPTY_MV) {
+        return TT_NAV_ICON_BATTERY_EMPTY;
+    }
+    if (data.voltageMv < TT_BATTERY_LOW_MV) {
+        return TT_NAV_ICON_BATTERY_LOW;
+    }
+    if (data.voltageMv < TT_BATTERY_MEDIUM_MV) {
+        return TT_NAV_ICON_BATTERY_MEDIUM;
+    }
+    return TT_NAV_ICON_BATTERY_FULL;
 }
 
 void TTNavigationBar::updateTime(bool refreshIfChanged) {
