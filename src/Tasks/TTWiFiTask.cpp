@@ -45,6 +45,15 @@ void TTWiFiTask::requestStatusAsync() {
     enqueue(f);
 }
 
+void TTWiFiTask::requestReconnectAsync() {
+    auto* f = new std::function<void()>([this]() {
+        LOG_I("WiFi: reconnect saved network");
+        _wifiManager.tryConnectSaved();
+        publishStatus();
+    });
+    enqueue(f);
+}
+
 void TTWiFiTask::requestNtpSyncAsync() {
     auto* f = new std::function<void()>([this]() {
         startNtpSync();

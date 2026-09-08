@@ -79,6 +79,11 @@ void TTWiFiStatusPage::buildContent(lv_obj_t* screen) {
     lv_obj_set_style_pad_column(_btnRow, TT_WIFI_STATUS_BTN_GAP, 0);
     lv_obj_align(_btnRow, LV_ALIGN_BOTTOM_MID, 0, -10);
 
+    _reconnectBtn = TTTextButton::create(_btnRow, "重连", font16, TT_WIFI_STATUS_BTN_W);
+    lv_obj_add_event_cb(_reconnectBtn, onReconnectEvent, LV_EVENT_CLICKED, this);
+    addToFocusGroup(_reconnectBtn);
+    lv_obj_add_flag(_reconnectBtn, LV_OBJ_FLAG_HIDDEN);
+
     _actionBtn = TTTextButton::create(_btnRow, "去 Web 设置", font16, TT_WIFI_STATUS_BTN_W);
     lv_obj_add_event_cb(_actionBtn, onActionEvent, LV_EVENT_CLICKED, this);
     addToFocusGroup(_actionBtn);
@@ -102,7 +107,7 @@ void TTWiFiStatusPage::setup() {
 void TTWiFiStatusPage::willAppear() {
     TTScreenPage::willAppear();
     _visible = true;
-    showReadLoading();
+    showReadLoading("正在读取 Wi-Fi 状态...");
     TTInstanceOf<TTWiFiTask>().requestStatusAsync();
 }
 
@@ -112,13 +117,14 @@ void TTWiFiStatusPage::willDisappear() {
     dismissReadLoading();
 }
 
-void TTWiFiStatusPage::showReadLoading() {
+void TTWiFiStatusPage::showReadLoading(const char* text) {
     if (_loading) {
+        TTInstanceOf<TTPopupLayer>().updateLoading(text);
         return;
     }
     _loading = true;
-    LOG_I("WiFi status page: show loading");
-    TTInstanceOf<TTPopupLayer>().showLoading("正在读取 Wi-Fi 状态...");
+    LOG_I("WiFi status page: show loading %s", text != nullptr ? text : "");
+    TTInstanceOf<TTPopupLayer>().showLoading(text);
 }
 
 void TTWiFiStatusPage::dismissReadLoading() {
@@ -136,20 +142,24 @@ void TTWiFiStatusPage::applyStatus(const TTWiFiStatusPayload& status) {
     dismissReadLoading();
 
     const char* stateText = "未连接";
-    const char* hint = "尚未连上网络，可前往 Web 设置。";
-    bool showAction = true;
+    const char* hint = "尚未配置网络，可前往 Web 设置。";
+    bool showWeb = true;
+    bool showReconnect = false;
     if (status.state == TT_WIFI_LINK_CONNECTED) {
         stateText = "已连接";
         hint = "";
-        showAction = false;
+        showWeb = false;
     } else if (status.state == TT_WIFI_LINK_CONNECTING) {
         stateText = "正在连接";
         hint = "请稍候...";
-        showAction = false;
+        showWeb = false;
     } else if (status.state == TT_WIFI_LINK_PROVISIONING) {
         stateText = "配置中";
         hint = "正在进行 Web 设置。";
-        showAction = false;
+        showWeb = false;
+    } else if (status.ssid[0] != '\0') {
+        hint = "已保存网络，但未连上。可重连或前往 Web 设置。";
+        showReconnect = true;
     }
 
     lv_label_set_text(_stateValue, stateText);
@@ -157,10 +167,15 @@ void TTWiFiStatusPage::applyStatus(const TTWiFiStatusPayload& status) {
     lv_label_set_text(_ipValue, status.ip[0] != '\0' ? status.ip : "--");
     lv_label_set_text(_hintLabel, hint);
 
-    if (showAction) {
+    if (showReconnect) {
+        lv_obj_remove_flag(_reconnectBtn, LV_OBJ_FLAG_HIDDEN);
+    } else {
+        lv_obj_add_flag(_reconnectBtn, LV_OBJ_FLAG_HIDDEN);
+    }
+    if (showWeb) {
         lv_obj_remove_flag(_actionBtn, LV_OBJ_FLAG_HIDDEN);
         if (_group != nullptr) {
-            lv_group_focus_obj(_actionBtn);
+            lv_group_focus_obj(showReconnect ? _reconnectBtn : _actionBtn);
         }
     } else {
         lv_obj_add_flag(_actionBtn, LV_OBJ_FLAG_HIDDEN);
@@ -169,6 +184,15 @@ void TTWiFiStatusPage::applyStatus(const TTWiFiStatusPayload& status) {
         }
     }
     LOG_I("WiFi status page: state=%d ssid=%s ip=%s", (int)status.state, status.ssid, status.ip);
+}
+
+void TTWiFiStatusPage::reconnect() {
+    if (_loading) {
+        return;
+    }
+    LOG_I("WiFi status page: reconnect");
+    showReadLoading("正在连接...");
+    TTInstanceOf<TTWiFiTask>().requestReconnectAsync();
 }
 
 void TTWiFiStatusPage::goWebSettings() {
@@ -185,6 +209,13 @@ void TTWiFiStatusPage::onActionEvent(lv_event_t* e) {
     TTWiFiStatusPage* self = (TTWiFiStatusPage*)lv_event_get_user_data(e);
     if (self != nullptr) {
         self->goWebSettings();
+    }
+}
+
+void TTWiFiStatusPage::onReconnectEvent(lv_event_t* e) {
+    TTWiFiStatusPage* self = (TTWiFiStatusPage*)lv_event_get_user_data(e);
+    if (self != nullptr) {
+        self->reconnect();
     }
 }
 

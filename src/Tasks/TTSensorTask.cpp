@@ -28,6 +28,7 @@ void TTSensorTask::setup() {
         LOG_W("BMP280 sensor not found! Check wiring or I2C address.");
     }
 
+    LOG_I("Sensor read interval %d s", TT_SENSOR_UPDATE_INTERVAL);
     runRepeat(TT_SENSOR_UPDATE_INTERVAL * 1000, [this]() {
         performSensorRead();
     });

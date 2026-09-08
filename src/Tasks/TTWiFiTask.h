@@ -13,6 +13,7 @@ public:
     void requestStartProvisioningAsync();
     void requestStopProvisioningAsync();
     void requestStatusAsync();
+    void requestReconnectAsync();
     void requestNtpSyncAsync();
 
 protected:

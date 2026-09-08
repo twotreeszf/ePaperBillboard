@@ -17,11 +17,9 @@ protected:
 
 private:
     void onTimerTick();
-    void updateSensorDisplay(float temperature, float humidity, float pressure);
     void updateClockDisplay();
 
     lv_obj_t* _titleLabel = nullptr;
     lv_obj_t* _timeLabel = nullptr;
-    lv_obj_t* _statusLabel = nullptr;
     int _lastMinute = -1;
 };

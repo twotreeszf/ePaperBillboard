@@ -44,6 +44,18 @@
       "file": "back.png",
       "size": 14,
       "strokeWidth": 1.75
+    },
+    {
+      "id": "check",
+      "file": "check_sm.png",
+      "size": 12,
+      "strokeWidth": 4
+    },
+    {
+      "id": "x",
+      "file": "x_sm.png",
+      "size": 12,
+      "strokeWidth": 4
     }
   ]
 }

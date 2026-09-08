@@ -8,7 +8,7 @@
 
 #define TT_SENSOR_I2C_SDA   23
 #define TT_SENSOR_I2C_SCL   22
-#define TT_SENSOR_UPDATE_INTERVAL  10 * 60
+#define TT_SENSOR_UPDATE_INTERVAL  60
 
 class TTSensorTask : public TTVTask {
 public:
