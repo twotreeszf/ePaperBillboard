@@ -4,6 +4,12 @@
   "svgDir": "svg",
   "icons": [
     {
+      "id": "globe",
+      "file": "globe.png",
+      "size": 48,
+      "strokeWidth": 1.5
+    },
+    {
       "id": "wifi",
       "file": "wifi.png",
       "size": 48,
@@ -16,8 +22,8 @@
       "strokeWidth": 1.5
     },
     {
-      "id": "timer",
-      "file": "watch.png",
+      "id": "clock-arrow-up",
+      "file": "ntp.png",
       "size": 48,
       "strokeWidth": 1.5
     },

@@ -77,8 +77,14 @@ void TTPopupLayer::toastTimerCallback(lv_timer_t* timer) {
     }
 }
 
-void TTPopupLayer::showLoading() {
-    if (_topLayer == nullptr) return;
+void TTPopupLayer::showLoading(const char* text) {
+    if (_topLayer == nullptr) {
+        return;
+    }
+    if (_loadingPanel != nullptr && _loadingLabel != nullptr) {
+        updateLoading(text);
+        return;
+    }
     dismissLoading();
 
     _loadingPanel = lv_obj_create(_topLayer);
@@ -92,12 +98,12 @@ void TTPopupLayer::showLoading() {
     lv_obj_set_style_pad_all(_loadingPanel, 12, 0);
     lv_obj_remove_flag(_loadingPanel, LV_OBJ_FLAG_SCROLLABLE);
 
-    lv_obj_t* label = lv_label_create(_loadingPanel);
-    lv_label_set_text(label, "加载中...");
-    lv_obj_set_style_text_color(label, lv_color_black(), 0);
+    _loadingLabel = lv_label_create(_loadingPanel);
+    lv_label_set_text(_loadingLabel, (text != nullptr && text[0] != '\0') ? text : "加载中...");
+    lv_obj_set_style_text_color(_loadingLabel, lv_color_black(), 0);
     lv_font_t* font = TTFontManager::instance().getFont(12);
     if (font != nullptr) {
-        lv_obj_set_style_text_font(label, font, 0);
+        lv_obj_set_style_text_font(_loadingLabel, font, 0);
     }
 
     lv_obj_update_layout(_loadingPanel);
@@ -106,10 +112,22 @@ void TTPopupLayer::showLoading() {
     TTInstanceOf<TTLvglEpdDriver>().requestRefresh(TT_REFRESH_FULL);
 }
 
+void TTPopupLayer::updateLoading(const char* text) {
+    if (_loadingPanel == nullptr || _loadingLabel == nullptr) {
+        showLoading(text);
+        return;
+    }
+    lv_label_set_text(_loadingLabel, (text != nullptr && text[0] != '\0') ? text : "加载中...");
+    lv_obj_update_layout(_loadingPanel);
+    lv_obj_align(_loadingPanel, LV_ALIGN_CENTER, 0, 0);
+    TTInstanceOf<TTLvglEpdDriver>().requestRefresh(TT_REFRESH_PARTIAL);
+}
+
 void TTPopupLayer::dismissLoading() {
     if (_loadingPanel != nullptr) {
         lv_obj_delete(_loadingPanel);
         _loadingPanel = nullptr;
+        _loadingLabel = nullptr;
         TTInstanceOf<TTLvglEpdDriver>().requestRefresh(TT_REFRESH_FULL);
     }
 }

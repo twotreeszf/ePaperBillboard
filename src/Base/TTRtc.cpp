@@ -35,9 +35,6 @@ static bool timezoneLooksValid(const char* posixTz) {
 }
 
 bool TTRtc::begin() {
-    if (!TTInstanceOf<TTPreference>().begin()) {
-        LOG_E("RTC: preference begin failed");
-    }
     _hasDs3231 = _probeDs3231();
     LOG_I("RTC: DS3231 %s", _hasDs3231 ? "found" : "not found");
 
@@ -188,9 +185,22 @@ bool TTRtc::formatLocal(char* out, size_t outMax) const {
     return true;
 }
 
-bool TTRtc::syncFromNtp() {
+bool TTRtc::syncFromNtp(void (*onProgress)(void* ctx, const char* text), void* ctx) {
+    auto progress = [&](const char* text) {
+        if (onProgress != nullptr) {
+            onProgress(ctx, text);
+        }
+    };
+
     time_t utc = 0;
     for (int i = 0; i < TT_NTP_RETRY; ++i) {
+        char step[48];
+        if (i == 0) {
+            snprintf(step, sizeof(step), "正在查询 NTP...");
+        } else {
+            snprintf(step, sizeof(step), "NTP 重试 %d/%d...", i + 1, TT_NTP_RETRY);
+        }
+        progress(step);
         utc = _queryNtp(TT_NTP_HOST_PRIMARY);
         if (utc > 0) {
             break;
@@ -200,12 +210,14 @@ bool TTRtc::syncFromNtp() {
     }
     if (utc <= 0) {
         LOG_W("RTC: try fallback NTP %s", TT_NTP_HOST_FALLBACK);
+        progress("正在查询备用 NTP...");
         utc = _queryNtp(TT_NTP_HOST_FALLBACK);
     }
     if (utc <= 0 || utc == (time_t)0xFFFFFFFF) {
         LOG_E("RTC: NTP failed");
         return false;
     }
+    progress("正在设置系统时间...");
     return setUnixTime(utc);
 }
 

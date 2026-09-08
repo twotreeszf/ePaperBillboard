@@ -467,7 +467,7 @@ On setRoot / push / pop, **TTNavigationController::loadScreen()** calls `lv_inde
 - **TTLvglEpdDriver**: Creates LVGL display (296×128, I1, partial buffer), flush callback to GxEPD2; **requestRefresh(TTRefreshLevel)**. Deep refresh is used automatically every `EPD_FULL_REFRESH_INTERVAL` partials (and via **requestFullRefreshAsync()**); a pending flag avoids duplicate enqueue. Clock time label is wrapped in a fixed-size container to limit partial refresh area.
 - **TTFontManager**: Singleton; `begin()` loads binary fonts from LittleFS (paths in `TTFontManager.cpp`); `getFont(size)` returns `lv_font_t*` for use in LVGL widgets.
 - **TTFontLoader**: Loads one or two binary font files (main + optional fallback); **glyph cache** (e.g. up to 1000 entries) reduces LittleFS lookups for repeated characters. Used by TTFontManager per size.
-- **TTStreamImage**: LVGL PNG widget; zlib-inflates 8-bit RGBA icons into a path-keyed I1 cache (`lib/zlib`). Icons live in `data/icons/` (Lucide slices: `wifi.png`, `watch.png`, `clock.png`, `clock_sm.png`, `settings.png`, `back.png`).
+- **TTStreamImage**: LVGL PNG widget; zlib-inflates 8-bit RGBA icons into a path-keyed I1 cache (`lib/zlib`). Icons live in `data/icons/` (Lucide slices: `globe.png`, `wifi.png`, `ntp.png`, `clock.png`, `clock_sm.png`, `settings.png`, `back.png`).
 
 ### Storage and Config
 

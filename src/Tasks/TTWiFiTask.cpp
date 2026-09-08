@@ -3,7 +3,6 @@
 #include "TTSensorTask.h"
 #include "../Base/Logger.h"
 #include "../Base/TTInstance.h"
-#include "../Base/TTPreference.h"
 #include "../Base/TTNotificationPayloads.h"
 #include "../Base/TTRtc.h"
 #include <ctime>
@@ -11,9 +10,6 @@
 
 void TTWiFiTask::setup() {
     LOG_I("WiFi task starting");
-    if (!TTInstanceOf<TTPreference>().begin()) {
-        LOG_E("WiFi: preference begin failed");
-    }
     _wifiManager.tryConnectSaved();
     publishStatus();
 }
@@ -60,28 +56,33 @@ void TTWiFiTask::startNtpSync() {
     if (!_wifiManager.isConnected()) {
         LOG_I("NTP: Wi-Fi not connected");
         publishStatus();
-        publishTimeSync(TT_TIME_SYNC_NEED_WIFI);
+        publishTimeSync(TT_TIME_SYNC_NEED_WIFI, "未连接 Wi-Fi");
         return;
     }
-    publishTimeSync(TT_TIME_SYNC_SYNCING);
+    publishTimeSync(TT_TIME_SYNC_SYNCING, "正在对时...");
     syncNtp();
 }
 
 void TTWiFiTask::syncNtp() {
     if (!_wifiManager.isConnected()) {
         LOG_E("NTP: STA not connected");
-        publishTimeSync(TT_TIME_SYNC_FAILED);
+        publishTimeSync(TT_TIME_SYNC_FAILED, "对时失败");
         publishStatus();
         return;
     }
     LOG_I("NTP: start");
-    const bool ok = TTInstanceOf<TTRtc>().syncFromNtp();
+    const bool ok = TTInstanceOf<TTRtc>().syncFromNtp(
+        [](void* ctx, const char* text) {
+            static_cast<TTWiFiTask*>(ctx)->publishTimeSync(TT_TIME_SYNC_SYNCING, text);
+        },
+        this);
     if (ok) {
+        publishTimeSync(TT_TIME_SYNC_SYNCING, "正在保存时间...");
         time_t now = 0;
         time(&now);
         TTInstanceOf<TTSensorTask>().requestRtcWriteAsync(now);
     }
-    publishTimeSync(ok ? TT_TIME_SYNC_OK : TT_TIME_SYNC_FAILED);
+    publishTimeSync(ok ? TT_TIME_SYNC_OK : TT_TIME_SYNC_FAILED, ok ? "对时完成" : "对时失败");
     publishStatus();
 }
 
@@ -94,7 +95,7 @@ void TTWiFiTask::publishStatus() {
     TTInstanceOf<TTUITask>().postNotification(TT_NOTIFICATION_WIFI_STATUS, payload);
 }
 
-void TTWiFiTask::publishTimeSync(TTTimeSyncState state) {
+void TTWiFiTask::publishTimeSync(TTTimeSyncState state, const char* message) {
     TTTimeSyncPayload payload;
     memset(&payload, 0, sizeof(payload));
     payload.state = state;
@@ -102,8 +103,12 @@ void TTWiFiTask::publishTimeSync(TTTimeSyncState state) {
         TTRtc::loadTimezone(payload.timezone, sizeof(payload.timezone));
     }
     TTInstanceOf<TTRtc>().formatLocal(payload.timeText, sizeof(payload.timeText));
+    if (message != nullptr) {
+        strncpy(payload.message, message, TT_STATUS_MSG_MAX);
+        payload.message[TT_STATUS_MSG_MAX] = '\0';
+    }
 
-    LOG_I("TimeSync: publish state=%d tz=%s time=%s ap=%s",
-          (int)state, payload.timezone, payload.timeText, payload.apSsid);
+    LOG_I("TimeSync: publish state=%d tz=%s time=%s msg=%s",
+          (int)state, payload.timezone, payload.timeText, payload.message);
     TTInstanceOf<TTUITask>().postNotification(TT_NOTIFICATION_TIME_SYNC, payload);
 }

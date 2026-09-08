@@ -17,7 +17,7 @@ void TTWiFiConfigPage::buildContent(lv_obj_t* screen) {
     lv_obj_set_style_bg_opa(screen, LV_OPA_COVER, 0);
 
     _statusLabel = lv_label_create(screen);
-    lv_label_set_text(_statusLabel, "正在读取 Wi-Fi 状态...");
+    lv_label_set_text(_statusLabel, "正在启动 Web 设置...");
     lv_obj_set_style_text_color(_statusLabel, lv_color_black(), 0);
     lv_obj_set_style_text_font(_statusLabel, font16, 0);
     lv_obj_set_width(_statusLabel, lv_pct(100));
@@ -43,7 +43,7 @@ void TTWiFiConfigPage::buildContent(lv_obj_t* screen) {
     lv_obj_align_to(_qrHint, _qr, LV_ALIGN_OUT_BOTTOM_MID, 0, TT_WIFI_QR_HINT_GAP);
     lv_obj_add_flag(_qrHint, LV_OBJ_FLAG_HIDDEN);
 
-    _actionBtn = TTTextButton::create(screen, "开始配网", font16);
+    _actionBtn = TTTextButton::create(screen, "取消配置", font16);
     lv_obj_align(_actionBtn, LV_ALIGN_BOTTOM_MID, 0, -10);
     lv_obj_add_event_cb(_actionBtn, onActionEvent, LV_EVENT_CLICKED, this);
     addToFocusGroup(_actionBtn);
@@ -62,8 +62,8 @@ void TTWiFiConfigPage::setup() {
 void TTWiFiConfigPage::willAppear() {
     TTScreenPage::willAppear();
     _visible = true;
-    lv_label_set_text(_stepsLabel, "正在读取状态...");
-    TTInstanceOf<TTWiFiTask>().requestStatusAsync();
+    lv_label_set_text(_stepsLabel, "正在启动热点...");
+    startProvisioningWithLoading();
 }
 
 void TTWiFiConfigPage::willDisappear() {
@@ -84,13 +84,11 @@ void TTWiFiConfigPage::applyStatus(const TTWiFiStatusPayload& status) {
     _state = status.state;
     char line[384];
     if (status.state == TT_WIFI_LINK_CONNECTED) {
-        snprintf(line, sizeof(line), "已连接  %s", status.ssid);
-        lv_label_set_text(_statusLabel, line);
-        snprintf(line, sizeof(line), "地址  %s\n\n如需更换网络，请选择重新配网。", status.ip);
-        lv_label_set_text(_stepsLabel, line);
-        TTTextButton::setText(_actionBtn, "重新配网");
-        lv_obj_remove_flag(_actionBtn, LV_OBJ_FLAG_HIDDEN);
+        LOG_I("WiFi page: config done, leave");
         hideProvisionQr();
+        if (getNavigationController() != nullptr) {
+            getNavigationController()->pop();
+        }
         return;
     }
     if (status.state == TT_WIFI_LINK_CONNECTING) {
@@ -102,26 +100,21 @@ void TTWiFiConfigPage::applyStatus(const TTWiFiStatusPayload& status) {
         return;
     }
     if (status.state == TT_WIFI_LINK_PROVISIONING) {
-        lv_label_set_text(_statusLabel, "请用手机配网");
+        lv_label_set_text(_statusLabel, "请用手机完成设置");
         snprintf(line, sizeof(line),
                  "1. 扫描右侧二维码连接热点\n    %s\n    （无需密码）\n\n"
-                 "2. 配网页面通常会自动弹出\n    或用浏览器打开\n    %s\n\n"
-                 "3. 选择房间的 Wi-Fi 并保存\n    设备将自动连接",
+                 "2. 页面通常会自动弹出\n    或用浏览器打开\n    %s\n\n"
+                 "3. 设置 Wi-Fi 和时区\n    点击完成配置后将自动连接",
                  status.apSsid, status.portalUrl);
         lv_label_set_text(_stepsLabel, line);
-        TTTextButton::setText(_actionBtn, "取消配网");
+        TTTextButton::setText(_actionBtn, "取消配置");
         lv_obj_remove_flag(_actionBtn, LV_OBJ_FLAG_HIDDEN);
         showProvisionQr(status.apSsid);
         return;
     }
-    lv_label_set_text(_statusLabel, "未连接");
-    if (status.ssid[0] != '\0') {
-        snprintf(line, sizeof(line), "上次网络  %s\n点击开始配网，用手机设置。", status.ssid);
-    } else {
-        snprintf(line, sizeof(line), "尚未配置网络。\n点击开始配网，用手机连接设备热点并填写房间的 Wi-Fi。");
-    }
-    lv_label_set_text(_stepsLabel, line);
-    TTTextButton::setText(_actionBtn, "开始配网");
+    lv_label_set_text(_statusLabel, "连接失败");
+    lv_label_set_text(_stepsLabel, "配置可能已保存，但未能连上 Wi-Fi。请检查名称和密码后重新配置。");
+    TTTextButton::setText(_actionBtn, "重新配置");
     lv_obj_remove_flag(_actionBtn, LV_OBJ_FLAG_HIDDEN);
     hideProvisionQr();
 }
@@ -164,7 +157,7 @@ void TTWiFiConfigPage::startProvisioningWithLoading() {
     }
     _startLoading = true;
     LOG_I("WiFi page: start provisioning");
-    TTInstanceOf<TTPopupLayer>().showLoading();
+    TTInstanceOf<TTPopupLayer>().showLoading("正在启动热点...");
     TTInstanceOf<TTWiFiTask>().requestStartProvisioningAsync();
 }
 
@@ -182,13 +175,6 @@ void TTWiFiConfigPage::onActionClicked() {
     }
     if (_state == TT_WIFI_LINK_PROVISIONING) {
         TTInstanceOf<TTWiFiTask>().requestStopProvisioningAsync();
-        return;
-    }
-    if (_state == TT_WIFI_LINK_CONNECTED) {
-        TTInstanceOf<TTPopupLayer>().showDialog(
-            "开始手机配网？当前连接将断开。",
-            [this]() { startProvisioningWithLoading(); },
-            nullptr);
         return;
     }
     startProvisioningWithLoading();

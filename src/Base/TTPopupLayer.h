@@ -26,7 +26,8 @@ public:
     void showToast(const char* text, uint32_t durationMs = 2000);
     void dismissToast();
 
-    void showLoading();
+    void showLoading(const char* text = "加载中...");
+    void updateLoading(const char* text);
     void dismissLoading();
 
     void showDialog(const char* msg, DialogCallback onOk, DialogCallback onCancel);
@@ -42,6 +43,7 @@ private:
     lv_obj_t* _toastPanel = nullptr;
     lv_timer_t* _toastTimer = nullptr;
     lv_obj_t* _loadingPanel = nullptr;
+    lv_obj_t* _loadingLabel = nullptr;
 
     TTKeypadInput* _keypad = nullptr;
     lv_obj_t* _dialogPanel = nullptr;

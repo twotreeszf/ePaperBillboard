@@ -10,6 +10,7 @@
 #define PREF_WIFI_PASSWORD  "wifi_password"
 #define TT_WIFI_AP_SSID_PREFIX  "Billboard"
 #define TT_WIFI_CONNECT_TIMEOUT_MS  15000
+#define TT_WIFI_APPLY_DELAY_MS      800
 #define TT_WIFI_DNS_PORT  53
 
 class TTWiFiManager {
@@ -34,8 +35,10 @@ private:
     void _buildApSsid();
     void _handleRoot();
     void _handleSave();
+    void _handleStatus();
     void _handleScanWiFi();
     void _handleNotFound();
+    void _sendSaveResult(int code, const char* title, const char* msg);
     String _getHTMLContent();
     String _getWiFiListJSON();
 
@@ -47,4 +50,5 @@ private:
     char _savedSsid[TT_WIFI_SSID_MAX + 1] = {0};
     bool _serverStarted = false;
     bool _applyPending = false;
+    uint32_t _applyAt = 0;
 };

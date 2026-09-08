@@ -13,7 +13,7 @@
 
 class TTNtpSyncPage : public TTScreenPage {
 public:
-    TTNtpSyncPage() : TTScreenPage("NTP 校准") {}
+    TTNtpSyncPage() : TTScreenPage("NTP 对时") {}
 
     void setup() override;
     void willAppear() override;
@@ -32,6 +32,8 @@ private:
     void startSync();
     void goWifiSettings();
     void goBack();
+    void showSyncLoading(const char* text);
+    void dismissSyncLoading();
     static void onRetryEvent(lv_event_t* e);
     static void onBackEvent(lv_event_t* e);
 
@@ -43,4 +45,5 @@ private:
     lv_obj_t* _backBtn = nullptr;
     TTTimeSyncState _state = TT_TIME_SYNC_IDLE;
     bool _visible = false;
+    bool _loading = false;
 };

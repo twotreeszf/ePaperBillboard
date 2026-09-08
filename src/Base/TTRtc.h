@@ -34,7 +34,7 @@ public:
     bool getLocalTime(struct tm& out) const;
     bool isTimeValid() const;
     bool formatLocal(char* out, size_t outMax) const;
-    bool syncFromNtp();
+    bool syncFromNtp(void (*onProgress)(void* ctx, const char* text) = nullptr, void* ctx = nullptr);
 
 private:
     bool _probeDs3231();

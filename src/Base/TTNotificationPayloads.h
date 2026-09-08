@@ -10,6 +10,7 @@
 #define TT_WIFI_URL_MAX    32
 #define TT_TZ_TEXT_MAX     32
 #define TT_TIME_TEXT_MAX   20
+#define TT_STATUS_MSG_MAX  48
 
 enum TTWiFiLinkState {
     TT_WIFI_LINK_IDLE = 0,
@@ -47,4 +48,5 @@ struct TTTimeSyncPayload {
     char apSsid[TT_WIFI_SSID_MAX + 1];
     char portalUrl[TT_WIFI_URL_MAX + 1];
     char timeText[TT_TIME_TEXT_MAX + 1];
+    char message[TT_STATUS_MSG_MAX + 1];
 };

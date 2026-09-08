@@ -10,7 +10,7 @@
 
 class TTWiFiConfigPage : public TTScreenPage {
 public:
-    TTWiFiConfigPage() : TTScreenPage("Wi-Fi") {}
+    TTWiFiConfigPage() : TTScreenPage("Web 设置") {}
 
     void setup() override;
     void willAppear() override;

@@ -2,6 +2,7 @@
 #include "TTWiFiConfigPage.h"
 #include "../Base/TTFontManager.h"
 #include "../Base/TTInstance.h"
+#include "../Base/TTPopupLayer.h"
 #include "../Base/TTTextButton.h"
 #include "../Base/Logger.h"
 #include "../Tasks/TTWiFiTask.h"
@@ -59,7 +60,7 @@ void TTNtpSyncPage::buildContent(lv_obj_t* screen) {
     createStatusRow(statusBox, font16, "时区", &_tzValue);
 
     _statusLabel = lv_label_create(screen);
-    lv_label_set_text(_statusLabel, "正在对时...");
+    lv_label_set_text(_statusLabel, "");
     lv_obj_set_style_text_color(_statusLabel, lv_color_black(), 0);
     lv_obj_set_style_text_font(_statusLabel, font12, 0);
     lv_obj_set_width(_statusLabel, lv_pct(88));
@@ -78,7 +79,7 @@ void TTNtpSyncPage::buildContent(lv_obj_t* screen) {
     lv_obj_align(_btnRow, LV_ALIGN_BOTTOM_MID, 0, -10);
     lv_obj_add_flag(_btnRow, LV_OBJ_FLAG_HIDDEN);
 
-    _retryBtn = TTTextButton::create(_btnRow, "重新校准", font16, TT_NTP_BTN_W);
+    _retryBtn = TTTextButton::create(_btnRow, "重新对时", font16, TT_NTP_BTN_W);
     lv_obj_add_event_cb(_retryBtn, onRetryEvent, LV_EVENT_CLICKED, this);
     addToFocusGroup(_retryBtn);
 
@@ -106,6 +107,25 @@ void TTNtpSyncPage::willAppear() {
 void TTNtpSyncPage::willDisappear() {
     TTScreenPage::willDisappear();
     _visible = false;
+    dismissSyncLoading();
+}
+
+void TTNtpSyncPage::showSyncLoading(const char* text) {
+    if (_loading) {
+        TTInstanceOf<TTPopupLayer>().updateLoading(text);
+        return;
+    }
+    _loading = true;
+    LOG_I("NTP page: show loading %s", text != nullptr ? text : "");
+    TTInstanceOf<TTPopupLayer>().showLoading(text);
+}
+
+void TTNtpSyncPage::dismissSyncLoading() {
+    if (!_loading) {
+        return;
+    }
+    _loading = false;
+    TTInstanceOf<TTPopupLayer>().dismissLoading();
 }
 
 void TTNtpSyncPage::applyTimeRows(const TTTimeSyncPayload& status) {
@@ -143,7 +163,7 @@ void TTNtpSyncPage::showDoneButtons() {
         lv_obj_remove_flag(_btnRow, LV_OBJ_FLAG_HIDDEN);
     }
     if (_retryBtn != nullptr) {
-        TTTextButton::setText(_retryBtn, "重新校准");
+        TTTextButton::setText(_retryBtn, "重新对时");
         lv_obj_remove_flag(_retryBtn, LV_OBJ_FLAG_HIDDEN);
     }
     if (_backBtn != nullptr) {
@@ -168,18 +188,21 @@ void TTNtpSyncPage::applyStatus(const TTTimeSyncPayload& status) {
     applyTimeRows(status);
 
     if (status.state == TT_TIME_SYNC_NEED_WIFI) {
-        lv_label_set_text(_statusLabel, "未连接 Wi-Fi，NTP 校准需要先联网。");
-        TTTextButton::setText(_retryBtn, "去设置 Wi-Fi");
+        dismissSyncLoading();
+        lv_label_set_text(_statusLabel, "未连接 Wi-Fi，请先完成 Web 设置。");
+        TTTextButton::setText(_retryBtn, "去 Web 设置");
         showActionOnly();
         return;
     }
 
     if (status.state == TT_TIME_SYNC_SYNCING) {
-        lv_label_set_text(_statusLabel, "正在对时...");
+        showSyncLoading(status.message[0] != '\0' ? status.message : "正在对时...");
+        lv_label_set_text(_statusLabel, "");
         hideButtons();
         return;
     }
 
+    dismissSyncLoading();
     if (status.state == TT_TIME_SYNC_OK) {
         lv_label_set_text(_statusLabel, "对时完成");
         showDoneButtons();
@@ -193,8 +216,9 @@ void TTNtpSyncPage::applyStatus(const TTTimeSyncPayload& status) {
 
 void TTNtpSyncPage::startSync() {
     LOG_I("NTP page: start");
-    lv_label_set_text(_statusLabel, "正在对时...");
+    lv_label_set_text(_statusLabel, "");
     hideButtons();
+    showSyncLoading("正在对时...");
     TTInstanceOf<TTWiFiTask>().requestNtpSyncAsync();
 }
 

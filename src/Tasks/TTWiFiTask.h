@@ -21,7 +21,7 @@ protected:
 
 private:
     void publishStatus();
-    void publishTimeSync(TTTimeSyncState state);
+    void publishTimeSync(TTTimeSyncState state, const char* message = nullptr);
     void startNtpSync();
     void syncNtp();
 

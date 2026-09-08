@@ -25,6 +25,7 @@
 #include <Arduino.h>
 #include "Base/Logger.h"
 #include "Base/TTInstance.h"
+#include "Base/TTPreference.h"
 #include "Base/Util.h"
 #include "Tasks/TTUITask.h"
 #include "Tasks/TTSensorTask.h"
@@ -40,6 +41,9 @@ void setup() {
     LOG_I("=================================");
 
     Util::printChipInfo();
+    if (!TTInstanceOf<TTPreference>().begin()) {
+        LOG_E("Preference begin failed");
+    }
     delay(200);
 
     TTInstanceOf<TTUITask>().start(0, TT_UI_LOOP_DELAY_MS);
