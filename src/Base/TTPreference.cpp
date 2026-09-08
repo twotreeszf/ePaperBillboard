@@ -2,7 +2,9 @@
 #include "ErrorCheck.h"
 
 bool TTPreference::begin() {
-    _loaded = false;
+    if (_loaded) {
+        return true;
+    }
     _dirty = false;
     ERR_CHECK_RET(storage.begin());
     ERR_CHECK_RET(_load());

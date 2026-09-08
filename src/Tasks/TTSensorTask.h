@@ -1,6 +1,7 @@
 #pragma once
 
 #include <Arduino.h>
+#include <time.h>
 #include <Adafruit_AHTX0.h>
 #include <Adafruit_BMP280.h>
 #include "../Base/TTVTask.h"
@@ -14,6 +15,7 @@ public:
     TTSensorTask() : TTVTask("TTSensorTask", 4096) {}
 
     void requestSensorUpdateAsync();
+    void requestRtcWriteAsync(time_t utc);
 
 protected:
     void setup() override;

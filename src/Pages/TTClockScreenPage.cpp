@@ -4,7 +4,9 @@
 #include "../Base/TTStreamImage.h"
 #include "../Base/TTInstance.h"
 #include "../Base/TTNotificationPayloads.h"
+#include "../Base/TTRtc.h"
 #include "../Tasks/TTSensorTask.h"
+#include <ctime>
 
 void TTClockScreenPage::buildContent(lv_obj_t* screen) {
     TTFontManager& fm = TTFontManager::instance();
@@ -56,7 +58,7 @@ void TTClockScreenPage::buildContent(lv_obj_t* screen) {
 
 void TTClockScreenPage::setup() {
     TTScreenPage::setup();
-    _lastUpdateMs = millis();
+    _lastMinute = -1;
     updateClockDisplay();
 
     runRepeat(TT_CLOCK_TIMER_MS, [this]() { onTimerTick(); }, false);
@@ -72,49 +74,29 @@ void TTClockScreenPage::setup() {
 
 void TTClockScreenPage::willAppear() {
     TTScreenPage::willAppear();
+    _lastMinute = -1;
+    updateClockDisplay();
     TTInstanceOf<TTSensorTask>().requestSensorUpdateAsync();
 }
 
-void TTClockScreenPage::updateTime() {
-    unsigned long currentMs = millis();
-    unsigned long elapsedMs = currentMs - _lastUpdateMs;
-
-    if (elapsedMs >= 1000) {
-        uint32_t elapsedSeconds = elapsedMs / 1000;
-        _lastUpdateMs = currentMs - (elapsedMs % 1000);
-
-        _seconds += elapsedSeconds;
-        while (_seconds >= 60) {
-            _seconds -= 60;
-            _minutes++;
-        }
-        while (_minutes >= 60) {
-            _minutes -= 60;
-            _hours++;
-        }
-        while (_hours >= 24) {
-            _hours -= 24;
-        }
-    }
-}
-
 void TTClockScreenPage::onTimerTick() {
-    updateTime();
-
-    static uint8_t lastMinute = 255;
-    bool needRefresh = false;
-
-    if (_minutes != lastMinute) {
-        lastMinute = _minutes;
-        LOG_I("Time: %02d:%02d:%02d", _hours, _minutes, _seconds);
-        needRefresh = true;
+    struct tm t;
+    if (!TTInstanceOf<TTRtc>().getLocalTime(t)) {
+        if (_lastMinute != -2) {
+            _lastMinute = -2;
+            updateClockDisplay();
+            requestRefresh(TT_REFRESH_PARTIAL);
+        }
+        return;
     }
-
-    if (needRefresh) {
-        updateClockDisplay();
-        requestRefresh(TT_REFRESH_PARTIAL);
-        LOG_I("Clock refreshed.");
+    if (t.tm_min == _lastMinute) {
+        return;
     }
+    _lastMinute = t.tm_min;
+    LOG_I("Time: %02d:%02d:%02d", t.tm_hour, t.tm_min, t.tm_sec);
+    updateClockDisplay();
+    requestRefresh(TT_REFRESH_PARTIAL);
+    LOG_I("Clock refreshed.");
 }
 
 void TTClockScreenPage::updateSensorDisplay(float temperature, float humidity, float pressure) {
@@ -126,7 +108,12 @@ void TTClockScreenPage::updateSensorDisplay(float temperature, float humidity, f
 }
 
 void TTClockScreenPage::updateClockDisplay() {
+    struct tm t;
+    if (!TTInstanceOf<TTRtc>().getLocalTime(t)) {
+        lv_label_set_text(_timeLabel, "--:--");
+        return;
+    }
     char timeStr[8];
-    snprintf(timeStr, sizeof(timeStr), "%02d:%02d", _hours, _minutes);
+    snprintf(timeStr, sizeof(timeStr), "%02d:%02d", t.tm_hour, t.tm_min);
     lv_label_set_text(_timeLabel, timeStr);
 }

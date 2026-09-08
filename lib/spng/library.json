@@ -1,8 +1,0 @@
-{
-  "name": "spng",
-  "version": "0.7.4",
-  "build": {
-    "srcDir": ".",
-    "includeDir": "."
-  }
-}

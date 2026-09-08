@@ -1,12 +1,12 @@
-#include "TTSettingsPage.h"
-#include "TTWiFiConfigPage.h"
 #include "TTTimeSyncPage.h"
+#include "TTNtpSyncPage.h"
+#include "TTTimezonePage.h"
 #include "../Base/TTFontManager.h"
 #include <memory>
 
-void TTSettingsPage::buildContent(lv_obj_t* screen) {
+void TTTimeSyncPage::buildContent(lv_obj_t* screen) {
     TTFontManager& fm = TTFontManager::instance();
-    lv_font_t* fontBtn = fm.getFont(16);
+    lv_font_t* font16 = fm.getFont(16);
 
     lv_obj_set_style_bg_color(screen, lv_color_white(), 0);
     lv_obj_set_style_bg_opa(screen, LV_OPA_COVER, 0);
@@ -22,9 +22,8 @@ void TTSettingsPage::buildContent(lv_obj_t* screen) {
     lv_obj_set_style_pad_column(container, TT_HOME_ITEMS_GAP, 0);
     lv_obj_align(container, LV_ALIGN_CENTER, 0, 0);
 
-    MenuItem::create(&_items[0], container, this, "/icons/wifi.png", "Wi-Fi", fontBtn,
-        [this]() { getNavigationController()->pushPage(std::unique_ptr<TTScreenPage>(new TTWiFiConfigPage())); });
-
-    MenuItem::create(&_items[1], container, this, "/icons/watch.png", "对时", fontBtn,
-        [this]() { getNavigationController()->pushPage(std::unique_ptr<TTScreenPage>(new TTTimeSyncPage())); });
+    MenuItem::create(&_items[0], container, this, "/icons/watch.png", "NTP 校准", font16,
+        [this]() { getNavigationController()->pushPage(std::unique_ptr<TTScreenPage>(new TTNtpSyncPage())); });
+    MenuItem::create(&_items[1], container, this, "/icons/clock.png", "设置时区", font16,
+        [this]() { getNavigationController()->pushPage(std::unique_ptr<TTScreenPage>(new TTTimezonePage())); });
 }

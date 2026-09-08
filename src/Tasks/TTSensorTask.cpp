@@ -3,6 +3,7 @@
 #include "../Base/Logger.h"
 #include "../Base/TTInstance.h"
 #include "../Base/TTNotificationPayloads.h"
+#include "../Base/TTRtc.h"
 #include "TTUITask.h"
 #include <freertos/FreeRTOS.h>
 #include <freertos/task.h>
@@ -10,6 +11,7 @@
 void TTSensorTask::setup() {
     LOG_I("Initializing I2C (SDA=%d, SCL=%d)...", TT_SENSOR_I2C_SDA, TT_SENSOR_I2C_SCL);
     Wire.begin(TT_SENSOR_I2C_SDA, TT_SENSOR_I2C_SCL);
+    TTInstanceOf<TTRtc>().begin();
 
     LOG_I("Initializing AHT20 sensor...");
     if (_aht20.begin()) {
@@ -55,6 +57,13 @@ void TTSensorTask::performSensorRead() {
 void TTSensorTask::requestSensorUpdateAsync() {
     auto* f = new std::function<void()>([this]() {
         performSensorRead();
+    });
+    enqueue(f);
+}
+
+void TTSensorTask::requestRtcWriteAsync(time_t utc) {
+    auto* f = new std::function<void()>([utc]() {
+        TTInstanceOf<TTRtc>().writeHardware(utc);
     });
     enqueue(f);
 }

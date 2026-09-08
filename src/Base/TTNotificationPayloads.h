@@ -2,17 +2,28 @@
 
 #define TT_NOTIFICATION_SENSOR_DATA_UPDATE "TTNotify.SensorDataUpdate"
 #define TT_NOTIFICATION_WIFI_STATUS        "TTNotify.WiFiStatus"
+#define TT_NOTIFICATION_TIME_SYNC          "TTNotify.TimeSync"
 
 #define TT_WIFI_SSID_MAX   32
 #define TT_WIFI_PASS_MAX   16
 #define TT_WIFI_IP_MAX     16
 #define TT_WIFI_URL_MAX    32
+#define TT_TZ_TEXT_MAX     32
+#define TT_TIME_TEXT_MAX   20
 
 enum TTWiFiLinkState {
     TT_WIFI_LINK_IDLE = 0,
     TT_WIFI_LINK_CONNECTING,
     TT_WIFI_LINK_CONNECTED,
     TT_WIFI_LINK_PROVISIONING,
+};
+
+enum TTTimeSyncState {
+    TT_TIME_SYNC_IDLE = 0,
+    TT_TIME_SYNC_NEED_WIFI,
+    TT_TIME_SYNC_SYNCING,
+    TT_TIME_SYNC_OK,
+    TT_TIME_SYNC_FAILED,
 };
 
 struct TTSensorDataPayload {
@@ -28,4 +39,12 @@ struct TTWiFiStatusPayload {
     char apSsid[TT_WIFI_SSID_MAX + 1];
     char apPassword[TT_WIFI_PASS_MAX + 1];
     char portalUrl[TT_WIFI_URL_MAX + 1];
+};
+
+struct TTTimeSyncPayload {
+    TTTimeSyncState state;
+    char timezone[TT_TZ_TEXT_MAX + 1];
+    char apSsid[TT_WIFI_SSID_MAX + 1];
+    char portalUrl[TT_WIFI_URL_MAX + 1];
+    char timeText[TT_TIME_TEXT_MAX + 1];
 };

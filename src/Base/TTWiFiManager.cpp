@@ -54,7 +54,7 @@ bool TTWiFiManager::stopProvisioning() {
     if (_state != TT_WIFI_LINK_PROVISIONING) {
         return true;
     }
-    LOG_I("WiFi: stop provisioning");
+    LOG_I("WiFi: stop portal state=%d", (int)_state);
     _stopAP();
     _state = TT_WIFI_LINK_IDLE;
     tryConnectSaved();
@@ -67,7 +67,7 @@ void TTWiFiManager::process() {
         _server.handleClient();
         if (_applyPending) {
             _applyPending = false;
-            LOG_I("WiFi: apply saved credentials without restart");
+            LOG_I("WiFi: apply portal result state=%d", (int)_state);
             _stopAP();
             _state = TT_WIFI_LINK_IDLE;
             tryConnectSaved();

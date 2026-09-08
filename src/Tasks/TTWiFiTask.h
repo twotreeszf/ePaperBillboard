@@ -13,6 +13,7 @@ public:
     void requestStartProvisioningAsync();
     void requestStopProvisioningAsync();
     void requestStatusAsync();
+    void requestNtpSyncAsync();
 
 protected:
     void setup() override;
@@ -20,6 +21,9 @@ protected:
 
 private:
     void publishStatus();
+    void publishTimeSync(TTTimeSyncState state);
+    void startNtpSync();
+    void syncNtp();
 
     TTWiFiManager _wifiManager;
     TTWiFiLinkState _publishedState = TT_WIFI_LINK_IDLE;
