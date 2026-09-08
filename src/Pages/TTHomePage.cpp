@@ -1,12 +1,11 @@
 #include "TTHomePage.h"
-#include "TTWiFiDemoPage.h"
-#include "TTNTPDemoPage.h"
+#include "TTSettingsPage.h"
 #include "TTClockScreenPage.h"
 #include "../Base/TTFontManager.h"
 #include "../Base/TTStreamImage.h"
 #include <memory>
 
-void HomeItem::create(HomeItem* item, lv_obj_t* parent, TTHomePage* page, const char* iconPath, const char* labelText, lv_font_t* font, std::function<void()> onClick) {
+void MenuItem::create(MenuItem* item, lv_obj_t* parent, TTScreenPage* page, const char* iconPath, const char* labelText, lv_font_t* font, std::function<void()> onClick) {
     item->onClick = onClick;
 
     item->btn = lv_btn_create(parent);
@@ -37,14 +36,14 @@ void HomeItem::create(HomeItem* item, lv_obj_t* parent, TTHomePage* page, const 
     lv_obj_align(item->underline, LV_ALIGN_BOTTOM_MID, 0, -2);
     lv_obj_add_flag(item->underline, LV_OBJ_FLAG_HIDDEN);
 
-    lv_obj_add_event_cb(item->btn, HomeItem::onEntryClicked, LV_EVENT_CLICKED, item);
-    lv_obj_add_event_cb(item->btn, HomeItem::onFocusChanged, LV_EVENT_FOCUSED, item);
-    lv_obj_add_event_cb(item->btn, HomeItem::onFocusChanged, LV_EVENT_DEFOCUSED, item);
+    lv_obj_add_event_cb(item->btn, MenuItem::onEntryClicked, LV_EVENT_CLICKED, item);
+    lv_obj_add_event_cb(item->btn, MenuItem::onFocusChanged, LV_EVENT_FOCUSED, item);
+    lv_obj_add_event_cb(item->btn, MenuItem::onFocusChanged, LV_EVENT_DEFOCUSED, item);
     page->addToFocusGroup(item->btn);
 }
 
-void HomeItem::onFocusChanged(lv_event_t* e) {
-    HomeItem* item = (HomeItem*)lv_event_get_user_data(e);
+void MenuItem::onFocusChanged(lv_event_t* e) {
+    MenuItem* item = (MenuItem*)lv_event_get_user_data(e);
     if (item == nullptr) return;
     if (item->underline == nullptr) return;
 
@@ -56,8 +55,8 @@ void HomeItem::onFocusChanged(lv_event_t* e) {
     }
 }
 
-void HomeItem::onEntryClicked(lv_event_t* e) {
-    HomeItem* item = (HomeItem*)lv_event_get_user_data(e);
+void MenuItem::onEntryClicked(lv_event_t* e) {
+    MenuItem* item = (MenuItem*)lv_event_get_user_data(e);
     if (item == nullptr) return;
     
     std::function<void()> onClick = item->onClick;
@@ -84,12 +83,9 @@ void TTHomePage::buildContent(lv_obj_t* screen) {
     lv_obj_set_style_pad_column(container, TT_HOME_ITEMS_GAP, 0);
     lv_obj_align(container, LV_ALIGN_CENTER, 0, 0);
 
-    HomeItem::create(&_items[0], container, this, "/icons/wifi.png", "WiFi", fontBtn, 
-        [this]() { getNavigationController()->pushPage(std::unique_ptr<TTScreenPage>(new TTWiFiDemoPage())); });
-
-    HomeItem::create(&_items[1], container, this, "/icons/watch.png", "NTP", fontBtn,
-        [this]() { getNavigationController()->pushPage(std::unique_ptr<TTScreenPage>(new TTNTPDemoPage())); });
-
-    HomeItem::create(&_items[2], container, this, "/icons/clock.png", "Clock", fontBtn,
+    MenuItem::create(&_items[0], container, this, "/icons/clock.png", "Clock", fontBtn,
         [this]() { getNavigationController()->pushPage(std::unique_ptr<TTScreenPage>(new TTClockScreenPage())); });
+
+    MenuItem::create(&_items[1], container, this, "/icons/settings.png", "Settings", fontBtn,
+        [this]() { getNavigationController()->pushPage(std::unique_ptr<TTScreenPage>(new TTSettingsPage())); });
 }

@@ -28,6 +28,12 @@
       "strokeWidth": 1.5
     },
     {
+      "id": "settings",
+      "file": "settings.png",
+      "size": 48,
+      "strokeWidth": 1.5
+    },
+    {
       "id": "chevron-left",
       "file": "back.png",
       "size": 14,
