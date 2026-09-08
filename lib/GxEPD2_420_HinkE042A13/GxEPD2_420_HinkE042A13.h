@@ -1,5 +1,5 @@
-// Panel: HINK-E042A13-A0, 4.2" 400x300 BW. Controller: SSD1619.
-// Driver derived from GxEPD2 420-style EPD, with partial refresh (OPM42/SSD1619 flow).
+// Panel: HINK-E042A13-A0, 4.2" 400x300 BW. Controller: SSD1683-compatible.
+// OTP 0xFC full-flashes this panel; partial uses a register LUT and 0x22 0xC7.
 
 #ifndef _GxEPD2_420_HinkE042A13_H_
 #define _GxEPD2_420_HinkE042A13_H_
@@ -20,7 +20,7 @@ public:
     static const uint16_t power_on_time = 100;
     static const uint16_t power_off_time = 300;
     static const uint16_t full_refresh_time = 1200;
-    static const uint16_t partial_refresh_time = 400;
+    static const uint16_t partial_refresh_time = 350;
 
     GxEPD2_420_HinkE042A13(int16_t cs, int16_t dc, int16_t rst, int16_t busy);
 
@@ -68,7 +68,6 @@ private:
 
 private:
     bool _use_fast_update;
-    bool _partial_lut_loaded;
 };
 
 #endif

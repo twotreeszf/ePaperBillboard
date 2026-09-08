@@ -3,9 +3,13 @@
 /**
  * E-Paper panel selection. Define exactly one of EPD_PANEL_HINK_E029A01_A1, EPD_PANEL_HINK_E042A13, etc.
  * Add new panels by adding an #elif defined(EPD_PANEL_XXX) block.
+ *
+ * Must match the physical panel. A wrong driver applies a different waveform,
+ * scan count, and internal voltage; brief tests usually only look wrong, but
+ * leaving a mismatch running can ghost or damage the panel.
  */
-// #define EPD_PANEL_HINK_E042A13_A0
-#define EPD_PANEL_HINK_E029A01_A1
+#define EPD_PANEL_HINK_E042A13_A0
+// #define EPD_PANEL_HINK_E029A01_A1
 
 #include <GxEPD2_BW.h>
 
@@ -29,4 +33,4 @@ using EPaperDisplay = GxEPD2_BW<GxEPD2_420_HinkE042A13, GxEPD2_420_HinkE042A13::
 #endif
 
 #define EPD_BUF_SIZE ((EPD_WIDTH * EPD_HEIGHT / 8) + 8)
-#define EPD_FULL_REFRESH_INTERVAL 64
+#define EPD_FULL_REFRESH_INTERVAL 16

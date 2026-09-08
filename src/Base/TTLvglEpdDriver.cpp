@@ -33,8 +33,8 @@ bool TTLvglEpdDriver::begin(EPaperDisplay& display) {
     // Set color format to 1-bit (monochrome)
     lv_display_set_color_format(_lvDisplay, LV_COLOR_FORMAT_I1);
     
-    // Set draw buffer - single buffer mode is sufficient for E-Paper
-    lv_display_set_buffers(_lvDisplay, _drawBuf, nullptr, sizeof(_drawBuf), LV_DISPLAY_RENDER_MODE_PARTIAL);
+    // Full-frame buffer: one flush per LVGL refresh so the panel is driven once
+    lv_display_set_buffers(_lvDisplay, _drawBuf, nullptr, sizeof(_drawBuf), LV_DISPLAY_RENDER_MODE_FULL);
     
     // Set flush callback
     lv_display_set_flush_cb(_lvDisplay, _flushCallback);
@@ -68,6 +68,7 @@ void TTLvglEpdDriver::_flushCallback(lv_display_t* disp, const lv_area_t* area, 
     int32_t h = y2 - y1 + 1;
 
     LOG_I("Flush area: (%d,%d)-(%d,%d), size %dx%d", x1, y1, x2, y2, w, h);
+    uint32_t flushStart = millis();
 
     pThis->_epd->setRotation(EPD_ROTATION);
 
@@ -103,7 +104,7 @@ void TTLvglEpdDriver::_flushCallback(lv_display_t* disp, const lv_area_t* area, 
         }
     } while (pThis->_epd->nextPage());
 
-    LOG_I("E-Paper flush complete");
+    LOG_I("E-Paper flush complete in %u ms", (unsigned)(millis() - flushStart));
 
     lv_display_flush_ready(disp);
 
