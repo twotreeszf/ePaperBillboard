@@ -1,6 +1,7 @@
 #include "TTNavigationBar.h"
 #include "ITTNavigationController.h"
 #include "TTFontManager.h"
+#include "TTStreamImage.h"
 #include "Logger.h"
 #include <EPDConfig.h>
 
@@ -40,10 +41,8 @@ void TTNavigationBar::begin(lv_obj_t* parent, ITTNavigationController* nav) {
     lv_obj_set_style_radius(_backBtn, 0, 0);
     lv_obj_add_event_cb(_backBtn, onBackClicked, LV_EVENT_CLICKED, this);
 
-    lv_obj_t* arrow = lv_label_create(_backBtn);
-    lv_label_set_text(arrow, "<");
-    lv_obj_set_style_text_color(arrow, lv_color_black(), 0);
-    lv_obj_set_style_text_font(arrow, font, 0);
+    lv_obj_t* arrow = tt_stream_image_create(_backBtn);
+    tt_stream_image_set_src(arrow, TT_NAV_BACK_ICON);
     lv_obj_center(arrow);
 
     _title = lv_label_create(_bar);

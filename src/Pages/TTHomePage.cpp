@@ -33,8 +33,8 @@ void HomeItem::create(HomeItem* item, lv_obj_t* parent, TTHomePage* page, const 
     lv_obj_set_style_bg_opa(item->underline, LV_OPA_COVER, 0);
     lv_obj_set_style_border_width(item->underline, 0, 0);
     lv_obj_set_style_pad_all(item->underline, 0, 0);
-    lv_obj_set_style_radius(item->underline, 0, 0);
-    lv_obj_align(item->underline, LV_ALIGN_BOTTOM_MID, 0, 0);
+    lv_obj_set_style_radius(item->underline, TT_HOME_INDICATOR_RADIUS, 0);
+    lv_obj_align(item->underline, LV_ALIGN_BOTTOM_MID, 0, -2);
     lv_obj_add_flag(item->underline, LV_OBJ_FLAG_HIDDEN);
 
     lv_obj_add_event_cb(item->btn, HomeItem::onEntryClicked, LV_EVENT_CLICKED, item);
@@ -68,7 +68,7 @@ void HomeItem::onEntryClicked(lv_event_t* e) {
 
 void TTHomePage::buildContent(lv_obj_t* screen) {
     TTFontManager& fm = TTFontManager::instance();
-    lv_font_t* fontBtn = fm.getFont(12);
+    lv_font_t* fontBtn = fm.getFont(16);
 
     lv_obj_set_style_bg_color(screen, lv_color_white(), 0);
     lv_obj_set_style_bg_opa(screen, LV_OPA_COVER, 0);

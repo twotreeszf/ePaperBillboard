@@ -4,14 +4,15 @@
 #include <array>
 #include <functional>
 
-#define TT_HOME_ICON_SIZE  32
+#define TT_HOME_ICON_SIZE  48
 #define TT_HOME_ICON_PAD   4
-#define TT_HOME_ITEM_W    48
-#define TT_HOME_ITEM_H    58
-#define TT_HOME_ITEMS_GAP 6
+#define TT_HOME_ITEM_W    60
+#define TT_HOME_ITEM_H    86
+#define TT_HOME_ITEMS_GAP 8
 #define TT_HOME_ITEM_RADIUS 8
 #define TT_HOME_INDICATOR_W 16
-#define TT_HOME_INDICATOR_H 1
+#define TT_HOME_INDICATOR_H 6
+#define TT_HOME_INDICATOR_RADIUS  3
 
 class TTHomePage;
 

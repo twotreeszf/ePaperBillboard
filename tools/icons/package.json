@@ -1,0 +1,11 @@
+{
+  "name": "epaper-lucide-icons",
+  "private": true,
+  "type": "module",
+  "description": "Slice Lucide icons into e-paper PNGs for data/icons",
+  "dependencies": {
+    "@resvg/resvg-js": "^2.6.2",
+    "lucide-static": "^0.544.0",
+    "pngjs": "^7.0.0"
+  }
+}

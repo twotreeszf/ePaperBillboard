@@ -7,6 +7,7 @@
 #define TT_NAV_BAR_PAD     4
 #define TT_NAV_ARROW_W     14
 #define TT_NAV_DIVIDER_H   1
+#define TT_NAV_BACK_ICON   "/icons/back.png"
 
 class ITTNavigationController;
 

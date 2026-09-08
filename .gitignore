@@ -12,6 +12,7 @@
 
 fonts/
 .ref/
+tools/icons/node_modules/
 
 # Temporary files
 *.swp

@@ -173,6 +173,19 @@ lv_font_conv \
 
 Common ranges: `0x20-0x7E` (ASCII), `0x3000-0x303F` (CJK punctuation), `0xFF00-0xFFEF` (fullwidth), `0x4E00-0x9FFF` (CJK Unified Ideographs). File size: ASCII only ~5 KB; ASCII + CJK (e.g. GB) ~500 KB–2 MB depending on ranges.
 
+### Icon Generation (Lucide)
+
+Home and navigation icons are sliced from [Lucide](https://lucide.dev/) into 1-bit-friendly PNGs in `data/icons/`. Source SVGs are kept under `tools/icons/svg/`. Mapping lives in `tools/icons/icons.json`.
+
+```bash
+cd tools/icons
+npm install
+node slice_lucide_icons.mjs
+pio run --target uploadfs
+```
+
+The script renders each icon at 2× with a thin stroke (1.5), averages to the target size, then thresholds to 1-bit.
+
 ### Getting Ranges for Manual Use (analyze_ttf_cmap.py)
 
 When using `lv_font_conv` by hand, you can get `--range=...` from the TTF:
@@ -455,7 +468,7 @@ On setRoot / push / pop, **TTNavigationController::loadScreen()** calls `lv_inde
 - **TTLvglEpdDriver**: Creates LVGL display (296×128, I1, partial buffer), flush callback to GxEPD2; **requestRefresh(TTRefreshLevel)**. Deep refresh is used automatically every `EPD_FULL_REFRESH_INTERVAL` partials (and via **requestFullRefreshAsync()**); a pending flag avoids duplicate enqueue. Clock time label is wrapped in a fixed-size container to limit partial refresh area.
 - **TTFontManager**: Singleton; `begin()` loads binary fonts from LittleFS (paths in `TTFontManager.cpp`); `getFont(size)` returns `lv_font_t*` for use in LVGL widgets.
 - **TTFontLoader**: Loads one or two binary font files (main + optional fallback); **glyph cache** (e.g. up to 1000 entries) reduces LittleFS lookups for repeated characters. Used by TTFontManager per size.
-- **TTStreamImage**: LVGL-compatible stream PNG widget (libspng + zlib, vendored in `lib/spng` and `lib/zlib`); decode to screen with I1 passthrough, no cache. Icons and assets live in `data/icons/` (e.g. `clock.png`, `wifi.png`, `watch.png`).
+- **TTStreamImage**: LVGL-compatible stream PNG widget (libspng + zlib, vendored in `lib/spng` and `lib/zlib`); decode to screen with I1 passthrough, no cache. Icons live in `data/icons/` (Lucide slices: `wifi.png`, `watch.png`, `clock.png`, `clock_sm.png`, `back.png`).
 
 ### Storage and Config
 

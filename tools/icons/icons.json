@@ -1,0 +1,37 @@
+{
+  "source": "https://lucide.dev/",
+  "outputDir": "../../data/icons",
+  "svgDir": "svg",
+  "icons": [
+    {
+      "id": "wifi",
+      "file": "wifi.png",
+      "size": 48,
+      "strokeWidth": 1.5
+    },
+    {
+      "id": "clock",
+      "file": "clock.png",
+      "size": 48,
+      "strokeWidth": 1.5
+    },
+    {
+      "id": "timer",
+      "file": "watch.png",
+      "size": 48,
+      "strokeWidth": 1.5
+    },
+    {
+      "id": "clock",
+      "file": "clock_sm.png",
+      "size": 32,
+      "strokeWidth": 1.5
+    },
+    {
+      "id": "chevron-left",
+      "file": "back.png",
+      "size": 14,
+      "strokeWidth": 1.75
+    }
+  ]
+}
