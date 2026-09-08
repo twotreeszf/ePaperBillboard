@@ -29,6 +29,6 @@ void TTSettingsPage::buildContent(lv_obj_t* screen) {
     MenuItem::create(&_items[1], container, this, "/icons/wifi.png", "Wi-Fi", fontBtn,
         [this]() { getNavigationController()->pushPage(std::unique_ptr<TTScreenPage>(new TTWiFiStatusPage())); });
 
-    MenuItem::create(&_items[2], container, this, "/icons/ntp.png", "NTP 对时", fontBtn,
+    MenuItem::create(&_items[2], container, this, "/icons/ntp.png", "NTP校时", fontBtn,
         [this]() { getNavigationController()->pushPage(std::unique_ptr<TTScreenPage>(new TTNtpSyncPage())); });
 }

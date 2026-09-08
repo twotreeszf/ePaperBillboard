@@ -68,14 +68,14 @@ void TTWiFiTask::startNtpSync() {
         publishTimeSync(TT_TIME_SYNC_NEED_WIFI, "未连接 Wi-Fi");
         return;
     }
-    publishTimeSync(TT_TIME_SYNC_SYNCING, "正在对时...");
+    publishTimeSync(TT_TIME_SYNC_SYNCING, "正在校时...");
     syncNtp();
 }
 
 void TTWiFiTask::syncNtp() {
     if (!_wifiManager.isConnected()) {
         LOG_E("NTP: STA not connected");
-        publishTimeSync(TT_TIME_SYNC_FAILED, "对时失败");
+        publishTimeSync(TT_TIME_SYNC_FAILED, "校时失败");
         publishStatus();
         return;
     }
@@ -91,7 +91,7 @@ void TTWiFiTask::syncNtp() {
         time(&now);
         TTInstanceOf<TTSensorTask>().requestRtcWriteAsync(now);
     }
-    publishTimeSync(ok ? TT_TIME_SYNC_OK : TT_TIME_SYNC_FAILED, ok ? "对时完成" : "对时失败");
+    publishTimeSync(ok ? TT_TIME_SYNC_OK : TT_TIME_SYNC_FAILED, ok ? "校时完成" : "校时失败");
     publishStatus();
 }
 

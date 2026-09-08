@@ -79,7 +79,7 @@ void TTNtpSyncPage::buildContent(lv_obj_t* screen) {
     lv_obj_align(_btnRow, LV_ALIGN_BOTTOM_MID, 0, -10);
     lv_obj_add_flag(_btnRow, LV_OBJ_FLAG_HIDDEN);
 
-    _retryBtn = TTTextButton::create(_btnRow, "重新对时", font16, TT_NTP_BTN_W);
+    _retryBtn = TTTextButton::create(_btnRow, "重新校时", font16, TT_NTP_BTN_W);
     lv_obj_add_event_cb(_retryBtn, onRetryEvent, LV_EVENT_CLICKED, this);
     addToFocusGroup(_retryBtn);
 
@@ -163,7 +163,7 @@ void TTNtpSyncPage::showDoneButtons() {
         lv_obj_remove_flag(_btnRow, LV_OBJ_FLAG_HIDDEN);
     }
     if (_retryBtn != nullptr) {
-        TTTextButton::setText(_retryBtn, "重新对时");
+        TTTextButton::setText(_retryBtn, "重新校时");
         lv_obj_remove_flag(_retryBtn, LV_OBJ_FLAG_HIDDEN);
     }
     if (_backBtn != nullptr) {
@@ -196,7 +196,7 @@ void TTNtpSyncPage::applyStatus(const TTTimeSyncPayload& status) {
     }
 
     if (status.state == TT_TIME_SYNC_SYNCING) {
-        showSyncLoading(status.message[0] != '\0' ? status.message : "正在对时...");
+        showSyncLoading(status.message[0] != '\0' ? status.message : "正在校时...");
         lv_label_set_text(_statusLabel, "");
         hideButtons();
         return;
@@ -204,12 +204,12 @@ void TTNtpSyncPage::applyStatus(const TTTimeSyncPayload& status) {
 
     dismissSyncLoading();
     if (status.state == TT_TIME_SYNC_OK) {
-        lv_label_set_text(_statusLabel, "对时完成");
+        lv_label_set_text(_statusLabel, "校时完成");
         showDoneButtons();
         return;
     }
 
-    lv_label_set_text(_statusLabel, "对时失败，请确认 Wi-Fi 后重试。");
+    lv_label_set_text(_statusLabel, "校时失败，请确认 Wi-Fi 后重试。");
     TTTextButton::setText(_retryBtn, "重试");
     showActionOnly();
 }
@@ -218,7 +218,7 @@ void TTNtpSyncPage::startSync() {
     LOG_I("NTP page: start");
     lv_label_set_text(_statusLabel, "");
     hideButtons();
-    showSyncLoading("正在对时...");
+    showSyncLoading("正在校时...");
     TTInstanceOf<TTWiFiTask>().requestNtpSyncAsync();
 }
 

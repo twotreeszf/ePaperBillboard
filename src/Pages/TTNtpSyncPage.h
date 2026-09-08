@@ -13,7 +13,7 @@
 
 class TTNtpSyncPage : public TTScreenPage {
 public:
-    TTNtpSyncPage() : TTScreenPage("NTP 对时") {}
+    TTNtpSyncPage() : TTScreenPage("NTP 校时") {}
 
     void setup() override;
     void willAppear() override;
