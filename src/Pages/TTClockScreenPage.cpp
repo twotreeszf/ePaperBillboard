@@ -3,7 +3,6 @@
 #include "../Base/TTFontManager.h"
 #include "../Base/TTStreamImage.h"
 #include "../Base/TTInstance.h"
-#include "../Base/TTNotificationCenter.h"
 #include "../Base/TTNotificationPayloads.h"
 #include "../Tasks/TTSensorTask.h"
 
@@ -60,10 +59,10 @@ void TTClockScreenPage::setup() {
     _lastUpdateMs = millis();
     updateClockDisplay();
 
-    _repeatHandle = runRepeat(TT_CLOCK_TIMER_MS, [this]() { onTimerTick(); }, false);
+    runRepeat(TT_CLOCK_TIMER_MS, [this]() { onTimerTick(); }, false);
 
-    TTInstanceOf<TTNotificationCenter>().subscribe<TTSensorDataPayload>(
-        TT_NOTIFICATION_SENSOR_DATA_UPDATE, this,
+    subscribe<TTSensorDataPayload>(
+        TT_NOTIFICATION_SENSOR_DATA_UPDATE,
         [this](const TTSensorDataPayload& p) {
             updateSensorDisplay(p.temperature, p.humidity, p.pressure);
             requestRefresh(TT_REFRESH_PARTIAL);
@@ -74,15 +73,6 @@ void TTClockScreenPage::setup() {
 void TTClockScreenPage::willAppear() {
     TTScreenPage::willAppear();
     TTInstanceOf<TTSensorTask>().requestSensorUpdateAsync();
-}
-
-void TTClockScreenPage::willDestroy() {
-    if (_repeatHandle != 0) {
-        cancelRepeat(_repeatHandle);
-        _repeatHandle = 0;
-    }
-    TTInstanceOf<TTNotificationCenter>().unsubscribeByObserver(this);
-    TTScreenPage::willDestroy();
 }
 
 void TTClockScreenPage::updateTime() {

@@ -11,7 +11,6 @@ public:
 
     void setup() override;
     void willAppear() override;
-    void willDestroy() override;
 
 protected:
     void buildContent(lv_obj_t* screen) override;
@@ -22,7 +21,6 @@ private:
     void updateSensorDisplay(float temperature, float humidity, float pressure);
     void updateClockDisplay();
 
-    uint32_t _repeatHandle = 0;
     lv_obj_t* _titleLabel = nullptr;
     lv_obj_t* _timeLabel = nullptr;
     lv_obj_t* _statusLabel = nullptr;

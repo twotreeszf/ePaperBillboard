@@ -31,7 +31,7 @@ public:
     template<typename PayloadType>
     void postNotification(const char* name, const PayloadType& payload);
 
-    void runOnce(uint32_t delayMs, std::function<void()> callback);
+    uint32_t runOnce(uint32_t delayMs, std::function<void()> callback);
     uint32_t runRepeat(uint32_t intervalMs, std::function<void()> callback, bool executeImmediately = true);
     void cancelRepeat(uint32_t handle);
 
@@ -56,7 +56,7 @@ private:
 template<typename PayloadType>
 void TTVTask::postNotification(const char* name, const PayloadType& payload) {
     auto* f = new std::function<void()>([name, payload]() {
-        TTInstanceOf<TTNotificationCenter>().post(name, payload);
+        TTInstanceOf<TTNotificationCenter>().sendNotification(name, payload);
     });
     enqueue(f);
 }

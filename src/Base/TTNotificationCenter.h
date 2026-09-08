@@ -12,7 +12,7 @@ public:
     void subscribe(const char* name, void* observer, std::function<void(const PayloadType&)> callback);
 
     template<typename PayloadType>
-    void post(const char* name, const PayloadType& payload);
+    void sendNotification(const char* name, const PayloadType& payload);
 
     void unsubscribeByObserver(void* observer);
 
@@ -31,7 +31,7 @@ void TTNotificationCenter::subscribe(
 }
 
 template<typename PayloadType>
-void TTNotificationCenter::post(const char* name, const PayloadType& payload) {
+void TTNotificationCenter::sendNotification(const char* name, const PayloadType& payload) {
     std::map<std::string, std::vector<std::pair<void*, Handler>>>::iterator it = _handlers.find(name);
     if (it == _handlers.end()) return;
     const void* p = &payload;

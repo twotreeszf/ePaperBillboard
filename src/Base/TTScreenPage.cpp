@@ -29,6 +29,14 @@ void TTScreenPage::setup() {
 
 void TTScreenPage::willDestroy() {
     LOG_I("Page[%s]: willDestroy()", _name);
+    for (uint32_t handle : _timerHandles) {
+        TTInstanceOf<TTUITask>().cancelRepeat(handle);
+    }
+    if (!_timerHandles.empty()) {
+        LOG_I("Page[%s]: cancelled %u timer(s)", _name, (unsigned)_timerHandles.size());
+        _timerHandles.clear();
+    }
+    TTInstanceOf<TTNotificationCenter>().unsubscribeByObserver(this);
 }
 
 void TTScreenPage::willAppear() {
@@ -62,13 +70,26 @@ void TTScreenPage::requestRefresh(TTRefreshLevel level) {
 }
 
 void TTScreenPage::runOnce(uint32_t delayMs, std::function<void()> callback) {
-    TTInstanceOf<TTUITask>().runOnce(delayMs, std::move(callback));
+    uint32_t handle = TTInstanceOf<TTUITask>().runOnce(delayMs, std::move(callback));
+    if (handle != 0) {
+        _timerHandles.push_back(handle);
+    }
 }
 
 uint32_t TTScreenPage::runRepeat(uint32_t intervalMs, std::function<void()> callback, bool executeImmediately) {
-    return TTInstanceOf<TTUITask>().runRepeat(intervalMs, std::move(callback), executeImmediately);
+    uint32_t handle = TTInstanceOf<TTUITask>().runRepeat(intervalMs, std::move(callback), executeImmediately);
+    if (handle != 0) {
+        _timerHandles.push_back(handle);
+    }
+    return handle;
 }
 
 void TTScreenPage::cancelRepeat(uint32_t handle) {
     TTInstanceOf<TTUITask>().cancelRepeat(handle);
+    for (size_t i = 0; i < _timerHandles.size(); ++i) {
+        if (_timerHandles[i] == handle) {
+            _timerHandles.erase(_timerHandles.begin() + static_cast<std::ptrdiff_t>(i));
+            break;
+        }
+    }
 }

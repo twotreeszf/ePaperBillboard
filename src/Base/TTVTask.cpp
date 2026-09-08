@@ -43,7 +43,7 @@ void TTVTask::_registerPeriodicTask(std::function<void()> callback, uint32_t int
     task.callback = std::move(callback);
     task.intervalMs = intervalMs;
     task.runOnce = runOnce;
-    if (!runOnce && outId != nullptr) {
+    if (outId != nullptr) {
         task.id = ++_nextPeriodicId;
         *outId = task.id;
     }
@@ -58,9 +58,11 @@ void TTVTask::_registerPeriodicTask(std::function<void()> callback, uint32_t int
     _periodicTasks.push_back(std::move(task));
 }
 
-void TTVTask::runOnce(uint32_t delayMs, std::function<void()> callback)
+uint32_t TTVTask::runOnce(uint32_t delayMs, std::function<void()> callback)
 {
-    _registerPeriodicTask(std::move(callback), delayMs, false, true, nullptr);
+    uint32_t id = 0;
+    _registerPeriodicTask(std::move(callback), delayMs, false, true, &id);
+    return id;
 }
 
 uint32_t TTVTask::runRepeat(uint32_t intervalMs, std::function<void()> callback, bool executeImmediately)

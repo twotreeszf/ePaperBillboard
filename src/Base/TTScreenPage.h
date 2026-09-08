@@ -1,9 +1,12 @@
 #pragma once
 
 #include <functional>
+#include <vector>
 #include <lvgl.h>
 #include "ITTScreenPage.h"
 #include "ITTNavigationController.h"
+#include "TTNotificationCenter.h"
+#include "TTInstance.h"
 
 class TTScreenPage : public ITTScreenPage {
 public:
@@ -23,9 +26,10 @@ public:
     uint32_t runRepeat(uint32_t intervalMs, std::function<void()> callback, bool executeImmediately = true);
     void cancelRepeat(uint32_t handle);
 
-    /** Called once in createScreen() right after buildContent(screen). Use for post-build init (e.g. subscribe to notifications). */
+    template<typename PayloadType>
+    void subscribe(const char* name, std::function<void(const PayloadType&)> callback);
+
     void setup() override;
-    /** Called just before the page is removed from the nav stack (setRoot: each page; pop: the popped page). Use for teardown (e.g. unsubscribe). */
     void willDestroy() override;
 
     /** Called when this page is about to become the active screen (push: new page; pop: previous page). */
@@ -46,4 +50,10 @@ protected:
     lv_obj_t* _screen = nullptr;
     lv_group_t* _group = nullptr;
     ITTNavigationController* _controller = nullptr;
+    std::vector<uint32_t> _timerHandles;
 };
+
+template<typename PayloadType>
+void TTScreenPage::subscribe(const char* name, std::function<void(const PayloadType&)> callback) {
+    TTInstanceOf<TTNotificationCenter>().subscribe<PayloadType>(name, this, std::move(callback));
+}
