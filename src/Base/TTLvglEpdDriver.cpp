@@ -33,8 +33,8 @@ bool TTLvglEpdDriver::begin(EPaperDisplay& display) {
     // Set color format to 1-bit (monochrome)
     lv_display_set_color_format(_lvDisplay, LV_COLOR_FORMAT_I1);
     
-    // Full-frame buffer: one flush per LVGL refresh so the panel is driven once
-    lv_display_set_buffers(_lvDisplay, _drawBuf, nullptr, sizeof(_drawBuf), LV_DISPLAY_RENDER_MODE_FULL);
+    // Partial mode: each flush is a dirty rectangle; the panel only updates that window.
+    lv_display_set_buffers(_lvDisplay, _drawBuf, nullptr, sizeof(_drawBuf), LV_DISPLAY_RENDER_MODE_PARTIAL);
     
     // Set flush callback
     lv_display_set_flush_cb(_lvDisplay, _flushCallback);
