@@ -1,23 +1,26 @@
-#ifndef TTWIFITASK_H
-#define TTWIFITASK_H
-
 #pragma once
 
 #include "../Base/TTVTask.h"
 #include "../Base/TTWiFiManager.h"
 
-class TTWiFiTask : public TTVTask
-{
+#define TT_WIFI_TASK_STACK  12288
+#define TT_WIFI_LOOP_DELAY_MS  10
+
+class TTWiFiTask : public TTVTask {
 public:
-    TTWiFiTask() : TTVTask("WiFiTask", 8192) {}
-    bool isConnected() { return _wifiManager.isConnected(); }
-    
+    TTWiFiTask() : TTVTask("WiFiTask", TT_WIFI_TASK_STACK) {}
+
+    void requestStartProvisioningAsync();
+    void requestStopProvisioningAsync();
+    void requestStatusAsync();
+
 protected:
     void setup() override;
     void loop() override;
-    
-private:
-    TTWiFiManager _wifiManager;
-};
 
-#endif
+private:
+    void publishStatus();
+
+    TTWiFiManager _wifiManager;
+    TTWiFiLinkState _publishedState = TT_WIFI_LINK_IDLE;
+};

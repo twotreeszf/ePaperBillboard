@@ -383,10 +383,9 @@ void createUI() {
 
 `main.cpp` starts two FreeRTOS tasks and then idles:
 
-- **TTUITask** (core 0): SPI, LittleFS, LVGL, E-Paper driver, navigation, popup layer; root page is **TTHomePage** (WiFi / NTP / Clock entries). Runs `lv_timer_handler()` and `_keypad.tick()` every `TT_UI_LOOP_DELAY_MS` (5 ms). Page-level timing uses **runRepeat** / **runOnce** / **cancelRepeat** (driven in the same task loop; no LVGL timers required).
+- **TTUITask** (core 0): SPI, LittleFS, LVGL, E-Paper driver, navigation, popup layer; root page is **TTHomePage** (Settings / Clock). Runs `lv_timer_handler()` and `_keypad.tick()` every `TT_UI_LOOP_DELAY_MS` (5 ms). Page-level timing uses **runRepeat** / **runOnce** / **cancelRepeat** (driven in the same task loop; no LVGL timers required).
 - **TTSensorTask** (core 1): I2C, AHT20 (temp/humidity), BMP280 (pressure). Reads sensors every `TT_SENSOR_UPDATE_INTERVAL` (60 s), posts `TT_NOTIFICATION_SENSOR_DATA_UPDATE` to the UI task. **requestSensorUpdateAsync()** allows other tasks to request an immediate read.
-
-**TTWiFiTask** exists but is not started in `main.cpp`; add it if you need WiFi/AP config.
+- **TTWiFiTask** (core 1): connects to a saved STA network on boot; the WiFi page can start an open SoftAP (`Billboard-XXXX`) plus captive portal so a phone can pick a home network. Status is posted as `TT_NOTIFICATION_WIFI_STATUS`.
 
 ### Task Model (TTVTask)
 

@@ -1,5 +1,5 @@
 #include "TTSettingsPage.h"
-#include "TTWiFiDemoPage.h"
+#include "TTWiFiConfigPage.h"
 #include "TTNTPDemoPage.h"
 #include "../Base/TTFontManager.h"
 #include <memory>
@@ -22,9 +22,9 @@ void TTSettingsPage::buildContent(lv_obj_t* screen) {
     lv_obj_set_style_pad_column(container, TT_HOME_ITEMS_GAP, 0);
     lv_obj_align(container, LV_ALIGN_CENTER, 0, 0);
 
-    MenuItem::create(&_items[0], container, this, "/icons/wifi.png", "WiFi", fontBtn,
-        [this]() { getNavigationController()->pushPage(std::unique_ptr<TTScreenPage>(new TTWiFiDemoPage())); });
+    MenuItem::create(&_items[0], container, this, "/icons/wifi.png", "Wi-Fi", fontBtn,
+        [this]() { getNavigationController()->pushPage(std::unique_ptr<TTScreenPage>(new TTWiFiConfigPage())); });
 
-    MenuItem::create(&_items[1], container, this, "/icons/watch.png", "NTP", fontBtn,
+    MenuItem::create(&_items[1], container, this, "/icons/watch.png", "对时", fontBtn,
         [this]() { getNavigationController()->pushPage(std::unique_ptr<TTScreenPage>(new TTNTPDemoPage())); });
 }

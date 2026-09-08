@@ -2,14 +2,44 @@
 #include "TTDrawBufPassthroughDecoder.h"
 #include "TTInstance.h"
 #include "Tasks/TTUITask.h"
+#include "TTNavigationBar.h"
 #include <EPDConfig.h>
 #include "Logger.h"
+#include <esp_heap_caps.h>
 
-// Static draw buffer - must be aligned for LVGL 9.x
-static uint8_t _drawBuf[EPD_BUF_SIZE] __attribute__((aligned(4)));
+static uint8_t* _drawBuf = nullptr;
 
 static uint32_t lvglTickCallback() {
     return millis();
+}
+
+static void invalidatePageBelowNav() {
+    lv_obj_t* scr = lv_scr_act();
+    if (scr == nullptr) {
+        return;
+    }
+    lv_area_t area;
+    area.x1 = 0;
+    area.y1 = TT_NAV_BAR_HEIGHT;
+    area.x2 = EPD_WIDTH - 1;
+    area.y2 = EPD_HEIGHT - 1;
+    lv_obj_invalidate_area(scr, &area);
+}
+
+static void invalidateTopLayerWidgets(lv_display_t* disp) {
+    lv_obj_t* top = lv_display_get_layer_top(disp);
+    if (top == nullptr) {
+        return;
+    }
+    for (uint32_t i = 0; ; i++) {
+        lv_obj_t* child = lv_obj_get_child(top, (int32_t)i);
+        if (child == nullptr) {
+            break;
+        }
+        if (!lv_obj_has_flag(child, LV_OBJ_FLAG_HIDDEN)) {
+            lv_obj_invalidate(child);
+        }
+    }
 }
 
 bool TTLvglEpdDriver::begin(EPaperDisplay& display) {
@@ -30,11 +60,17 @@ bool TTLvglEpdDriver::begin(EPaperDisplay& display) {
         return false;
     }
     
-    // Set color format to 1-bit (monochrome)
     lv_display_set_color_format(_lvDisplay, LV_COLOR_FORMAT_I1);
-    
-    // Partial mode: each flush is a dirty rectangle; the panel only updates that window.
-    lv_display_set_buffers(_lvDisplay, _drawBuf, nullptr, sizeof(_drawBuf), LV_DISPLAY_RENDER_MODE_PARTIAL);
+
+    if (_drawBuf == nullptr) {
+        _drawBuf = (uint8_t*)heap_caps_aligned_alloc(4, EPD_BUF_SIZE, MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT);
+    }
+    if (_drawBuf == nullptr) {
+        LOG_E("Failed to allocate LVGL draw buffer (%u bytes)", (unsigned)EPD_BUF_SIZE);
+        return false;
+    }
+
+    lv_display_set_buffers(_lvDisplay, _drawBuf, nullptr, EPD_BUF_SIZE, LV_DISPLAY_RENDER_MODE_PARTIAL);
     
     // Set flush callback
     lv_display_set_flush_cb(_lvDisplay, _flushCallback);
@@ -60,41 +96,58 @@ void TTLvglEpdDriver::_flushCallback(lv_display_t* disp, const lv_area_t* area, 
     // Skip the 8-byte palette header for monochrome format
     px_map += 8;
     
+    const int32_t src_x1 = area->x1;
+    const int32_t src_y1 = area->y1;
     int32_t x1 = area->x1;
     int32_t y1 = area->y1;
     int32_t x2 = area->x2;
     int32_t y2 = area->y2;
+
+    if (!pThis->_needDeepRefresh && !pThis->_flushingOverlay && y1 < TT_NAV_BAR_HEIGHT) {
+        pThis->_navTouched = true;
+        if (y2 < TT_NAV_BAR_HEIGHT) {
+            LOG_I("Flush: skip page paint in nav bar region");
+            lv_display_flush_ready(disp);
+            return;
+        }
+        y1 = TT_NAV_BAR_HEIGHT;
+        LOG_I("Flush: clip page below nav bar y>=%d", TT_NAV_BAR_HEIGHT);
+    }
+
     int32_t w = x2 - x1 + 1;
     int32_t h = y2 - y1 + 1;
+    if (w <= 0 || h <= 0) {
+        lv_display_flush_ready(disp);
+        return;
+    }
 
     LOG_I("Flush area: (%d,%d)-(%d,%d), size %dx%d", x1, y1, x2, y2, w, h);
     uint32_t flushStart = millis();
 
     pThis->_epd->setRotation(EPD_ROTATION);
-
-    bool isFullArea = (x1 == 0 && y1 == 0 && x2 == EPD_WIDTH - 1 && y2 == EPD_HEIGHT - 1);
-    bool doFullRefresh = isFullArea && (pThis->_needDeepRefresh ||
-                         (pThis->_partialCount >= EPD_FULL_REFRESH_INTERVAL));
-    if (doFullRefresh) {        
+    const bool doDeepFull = pThis->_needDeepRefresh && !pThis->_flushingOverlay;
+    if (doDeepFull) {
         pThis->_epd->setFullWindow();
-        pThis->_partialCount = 0;
         pThis->_needDeepRefresh = false;
+        pThis->_partialCount = 0;
         pThis->_deepRefreshPending = false;
-        LOG_I("E-Paper full refresh");
-    } else {        
+        LOG_I("E-Paper deep full refresh (with nav bar)");
+    } else {
         pThis->_epd->setPartialWindow(x1, y1, (uint16_t)w, (uint16_t)h);
-        pThis->_partialCount++;
+        if (!pThis->_needDeepRefresh) {
+            pThis->_partialCount++;
+        }
         LOG_I("E-Paper partial refresh at (%d,%d) %dx%d, partial count: %d", x1, y1, w, h, pThis->_partialCount);
     }
 
-    int32_t buf_stride = (w + 7) / 8;
+    const int32_t buf_stride = ((area->x2 - area->x1 + 1) + 7) / 8;
 
     pThis->_epd->firstPage();
     do {
         for (int32_t y = y1; y <= y2; y++) {
             for (int32_t x = x1; x <= x2; x++) {
-                int32_t rel_x = x - x1;
-                int32_t rel_y = y - y1;
+                int32_t rel_x = x - src_x1;
+                int32_t rel_y = y - src_y1;
                 int32_t byte_idx = rel_y * buf_stride + (rel_x / 8);
                 int32_t bit_idx = 7 - (rel_x % 8);
                 bool isSet = (px_map[byte_idx] >> bit_idx) & 0x01;
@@ -108,7 +161,7 @@ void TTLvglEpdDriver::_flushCallback(lv_display_t* disp, const lv_area_t* area, 
 
     lv_display_flush_ready(disp);
 
-    if (!doFullRefresh && pThis->_partialCount >= EPD_FULL_REFRESH_INTERVAL && !pThis->_deepRefreshPending) {
+    if (pThis->_partialCount >= EPD_FULL_REFRESH_INTERVAL && !pThis->_deepRefreshPending) {
         pThis->_deepRefreshPending = true;
         TTInstanceOf<TTUITask>().requestDeepRefreshAsync();
     }
@@ -117,22 +170,36 @@ void TTLvglEpdDriver::_flushCallback(lv_display_t* disp, const lv_area_t* area, 
 void TTLvglEpdDriver::requestRefresh(TTRefreshLevel level) {
     switch (level) {
         case TT_REFRESH_PARTIAL:
-            // Partial refresh: rely on existing invalidation; LVGL will only redraw dirty areas.
+            _navTouched = false;
             lv_refr_now(_lvDisplay);
+            if (_navTouched) {
+                LOG_I("Flush: page overlapped nav, redraw overlay");
+                _flushingOverlay = true;
+                invalidateTopLayerWidgets(_lvDisplay);
+                lv_refr_now(_lvDisplay);
+                _flushingOverlay = false;
+            }
             break;
 
         case TT_REFRESH_FULL:
-            // Full-screen LVGL redraw, but still using E-Paper partial refresh waveform.
-            lv_obj_invalidate(lv_scr_act());
+            invalidatePageBelowNav();
             lv_refr_now(_lvDisplay);
+            _flushingOverlay = true;
+            invalidateTopLayerWidgets(_lvDisplay);
+            lv_refr_now(_lvDisplay);
+            _flushingOverlay = false;
             break;
 
         case TT_REFRESH_DEEP:
-            // Deep refresh: full-screen redraw plus hardware full refresh waveform.
             _needDeepRefresh = true;
             _partialCount = 0;
-            lv_obj_invalidate(lv_scr_act());
+            invalidatePageBelowNav();
             lv_refr_now(_lvDisplay);
+            _flushingOverlay = true;
+            invalidateTopLayerWidgets(_lvDisplay);
+            lv_refr_now(_lvDisplay);
+            _flushingOverlay = false;
+            _needDeepRefresh = false;
             break;
     }
 }

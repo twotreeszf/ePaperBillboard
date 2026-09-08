@@ -93,7 +93,7 @@ void TTPopupLayer::showLoading() {
     lv_obj_remove_flag(_loadingPanel, LV_OBJ_FLAG_SCROLLABLE);
 
     lv_obj_t* label = lv_label_create(_loadingPanel);
-    lv_label_set_text(label, "Loading...");
+    lv_label_set_text(label, "加载中...");
     lv_obj_set_style_text_color(label, lv_color_black(), 0);
     lv_font_t* font = TTFontManager::instance().getFont(12);
     if (font != nullptr) {
@@ -194,7 +194,7 @@ void TTPopupLayer::showDialog(const char* msg, DialogCallback onOk, DialogCallba
     lv_obj_set_style_border_width(cancelBtn, 1, 0);
     lv_obj_set_style_border_width(cancelBtn, 1, LV_STATE_FOCUSED);
     lv_obj_t* cancelLabel = lv_label_create(cancelBtn);
-    lv_label_set_text(cancelLabel, "Cancel");
+    lv_label_set_text(cancelLabel, "取消");
     lv_obj_set_style_text_color(cancelLabel, lv_color_black(), 0);
     lv_obj_set_style_text_font(cancelLabel, font, 0);
     lv_obj_center(cancelLabel);
@@ -221,7 +221,7 @@ void TTPopupLayer::showDialog(const char* msg, DialogCallback onOk, DialogCallba
     lv_obj_set_style_border_width(okBtn, 1, 0);
     lv_obj_set_style_border_width(okBtn, 1, LV_STATE_FOCUSED);
     lv_obj_t* okLabel = lv_label_create(okBtn);
-    lv_label_set_text(okLabel, "OK");
+    lv_label_set_text(okLabel, "确定");
     lv_obj_set_style_text_color(okLabel, lv_color_black(), 0);
     lv_obj_set_style_text_font(okLabel, font, 0);
     lv_obj_center(okLabel);

@@ -28,6 +28,7 @@
 #include "Base/Util.h"
 #include "Tasks/TTUITask.h"
 #include "Tasks/TTSensorTask.h"
+#include "Tasks/TTWiFiTask.h"
 
 void setup() {
     _logger.setLevel(LOG_LEVEL_DEBUG);
@@ -43,6 +44,7 @@ void setup() {
 
     TTInstanceOf<TTUITask>().start(0, TT_UI_LOOP_DELAY_MS);
     TTInstanceOf<TTSensorTask>().start(1);
+    TTInstanceOf<TTWiFiTask>().start(1, TT_WIFI_LOOP_DELAY_MS);
 }
 
 void loop() {

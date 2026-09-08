@@ -26,7 +26,7 @@ struct MenuItem {
 
 class TTHomePage : public TTScreenPage {
 public:
-    TTHomePage() : TTScreenPage("Home") {}
+    TTHomePage() : TTScreenPage("首页") {}
 
 protected:
     void buildContent(lv_obj_t* screen) override;

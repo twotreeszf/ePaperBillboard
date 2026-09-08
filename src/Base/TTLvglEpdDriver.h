@@ -19,4 +19,6 @@ private:
     uint8_t _partialCount = 0;
     bool _needDeepRefresh = true;
     bool _deepRefreshPending = false;
+    bool _flushingOverlay = false;
+    bool _navTouched = false;
 };

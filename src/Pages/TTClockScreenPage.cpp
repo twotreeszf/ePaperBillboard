@@ -17,7 +17,7 @@ void TTClockScreenPage::buildContent(lv_obj_t* screen) {
     lv_obj_set_style_bg_opa(screen, LV_OPA_COVER, 0);
 
     _titleLabel = lv_label_create(screen);
-    lv_label_set_text(_titleLabel, "电子墨水屏时钟 E-Paper Clock");
+    lv_label_set_text(_titleLabel, "电子墨水屏时钟");
     lv_obj_set_style_text_color(_titleLabel, lv_color_black(), 0);
     lv_obj_set_style_text_font(_titleLabel, font_16, 0);
     lv_obj_align(_titleLabel, LV_ALIGN_TOP_MID, 0, 4);

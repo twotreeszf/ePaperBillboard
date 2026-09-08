@@ -77,7 +77,7 @@ void TTNavigationController::ensureNavBar() {
 
 void TTNavigationController::loadScreen(ITTScreenPage* page) {
     lv_obj_t* screen = page->getScreen();
-    lv_obj_set_style_pad_top(screen, TT_NAV_BAR_HEIGHT, 0);
+    lv_obj_set_style_pad_top(screen, 0, 0);
     lv_screen_load(screen);
     if (_keypad != nullptr) {
         lv_indev_set_group(_keypad->getIndev(), page->getGroup());
@@ -100,10 +100,6 @@ void TTNavigationController::syncNavigationBar() {
 
     const bool showBack = _stack.size() > 1;
     _navBar.show(page->getName(), showBack);
-    if (showBack && backBtn != nullptr) {
-        page->addToFocusGroup(backBtn);
-        lv_group_focus_obj(backBtn);
-    }
 
     if (_keypad != nullptr) {
         lv_indev_set_group(_keypad->getIndev(), page->getGroup());

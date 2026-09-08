@@ -3,49 +3,48 @@
 #include <WiFi.h>
 #include <WebServer.h>
 #include <DNSServer.h>
-#include <ArduinoJson.h>
-#include "TTPreference.h"
-#include "TTInstance.h"
+#include <vector>
+#include "TTNotificationPayloads.h"
 
-/**
- * @brief WiFi Manager for handling WiFi connection and configuration
- * Provides AP mode for initial setup and handles WiFi credentials storage
- */
-#define DEFAULT_AP_SSID "VerseCam"
-#define DEFAULT_AP_PASSWORD "1234567890"
-#define WIFI_CONNECT_TIMEOUT 10 * 1000 // 10 seconds
-
-enum TTWiFiStatus {
-    WIFI_DISCONNECTED,
-    WIFI_STA_CONNECTING,
-    WIFI_STA_CONNECTED,
-    WIFI_STA_SCANNING,
-    WIFI_AP_MODE,
-};
+#define PREF_WIFI_SSID      "wifi_ssid"
+#define PREF_WIFI_PASSWORD  "wifi_password"
+#define TT_WIFI_AP_SSID_PREFIX  "Billboard"
+#define TT_WIFI_CONNECT_TIMEOUT_MS  15000
+#define TT_WIFI_DNS_PORT  53
 
 class TTWiFiManager {
 public:
-    TTWiFiManager() : _server(80), _status(WIFI_DISCONNECTED) {}
-    bool tryConfigWiFi();
+    TTWiFiManager() : _server(80) {}
+
+    bool tryConnectSaved();
+    bool startProvisioning();
+    bool stopProvisioning();
     void process();
-    bool isConnected() { return _status == WIFI_STA_CONNECTED; }
-    bool isAPMode() { return _status == WIFI_AP_MODE; }
-    TTWiFiStatus getStatus() { return _status; }
-    
+    void fillStatus(TTWiFiStatusPayload& out) const;
+
+    bool isConnected() const { return _state == TT_WIFI_LINK_CONNECTED; }
+    bool isProvisioning() const { return _state == TT_WIFI_LINK_PROVISIONING; }
+
 private:
-    WebServer _server;
-    DNSServer _dnsServer;
-    TTWiFiStatus _status;
-    std::vector<String> _ssidList;
-    
-    bool _startAP();
-    bool _scanWiFi(); 
-    bool _startWebServer();
     bool _connectToWiFi(const String& ssid, const String& password);
+    bool _scanWiFi();
+    bool _startAP();
+    bool _startWebServer();
+    void _stopAP();
+    void _buildApSsid();
     void _handleRoot();
     void _handleSave();
-    void _handleNotFound();
     void _handleScanWiFi();
+    void _handleNotFound();
     String _getHTMLContent();
     String _getWiFiListJSON();
+
+    WebServer _server;
+    DNSServer _dnsServer;
+    TTWiFiLinkState _state = TT_WIFI_LINK_IDLE;
+    std::vector<String> _ssidList;
+    char _apSsid[TT_WIFI_SSID_MAX + 1] = {0};
+    char _savedSsid[TT_WIFI_SSID_MAX + 1] = {0};
+    bool _serverStarted = false;
+    bool _applyPending = false;
 };

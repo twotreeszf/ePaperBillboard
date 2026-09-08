@@ -7,7 +7,7 @@
 
 class TTClockScreenPage : public TTScreenPage {
 public:
-    TTClockScreenPage() : TTScreenPage("Clock") {}
+    TTClockScreenPage() : TTScreenPage("时钟") {}
 
     void setup() override;
     void willAppear() override;

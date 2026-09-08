@@ -5,7 +5,7 @@
 
 class TTSettingsPage : public TTScreenPage {
 public:
-    TTSettingsPage() : TTScreenPage("Settings") {}
+    TTSettingsPage() : TTScreenPage("设置") {}
 
 protected:
     void buildContent(lv_obj_t* screen) override;

@@ -1,8 +1,10 @@
 #include "TTScreenPage.h"
 #include "ITTNavigationController.h"
+#include "TTNavigationBar.h"
 #include "Logger.h"
 #include "TTInstance.h"
 #include "../Tasks/TTUITask.h"
+#include <EPDConfig.h>
 
 TTScreenPage::~TTScreenPage() {
     if (_group != nullptr) {
@@ -19,7 +21,21 @@ void TTScreenPage::createScreen() {
     if (_screen != nullptr) return;
     LOG_I("Page[%s]: Creating screen", _name);
     _screen = lv_obj_create(NULL);
-    buildContent(_screen);
+    lv_obj_set_style_bg_color(_screen, lv_color_white(), 0);
+    lv_obj_set_style_bg_opa(_screen, LV_OPA_COVER, 0);
+    lv_obj_set_style_pad_all(_screen, 0, 0);
+    lv_obj_remove_flag(_screen, LV_OBJ_FLAG_SCROLLABLE);
+
+    lv_obj_t* content = lv_obj_create(_screen);
+    lv_obj_set_pos(content, 0, TT_NAV_BAR_HEIGHT);
+    lv_obj_set_size(content, EPD_WIDTH, EPD_HEIGHT - TT_NAV_BAR_HEIGHT);
+    lv_obj_set_style_bg_opa(content, LV_OPA_TRANSP, 0);
+    lv_obj_set_style_border_width(content, 0, 0);
+    lv_obj_set_style_pad_all(content, 0, 0);
+    lv_obj_set_style_radius(content, 0, 0);
+    lv_obj_remove_flag(content, LV_OBJ_FLAG_SCROLLABLE);
+
+    buildContent(content);
     setup();
 }
 

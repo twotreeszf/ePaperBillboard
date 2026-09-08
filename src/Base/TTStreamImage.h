@@ -3,7 +3,8 @@
 #include <lvgl.h>
 
 /*
- * Streaming image widget: no cache, decode on draw, direct to screen.
+ * Streaming image widget. PNG pixels are decoded to a path-keyed I1 cache
+ * (LRU, 64KB cap) and blitted on draw.
  * Set source with tt_stream_image_set_src(obj, "/path/on/littlefs.png").
  * PNG size must be within TT_STREAM_IMAGE_MAX_W x TT_STREAM_IMAGE_MAX_H.
  * Requires TTDrawBufPassthroughDecoder_init() before use (called from TTLvglEpdDriver::begin).
@@ -15,6 +16,7 @@
 #define TT_STREAM_IMAGE_ROW_BYTES    ((TT_STREAM_IMAGE_MAX_W * 4))
 #define TT_STREAM_IMAGE_FILE_BUF_KB 12
 #define TT_STREAM_IMAGE_FILE_BUF_SZ (TT_STREAM_IMAGE_FILE_BUF_KB * 1024)
+#define TT_STREAM_IMAGE_CACHE_MAX_BYTES  (64 * 1024)
 
 typedef struct tt_stream_image_t tt_stream_image_t;
 

@@ -83,9 +83,9 @@ void TTHomePage::buildContent(lv_obj_t* screen) {
     lv_obj_set_style_pad_column(container, TT_HOME_ITEMS_GAP, 0);
     lv_obj_align(container, LV_ALIGN_CENTER, 0, 0);
 
-    MenuItem::create(&_items[0], container, this, "/icons/clock.png", "Clock", fontBtn,
-        [this]() { getNavigationController()->pushPage(std::unique_ptr<TTScreenPage>(new TTClockScreenPage())); });
-
-    MenuItem::create(&_items[1], container, this, "/icons/settings.png", "Settings", fontBtn,
+    MenuItem::create(&_items[0], container, this, "/icons/settings.png", "设置", fontBtn,
         [this]() { getNavigationController()->pushPage(std::unique_ptr<TTScreenPage>(new TTSettingsPage())); });
+
+    MenuItem::create(&_items[1], container, this, "/icons/clock.png", "时钟", fontBtn,
+        [this]() { getNavigationController()->pushPage(std::unique_ptr<TTScreenPage>(new TTClockScreenPage())); });
 }
