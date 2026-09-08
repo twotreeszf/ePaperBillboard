@@ -4,11 +4,11 @@
 #include <LittleFS.h>
 #include <cstring>
 #include <esp_heap_caps.h>
+#include <zlib.h>
 
 #include "core/lv_obj_private.h"
 #include "core/lv_obj_class_private.h"
 #include "misc/lv_area_private.h"
-#include <spng.h>
 
 #define MY_CLASS (&tt_stream_image_class)
 
@@ -45,7 +45,8 @@ static void draw_main(lv_event_t* e);
 
 static bool read_png_header(File& f, int32_t* out_w, int32_t* out_h);
 static void rgba_to_i1_row(uint8_t* out, const uint8_t* rgba, int32_t w);
-static int spng_read_cb(spng_ctx* ctx, void* user, void* dest, size_t length);
+static uint8_t png_paeth(uint8_t a, uint8_t b, uint8_t c);
+static void png_unfilter_row(uint8_t* row, const uint8_t* prev, size_t bytes, uint8_t filter);
 
 static void cache_lru_unlink(tt_stream_image_cache_entry_t* entry);
 static void cache_lru_touch(tt_stream_image_cache_entry_t* entry);
@@ -195,18 +196,52 @@ static void rgba_to_i1_row(uint8_t* out, const uint8_t* rgba, int32_t w) {
     }
 }
 
-static int spng_read_cb(spng_ctx* ctx, void* user, void* dest, size_t length) {
-    (void)ctx;
-    File* f = (File*)user;
-    if (!f || !dest) return SPNG_IO_ERROR;
-    size_t total = 0;
-    while (total < length) {
-        size_t to_read = length - total;
-        size_t n = f->read((uint8_t*)dest + total, to_read);
-        if (n == 0) return SPNG_IO_EOF;
-        total += n;
+static uint8_t png_paeth(uint8_t a, uint8_t b, uint8_t c) {
+    int p = (int)a + (int)b - (int)c;
+    int pa = p - (int)a;
+    if (pa < 0) pa = -pa;
+    int pb = p - (int)b;
+    if (pb < 0) pb = -pb;
+    int pc = p - (int)c;
+    if (pc < 0) pc = -pc;
+    if (pa <= pb && pa <= pc) return a;
+    if (pb <= pc) return b;
+    return c;
+}
+
+static void png_unfilter_row(uint8_t* row, const uint8_t* prev, size_t bytes, uint8_t filter) {
+    const size_t bpp = 4;
+    switch (filter) {
+    case 1:
+        for (size_t i = bpp; i < bytes; i++) {
+            row[i] = (uint8_t)(row[i] + row[i - bpp]);
+        }
+        break;
+    case 2:
+        if (prev != nullptr) {
+            for (size_t i = 0; i < bytes; i++) {
+                row[i] = (uint8_t)(row[i] + prev[i]);
+            }
+        }
+        break;
+    case 3:
+        for (size_t i = 0; i < bytes; i++) {
+            uint8_t a = (i >= bpp) ? row[i - bpp] : 0;
+            uint8_t b = (prev != nullptr) ? prev[i] : 0;
+            row[i] = (uint8_t)(row[i] + (uint8_t)(((unsigned)a + (unsigned)b) / 2));
+        }
+        break;
+    case 4:
+        for (size_t i = 0; i < bytes; i++) {
+            uint8_t a = (i >= bpp) ? row[i - bpp] : 0;
+            uint8_t b = (prev != nullptr) ? prev[i] : 0;
+            uint8_t c = (prev != nullptr && i >= bpp) ? prev[i - bpp] : 0;
+            row[i] = (uint8_t)(row[i] + png_paeth(a, b, c));
+        }
+        break;
+    default:
+        break;
     }
-    return 0;
 }
 
 static void cache_lru_unlink(tt_stream_image_cache_entry_t* entry) {
@@ -290,85 +325,116 @@ static bool cache_decode_png(tt_stream_image_cache_entry_t* entry) {
         return false;
     }
 
-    static uint8_t row_buf[TT_STREAM_IMAGE_ROW_BYTES];
     static uint8_t file_buf[TT_STREAM_IMAGE_FILE_BUF_SZ];
+    static uint8_t idat[TT_STREAM_IMAGE_IDAT_BUF_SZ];
     size_t file_size = (size_t)f.size();
-    bool use_buffer = (file_size > 0 && file_size <= sizeof(file_buf));
-    if (use_buffer) {
-        if (f.read(file_buf, file_size) != file_size) {
-            f.close();
-            LOG_E("TTStreamImage: cache read short path=%s", entry->path);
+    if (file_size == 0 || file_size > sizeof(file_buf)) {
+        f.close();
+        LOG_E("TTStreamImage: cache file size %u out of range path=%s",
+              (unsigned)file_size, entry->path);
+        return false;
+    }
+    if (f.read(file_buf, file_size) != file_size) {
+        f.close();
+        LOG_E("TTStreamImage: cache read short path=%s", entry->path);
+        return false;
+    }
+    f.close();
+
+    if (file_size < 33 || memcmp(file_buf, PNG_SIG, sizeof(PNG_SIG)) != 0) {
+        LOG_E("TTStreamImage: cache not PNG path=%s", entry->path);
+        return false;
+    }
+
+    size_t idat_len = 0;
+    uint8_t bit_depth = 0, color_type = 0, interlace = 0;
+    size_t off = 8;
+    while (off + 12 <= file_size) {
+        uint32_t len = ((uint32_t)file_buf[off] << 24) | ((uint32_t)file_buf[off + 1] << 16) |
+                       ((uint32_t)file_buf[off + 2] << 8) | file_buf[off + 3];
+        if (off + 12 + len > file_size) {
+            LOG_E("TTStreamImage: cache chunk truncated path=%s", entry->path);
             return false;
         }
-        f.close();
+        const uint8_t* type = file_buf + off + 4;
+        const uint8_t* payload = file_buf + off + 8;
+        if (memcmp(type, "IHDR", 4) == 0 && len >= 13) {
+            bit_depth = payload[8];
+            color_type = payload[9];
+            interlace = payload[12];
+        } else if (memcmp(type, "IDAT", 4) == 0) {
+            if (idat_len + len > sizeof(idat)) {
+                LOG_E("TTStreamImage: cache IDAT too large path=%s", entry->path);
+                return false;
+            }
+            memcpy(idat + idat_len, payload, len);
+            idat_len += len;
+        }
+        off += 12 + len;
+        if (memcmp(type, "IEND", 4) == 0) {
+            break;
+        }
+    }
+    if (bit_depth != 8 || color_type != 6 || interlace != 0 || idat_len == 0) {
+        LOG_E("TTStreamImage: cache unsupported PNG path=%s depth=%u type=%u interlace=%u",
+              entry->path, (unsigned)bit_depth, (unsigned)color_type, (unsigned)interlace);
+        return false;
+    }
+
+    const size_t row_bytes = (size_t)entry->img_w * 4u;
+    const size_t raw_size = (size_t)entry->img_h * (1u + row_bytes);
+    uint8_t* raw = (uint8_t*)heap_caps_malloc(raw_size, MALLOC_CAP_8BIT);
+    if (raw == nullptr) {
+        LOG_E("TTStreamImage: cache raw alloc failed %u bytes", (unsigned)raw_size);
+        return false;
+    }
+
+    z_stream zs;
+    memset(&zs, 0, sizeof(zs));
+    int z = inflateInit(&zs);
+    if (z != Z_OK) {
+        heap_caps_free(raw);
+        LOG_E("TTStreamImage: inflateInit %d path=%s", z, entry->path);
+        return false;
+    }
+    zs.next_in = idat;
+    zs.avail_in = (uInt)idat_len;
+    zs.next_out = raw;
+    zs.avail_out = (uInt)raw_size;
+    z = inflate(&zs, Z_FINISH);
+    inflateEnd(&zs);
+    if (z != Z_STREAM_END || zs.total_out != raw_size) {
+        heap_caps_free(raw);
+        LOG_E("TTStreamImage: inflate %d out=%u expect=%u path=%s",
+              z, (unsigned)zs.total_out, (unsigned)raw_size, entry->path);
+        return false;
     }
 
     entry->i1_data = (uint8_t*)heap_caps_malloc(entry->i1_bytes, MALLOC_CAP_8BIT);
     if (entry->i1_data == nullptr) {
-        if (!use_buffer) f.close();
+        heap_caps_free(raw);
         LOG_E("TTStreamImage: cache alloc failed %u bytes", (unsigned)entry->i1_bytes);
         return false;
     }
     memset(entry->i1_data, 0xFF, entry->i1_bytes);
 
-    spng_ctx* ctx = spng_ctx_new(0);
-    if (!ctx) {
-        if (!use_buffer) f.close();
-        heap_caps_free(entry->i1_data);
-        entry->i1_data = nullptr;
-        LOG_E("TTStreamImage: cache spng_ctx_new failed");
-        return false;
-    }
-    int err;
-    if (use_buffer)
-        err = spng_set_png_buffer(ctx, file_buf, file_size);
-    else
-        err = spng_set_png_stream(ctx, (spng_rw_fn*)spng_read_cb, &f);
-    if (err) {
-        spng_ctx_free(ctx);
-        if (!use_buffer) f.close();
-        heap_caps_free(entry->i1_data);
-        entry->i1_data = nullptr;
-        LOG_E("TTStreamImage: cache spng_set_* %s path=%s", spng_strerror(err), entry->path);
-        return false;
-    }
-    err = spng_set_image_limits(ctx, (size_t)TT_STREAM_IMAGE_MAX_W, (size_t)TT_STREAM_IMAGE_MAX_H);
-    if (err) {
-        spng_ctx_free(ctx);
-        if (!use_buffer) f.close();
-        heap_caps_free(entry->i1_data);
-        entry->i1_data = nullptr;
-        return false;
-    }
-    err = spng_decode_image(ctx, NULL, 0, SPNG_FMT_RGBA8, SPNG_DECODE_PROGRESSIVE);
-    if (err) {
-        LOG_E("TTStreamImage: cache decode %s path=%s", spng_strerror(err), entry->path);
-        spng_ctx_free(ctx);
-        if (!use_buffer) f.close();
-        heap_caps_free(entry->i1_data);
-        entry->i1_data = nullptr;
-        return false;
-    }
-    size_t row_size = (size_t)entry->img_w * 4u;
-    if (row_size > sizeof(row_buf)) {
-        spng_ctx_free(ctx);
-        if (!use_buffer) f.close();
-        heap_caps_free(entry->i1_data);
-        entry->i1_data = nullptr;
-        return false;
-    }
-    for (uint32_t row = 0; row < (uint32_t)entry->img_h; row++) {
-        err = spng_decode_row(ctx, row_buf, row_size);
-        rgba_to_i1_row(entry->i1_data + (size_t)row * entry->i1_stride, row_buf, entry->img_w);
-        if (err == SPNG_EOI) break;
-        if (err) {
-            LOG_E("TTStreamImage: cache row %s path=%s row=%u", spng_strerror(err), entry->path, (unsigned)row);
-            break;
+    const uint8_t* prev = nullptr;
+    for (int32_t row = 0; row < entry->img_h; row++) {
+        uint8_t* scan = raw + (size_t)row * (1u + row_bytes);
+        uint8_t filter = scan[0];
+        if (filter > 4) {
+            heap_caps_free(raw);
+            heap_caps_free(entry->i1_data);
+            entry->i1_data = nullptr;
+            LOG_E("TTStreamImage: bad filter %u path=%s row=%d", (unsigned)filter, entry->path, (int)row);
+            return false;
         }
+        png_unfilter_row(scan + 1, prev, row_bytes, filter);
+        rgba_to_i1_row(entry->i1_data + (size_t)row * entry->i1_stride, scan + 1, entry->img_w);
+        prev = scan + 1;
     }
-    spng_ctx_free(ctx);
-    if (!use_buffer) f.close();
-    return entry->i1_data != nullptr;
+    heap_caps_free(raw);
+    return true;
 }
 
 static tt_stream_image_cache_entry_t* cache_acquire(const char* path, int32_t w, int32_t h) {
