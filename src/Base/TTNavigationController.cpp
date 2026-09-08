@@ -1,5 +1,4 @@
 #include "TTNavigationController.h"
-#include "TTScreenPage.h"
 #include "TTKeypadInput.h"
 #include "Logger.h"
 #include "TTInstance.h"
@@ -18,17 +17,18 @@ void TTNavigationController::setRoot(std::unique_ptr<ITTScreenPage> page) {
     _stack.back()->setNavigationController(this);
     _stack.back()->willAppear();
     loadScreen(_stack.back().get());
+    syncNavigationBar();
     requestRefresh(_stack.back().get(), TT_REFRESH_FULL);
 }
 
 void TTNavigationController::push(std::unique_ptr<ITTScreenPage> page) {
     if (!page) return;
     ITTScreenPage* raw = page.get();
-    
+
     TTInstanceOf<TTPopupLayer>().showLoading();
     raw->createScreen();
     TTInstanceOf<TTPopupLayer>().dismissLoading();
-    
+
     if (!_stack.empty()) {
         _stack.back()->willDisappear();
     }
@@ -36,6 +36,7 @@ void TTNavigationController::push(std::unique_ptr<ITTScreenPage> page) {
     loadScreen(raw);
     _stack.push_back(std::move(page));
     _stack.back()->setNavigationController(this);
+    syncNavigationBar();
     requestRefresh(_stack.back().get(), TT_REFRESH_FULL);
 }
 
@@ -44,12 +45,14 @@ void TTNavigationController::pop() {
         LOG_W("Nav: pop ignored (stack size %u)", (unsigned)_stack.size());
         return;
     }
-    _stack.back()->willDisappear();
+    ITTScreenPage* leaving = _stack.back().get();
+    leaving->willDisappear();
     ITTScreenPage* prev = _stack[_stack.size() - 2].get();
     prev->willAppear();
     loadScreen(prev);
-    _stack.back()->willDestroy();
+    leaving->willDestroy();
     _stack.pop_back();
+    syncNavigationBar();
     requestRefresh(_stack.back().get(), TT_REFRESH_FULL);
 }
 
@@ -57,8 +60,51 @@ ITTScreenPage* TTNavigationController::getCurrentPage() {
     return _stack.empty() ? nullptr : _stack.back().get();
 }
 
+void TTNavigationController::ensureNavBar() {
+    if (_navBar.getObject() != nullptr) return;
+    lv_display_t* disp = TTInstanceOf<TTLvglEpdDriver>().getDisplay();
+    if (disp == nullptr) {
+        LOG_E("Nav: no display for nav bar");
+        return;
+    }
+    lv_obj_t* top = lv_display_get_layer_top(disp);
+    if (top == nullptr) {
+        LOG_E("Nav: no top layer for nav bar");
+        return;
+    }
+    _navBar.begin(top, this);
+}
+
 void TTNavigationController::loadScreen(ITTScreenPage* page) {
-    lv_screen_load(page->getScreen());
+    lv_obj_t* screen = page->getScreen();
+    lv_obj_set_style_pad_top(screen, TT_NAV_BAR_HEIGHT, 0);
+    lv_screen_load(screen);
+    if (_keypad != nullptr) {
+        lv_indev_set_group(_keypad->getIndev(), page->getGroup());
+    }
+}
+
+void TTNavigationController::syncNavigationBar() {
+    ensureNavBar();
+
+    lv_obj_t* backBtn = _navBar.getBackButton();
+    if (backBtn != nullptr) {
+        lv_group_remove_obj(backBtn);
+    }
+
+    ITTScreenPage* page = getCurrentPage();
+    if (page == nullptr) {
+        _navBar.hide();
+        return;
+    }
+
+    const bool showBack = _stack.size() > 1;
+    _navBar.show(page->getName(), showBack);
+    if (showBack && backBtn != nullptr) {
+        page->addToFocusGroup(backBtn);
+        lv_group_focus_obj(backBtn);
+    }
+
     if (_keypad != nullptr) {
         lv_indev_set_group(_keypad->getIndev(), page->getGroup());
     }

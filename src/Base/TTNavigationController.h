@@ -6,9 +6,9 @@
 
 #include "ITTNavigationController.h"
 #include "ITTScreenPage.h"
+#include "TTNavigationBar.h"
 
 class TTKeypadInput;
-class TTScreenPage;
 
 class TTNavigationController : public ITTNavigationController {
 public:
@@ -25,8 +25,11 @@ public:
     size_t stackSize() const override { return _stack.size(); }
 
 private:
+    void ensureNavBar();
     void loadScreen(ITTScreenPage* page);
+    void syncNavigationBar();
 
     std::vector<std::unique_ptr<ITTScreenPage>> _stack;
     TTKeypadInput* _keypad = nullptr;
+    TTNavigationBar _navBar;
 };

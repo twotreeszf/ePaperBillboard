@@ -4,9 +4,6 @@
 #include "TTClockScreenPage.h"
 #include "../Base/TTFontManager.h"
 #include "../Base/TTStreamImage.h"
-#include "../Base/TTPopupLayer.h"
-#include "../Base/TTInstance.h"
-#include "../Tasks/TTUITask.h"
 #include <memory>
 
 void HomeItem::create(HomeItem* item, lv_obj_t* parent, TTHomePage* page, const char* iconPath, const char* labelText, lv_font_t* font, std::function<void()> onClick) {
@@ -71,44 +68,12 @@ void HomeItem::onEntryClicked(lv_event_t* e) {
 
 void TTHomePage::buildContent(lv_obj_t* screen) {
     TTFontManager& fm = TTFontManager::instance();
-    lv_font_t* fontTitle = fm.getFont(16);
     lv_font_t* fontBtn = fm.getFont(12);
 
     lv_obj_set_style_bg_color(screen, lv_color_white(), 0);
     lv_obj_set_style_bg_opa(screen, LV_OPA_COVER, 0);
 
-    lv_obj_t* title = lv_label_create(screen);
-    lv_label_set_text(title, "Home");
-    lv_obj_set_style_text_color(title, lv_color_black(), 0);
-    lv_obj_set_style_text_font(title, fontTitle, 0);
-    lv_obj_align(title, LV_ALIGN_TOP_MID, 0, 4);
-
-    lv_obj_t* divider = lv_obj_create(screen);
-    lv_obj_set_size(divider, lv_pct(100), 1);
-    lv_obj_set_style_bg_color(divider, lv_color_black(), 0);
-    lv_obj_set_style_bg_opa(divider, LV_OPA_COVER, 0);
-    lv_obj_set_style_border_width(divider, 0, 0);
-    lv_obj_set_style_pad_all(divider, 0, 0);
-    lv_obj_set_style_radius(divider, 0, 0);
-    lv_obj_align_to(divider, title, LV_ALIGN_OUT_BOTTOM_MID, 0, 4);
-
-    lv_obj_update_layout(divider);
-    int32_t divider_bottom = lv_obj_get_y2(divider);
-    int32_t screen_height = lv_obj_get_height(screen);
-    int32_t remaining_height = screen_height - divider_bottom;
-
-    lv_obj_t* wrapper = lv_obj_create(screen);
-    lv_obj_set_width(wrapper, lv_pct(100));
-    lv_obj_set_height(wrapper, remaining_height);
-    lv_obj_set_pos(wrapper, 0, divider_bottom);
-    lv_obj_set_style_bg_opa(wrapper, LV_OPA_TRANSP, 0);
-    lv_obj_set_style_border_width(wrapper, 0, 0);
-    lv_obj_set_style_pad_all(wrapper, 0, 0);
-    lv_obj_set_layout(wrapper, LV_LAYOUT_FLEX);
-    lv_obj_set_flex_flow(wrapper, LV_FLEX_FLOW_COLUMN);
-    lv_obj_set_flex_align(wrapper, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
-
-    lv_obj_t* container = lv_obj_create(wrapper);
+    lv_obj_t* container = lv_obj_create(screen);
     lv_obj_set_size(container, LV_SIZE_CONTENT, LV_SIZE_CONTENT);
     lv_obj_set_style_bg_opa(container, LV_OPA_TRANSP, 0);
     lv_obj_set_style_border_width(container, 0, 0);
@@ -117,6 +82,7 @@ void TTHomePage::buildContent(lv_obj_t* screen) {
     lv_obj_set_flex_flow(container, LV_FLEX_FLOW_ROW);
     lv_obj_set_flex_align(container, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_START);
     lv_obj_set_style_pad_column(container, TT_HOME_ITEMS_GAP, 0);
+    lv_obj_align(container, LV_ALIGN_CENTER, 0, 0);
 
     HomeItem::create(&_items[0], container, this, "/icons/wifi.png", "WiFi", fontBtn, 
         [this]() { getNavigationController()->pushPage(std::unique_ptr<TTScreenPage>(new TTWiFiDemoPage())); });
@@ -126,24 +92,4 @@ void TTHomePage::buildContent(lv_obj_t* screen) {
 
     HomeItem::create(&_items[2], container, this, "/icons/clock.png", "Clock", fontBtn,
         [this]() { getNavigationController()->pushPage(std::unique_ptr<TTScreenPage>(new TTClockScreenPage())); });
-}
-
-void TTHomePage::setup() {
-    TTScreenPage::setup();
-
-    runOnce(1000, [this]() {
-        if (getNavigationController() == nullptr)
-            return;
-        if (getNavigationController()->getCurrentPage() != this)
-            return;
-        TTInstanceOf<TTPopupLayer>().showDialog(
-            "Configure WiFi?",
-            [this]() {
-                if (getNavigationController() != nullptr) {
-                    getNavigationController()->pushPage(
-                        std::unique_ptr<TTScreenPage>(new TTWiFiDemoPage()));
-                }
-            },
-            nullptr);
-    });
 }
