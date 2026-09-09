@@ -6,28 +6,38 @@
 
 #define TT_WEATHER_TEMP_FONT      48
 #define TT_WEATHER_TEMP_LINE_H    49
-#define TT_WEATHER_SMALL_LINE_H   16
+#define TT_WEATHER_FEELS_FONT     12
+#define TT_WEATHER_FEELS_LINE_H   16
+#define TT_WEATHER_COND_FONT      16
+#define TT_WEATHER_COND_LINE_H    16
 #define TT_WEATHER_TEXT_STACK_GAP 2
-#define TT_WEATHER_ICON_CURRENT   (TT_WEATHER_TEMP_LINE_H + TT_WEATHER_TEXT_STACK_GAP + \
-                                   TT_WEATHER_SMALL_LINE_H + TT_WEATHER_TEXT_STACK_GAP + \
-                                   TT_WEATHER_SMALL_LINE_H)
-#define TT_WEATHER_ICON_DAY       42
+#define TT_WEATHER_FEELS_GAP      (TT_WEATHER_TEXT_STACK_GAP - 3)
+#define TT_WEATHER_TEXT_STACK_H   (TT_WEATHER_TEMP_LINE_H + TT_WEATHER_TEXT_STACK_GAP + \
+                                   TT_WEATHER_FEELS_LINE_H + TT_WEATHER_TEXT_STACK_GAP + \
+                                   TT_WEATHER_COND_LINE_H)
+#define TT_WEATHER_ICON_CURRENT   97
+#define TT_WEATHER_TEMP_DOT_SIZE  6
+#define TT_WEATHER_TEMP_DOT_GAP_X 3
+#define TT_WEATHER_TEMP_DOT_GAP_Y 8
+#define TT_WEATHER_ICON_DAY       45
 #define TT_WEATHER_ICON_HOUR      24
 #define TT_WEATHER_ICON_CELL      40
 #define TT_WEATHER_FORECAST_N     5
 #define TT_WEATHER_FORECAST_Y     34
 #define TT_WEATHER_FORECAST_ICON_Y  (TT_WEATHER_FORECAST_Y + 12)
-#define TT_WEATHER_FORECAST_TEMPS_Y (TT_WEATHER_FORECAST_Y + 56)
+#define TT_WEATHER_FORECAST_TEMPS_Y (TT_WEATHER_FORECAST_ICON_Y + TT_WEATHER_ICON_DAY + 2)
 #define TT_WEATHER_CURRENT_X      4
-#define TT_WEATHER_TEMP_Y         8
-#define TT_WEATHER_CURRENT_Y      TT_WEATHER_TEMP_Y
+#define TT_WEATHER_CURRENT_Y      8
+#define TT_WEATHER_TEMP_Y         (TT_WEATHER_CURRENT_Y + \
+                                   (TT_WEATHER_ICON_CURRENT - TT_WEATHER_TEXT_STACK_H) / 2)
 #define TT_WEATHER_TEMP_X         (TT_WEATHER_CURRENT_X + TT_WEATHER_ICON_CURRENT + 8)
 #define TT_WEATHER_CITY_Y         2
 #define TT_WEATHER_DETAIL_N       8
+#define TT_WEATHER_DETAIL_WIND    2
 #define TT_WEATHER_DETAIL_UVI     4
 #define TT_WEATHER_DETAIL_AQI     6
-#define TT_WEATHER_DETAIL_Y       110
-#define TT_WEATHER_DETAIL_ROW_H   43
+#define TT_WEATHER_DETAIL_Y       122
+#define TT_WEATHER_DETAIL_ROW_H   40
 #define TT_WEATHER_DETAIL_COL_W   84
 #define TT_WEATHER_DETAIL_PAD_X   2
 #define TT_WEATHER_DETAIL_LINE_H  13
@@ -45,7 +55,7 @@
 #define TT_WEATHER_GRAPH_X        164
 #define TT_WEATHER_GRAPH_Y        TT_WEATHER_DETAIL_VALUE_Y
 #define TT_WEATHER_GRAPH_W        236
-#define TT_WEATHER_GRAPH_H        164
+#define TT_WEATHER_GRAPH_H        153
 #define TT_WEATHER_GRAPH_PAD_L    22
 #define TT_WEATHER_GRAPH_PAD_R    20
 #define TT_WEATHER_GRAPH_PAD_T    32
@@ -53,16 +63,42 @@
 #define TT_WEATHER_CITY_X         TT_WEATHER_GRAPH_X
 #define TT_WEATHER_CITY_W         TT_WEATHER_GRAPH_W
 #define TT_WEATHER_AGE_TEXT_W     72
-#define TT_WEATHER_AGE_Y          (TT_WEATHER_CITY_Y + 3)
+#define TT_WEATHER_AGE_ICON       8
+#define TT_WEATHER_AGE_ICON_GAP   2
+#define TT_WEATHER_AGE_TEXT_X     TT_WEATHER_TEMP_X
+#define TT_WEATHER_AGE_X          (TT_WEATHER_AGE_TEXT_X - TT_WEATHER_AGE_ICON - \
+                                   TT_WEATHER_AGE_ICON_GAP)
+#define TT_WEATHER_AGE_Y          (TT_WEATHER_TEMP_Y + TT_WEATHER_TEXT_STACK_H + \
+                                   TT_WEATHER_TEXT_STACK_GAP)
+#define TT_WEATHER_AGE_ICON_Y     (TT_WEATHER_AGE_Y + 2)
+#define TT_WEATHER_AGE_OK_SRC     "/icons/weather/check_8.i1"
+#define TT_WEATHER_AGE_FAIL_SRC   "/icons/weather/cross_8.i1"
 #define TT_WEATHER_AGE_TICK_MS    (60 * 1000)
 #define TT_WEATHER_FORECAST_X     TT_WEATHER_GRAPH_X
 #define TT_WEATHER_FORECAST_COL_X(i) \
     (TT_WEATHER_FORECAST_X + (i) * TT_WEATHER_GRAPH_W / TT_WEATHER_FORECAST_N)
 #define TT_WEATHER_FORECAST_COL_W(i) \
     (TT_WEATHER_FORECAST_COL_X((i) + 1) - TT_WEATHER_FORECAST_COL_X(i))
+#define TT_WEATHER_DIV_H          1
+#define TT_WEATHER_FORECAST_DIV_GAP 4
+#define TT_WEATHER_FORECAST_DIV_X (TT_WEATHER_FORECAST_X - TT_WEATHER_FORECAST_DIV_GAP)
+#define TT_WEATHER_FORECAST_DIV_LEFT_X (TT_WEATHER_FORECAST_DIV_X + 2)
+#define TT_WEATHER_FORECAST_DIV_BOT (TT_WEATHER_FORECAST_TEMPS_Y + 12 + 2 + 3)
+#define TT_WEATHER_FORECAST_DIV_H ((TT_WEATHER_FORECAST_TEMPS_Y + 12 + 2 - \
+                                   TT_WEATHER_FORECAST_Y + TT_WEATHER_DIV_H) / 2)
+#define TT_WEATHER_FORECAST_DIV_Y (TT_WEATHER_FORECAST_DIV_BOT - TT_WEATHER_FORECAST_DIV_H + \
+                                   TT_WEATHER_DIV_H)
+#define TT_WEATHER_FORECAST_DIV_W (TT_WEATHER_FORECAST_X + TT_WEATHER_GRAPH_W - \
+                                   TT_WEATHER_FORECAST_DIV_LEFT_X)
+#define TT_WEATHER_FORECAST_DIV_RADIUS 6
+#define TT_WEATHER_FORECAST_DIV_ARC_N  6
+#define TT_WEATHER_FORECAST_DIV_DASH 3
+#define TT_WEATHER_FORECAST_DIV_DASH_GAP 3
+#define TT_WEATHER_FORECAST_DIV_PI    3.14159265f
 #define TT_WEATHER_BTN_W          120
 #define TT_WEATHER_BTN_GAP        12
 #define TT_WEATHER_BTN_BOTTOM     -10
+#define TT_WEATHER_BEAUFORT_MS    0.836f
 #define TT_WEATHER_UVI_LOW_MAX    2.0f
 #define TT_WEATHER_UVI_MID_MAX    5.0f
 #define TT_WEATHER_AQI_GOOD_MAX   50
@@ -110,10 +146,11 @@ private:
     void setMessage(const char* text);
     void showContent(bool show);
     void showEmpty(bool show);
-    void showSetupActions(bool show);
+    void showEmptyActions(bool showWeb, bool showRetry);
     void goWebSettings();
     void goBack();
     static void onWebSettingsEvent(lv_event_t* e);
+    static void onRetryEvent(lv_event_t* e);
     static void onBackEvent(lv_event_t* e);
     static void onGraphDraw(lv_event_t* e);
     void formatLocalHm(int64_t unixTime, char* out, size_t outMax);
@@ -126,8 +163,10 @@ private:
     lv_obj_t* _empty = nullptr;
     lv_obj_t* _message = nullptr;
     lv_obj_t* _btnRow = nullptr;
+    lv_obj_t* _retryBtn = nullptr;
     lv_obj_t* _webBtn = nullptr;
     lv_obj_t* _backBtn = nullptr;
+    lv_obj_t* _ageIcon = nullptr;
     lv_obj_t* _ageLabel = nullptr;
     lv_obj_t* _cityLabel = nullptr;
     lv_obj_t* _currentIcon = nullptr;
@@ -137,6 +176,7 @@ private:
     lv_obj_t* _condLabel = nullptr;
     lv_obj_t* _uviLevel = nullptr;
     lv_obj_t* _aqiLevel = nullptr;
+    lv_obj_t* _windLevel = nullptr;
     lv_obj_t* _graph = nullptr;
     lv_obj_t* _tempLine = nullptr;
     lv_obj_t* _hourIcons[TT_WEATHER_GRAPH_X_TICKS] = {};
@@ -155,6 +195,7 @@ private:
     TTWeatherDetailCell _details[TT_WEATHER_DETAIL_N];
     bool _visible = false;
     bool _forceRefreshing = false;
+    bool _ageOk = true;
     uint32_t _fetchedAtMs = 0;
     uint32_t _refreshHandle = 0;
     uint32_t _ageHandle = 0;

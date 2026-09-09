@@ -269,6 +269,13 @@ static void fetchWeather(bool force) {
 
     if (WiFi.status() != WL_CONNECTED) {
         LOG_W("Weather: need Wi-Fi");
+        if (s_hasOk && !force) {
+            s_payload.state = TT_WEATHER_OK;
+            s_payload.refreshFailed = true;
+            s_payload.message[0] = '\0';
+            publish();
+            return;
+        }
         s_payload.state = TT_WEATHER_NEED_WIFI;
         strncpy(s_payload.message, "未连接 Wi-Fi", sizeof(s_payload.message) - 1);
         s_payload.message[sizeof(s_payload.message) - 1] = '\0';
@@ -277,6 +284,13 @@ static void fetchWeather(bool force) {
     }
     if (!isfinite(lat) || !isfinite(lon)) {
         LOG_W("Weather: location not configured");
+        if (s_hasOk && !force) {
+            s_payload.state = TT_WEATHER_OK;
+            s_payload.refreshFailed = true;
+            s_payload.message[0] = '\0';
+            publish();
+            return;
+        }
         s_payload.state = TT_WEATHER_NEED_LOCATION;
         strncpy(s_payload.message, "未配置地点", sizeof(s_payload.message) - 1);
         s_payload.message[sizeof(s_payload.message) - 1] = '\0';
@@ -306,6 +320,13 @@ static void fetchWeather(bool force) {
 
     if (!fetchForecast(lat, lon)) {
         LOG_E("Weather: forecast failed");
+        if (s_hasOk && !force) {
+            s_payload.state = TT_WEATHER_OK;
+            s_payload.refreshFailed = true;
+            s_payload.message[0] = '\0';
+            publish();
+            return;
+        }
         s_payload.state = TT_WEATHER_FAILED;
         strncpy(s_payload.message, "获取天气失败", sizeof(s_payload.message) - 1);
         s_payload.message[sizeof(s_payload.message) - 1] = '\0';
@@ -315,6 +336,7 @@ static void fetchWeather(bool force) {
     fetchAqi(lat, lon);
 
     s_payload.state = TT_WEATHER_OK;
+    s_payload.refreshFailed = false;
     s_payload.message[0] = '\0';
     s_hasOk = true;
     s_lastOkMs = millis();

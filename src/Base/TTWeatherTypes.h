@@ -77,6 +77,7 @@ struct TTWeatherPayload {
     char city[TT_WEATHER_CITY_MAX + 1];
     char message[TT_WEATHER_MSG_MAX + 1];
     uint32_t fetchedAtMs;
+    bool refreshFailed;
     TTWeatherCurrent current;
     TTWeatherDaily daily[TT_WEATHER_DAYS];
     TTWeatherHourly hourly[TT_WEATHER_HOURS];

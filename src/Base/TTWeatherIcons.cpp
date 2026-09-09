@@ -86,7 +86,7 @@ const char* tt_weather_condition_text(int weatherCode) {
         case 0:
             return "晴";
         case 1:
-            return "晴间多云";
+            return "晴.云";
         case 2:
             return "多云";
         case 3:
@@ -99,7 +99,7 @@ const char* tt_weather_condition_text(int weatherCode) {
         case 55:
         case 56:
         case 57:
-            return "毛毛雨";
+            return "毛雨";
         case 61:
         case 63:
         case 65:

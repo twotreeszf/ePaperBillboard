@@ -15,6 +15,13 @@
 #include <cmath>
 #include <memory>
 
+static float windSpeedToBeaufort(float ms) {
+    if (ms < 0.0f) {
+        ms = 0.0f;
+    }
+    return powf(ms / TT_WEATHER_BEAUFORT_MS, 2.0f / 3.0f);
+}
+
 static const char* uviLevelText(float uvi) {
     if (uvi <= TT_WEATHER_UVI_LOW_MAX) {
         return "低";
@@ -51,6 +58,67 @@ static lv_obj_t* createPlainLabel(lv_obj_t* parent, lv_font_t* font, const char*
     lv_obj_set_style_text_color(label, lv_color_black(), 0);
     lv_obj_set_style_text_font(label, font, 0);
     return label;
+}
+
+static void drawForecastDivArc(lv_layer_t* layer, lv_draw_line_dsc_t* dsc,
+                              int cx, int cy, float startDeg, float endDeg, int r) {
+    const float span = endDeg - startDeg;
+    float prevRad = startDeg * TT_WEATHER_FORECAST_DIV_PI / 180.0f;
+    float prevX = (float)cx + cosf(prevRad) * (float)r;
+    float prevY = (float)cy + sinf(prevRad) * (float)r;
+    for (int i = 1; i <= TT_WEATHER_FORECAST_DIV_ARC_N; i++) {
+        const float deg = startDeg + span * (float)i / (float)TT_WEATHER_FORECAST_DIV_ARC_N;
+        const float rad = deg * TT_WEATHER_FORECAST_DIV_PI / 180.0f;
+        const float x = (float)cx + cosf(rad) * (float)r;
+        const float y = (float)cy + sinf(rad) * (float)r;
+        dsc->p1.x = (lv_value_precise_t)(prevX + 0.5f);
+        dsc->p1.y = (lv_value_precise_t)(prevY + 0.5f);
+        dsc->p2.x = (lv_value_precise_t)(x + 0.5f);
+        dsc->p2.y = (lv_value_precise_t)(y + 0.5f);
+        lv_draw_line(layer, dsc);
+        prevX = x;
+        prevY = y;
+    }
+}
+
+static void drawForecastDiv(lv_event_t* e) {
+    lv_layer_t* layer = lv_event_get_layer(e);
+    lv_obj_t* obj = (lv_obj_t*)lv_event_get_current_target(e);
+    lv_area_t coords;
+    lv_obj_get_coords(obj, &coords);
+
+    const int x1 = coords.x1;
+    const int y1 = coords.y1;
+    const int x2 = coords.x2;
+    const int y2 = coords.y2;
+    const int r = TT_WEATHER_FORECAST_DIV_RADIUS;
+    const int dashEnd = y2 - r;
+    const int cy = y2 - r;
+
+    lv_draw_line_dsc_t lineDsc;
+    lv_draw_line_dsc_init(&lineDsc);
+    lineDsc.color = lv_color_black();
+    lineDsc.width = 1;
+
+    for (int y = y1; y <= dashEnd; y += TT_WEATHER_FORECAST_DIV_DASH + TT_WEATHER_FORECAST_DIV_DASH_GAP) {
+        int yEnd = y + TT_WEATHER_FORECAST_DIV_DASH - 1;
+        if (yEnd > dashEnd) {
+            yEnd = dashEnd;
+        }
+        lineDsc.p1.x = (lv_value_precise_t)x1;
+        lineDsc.p2.x = (lv_value_precise_t)x1;
+        lineDsc.p1.y = (lv_value_precise_t)y;
+        lineDsc.p2.y = (lv_value_precise_t)yEnd;
+        lv_draw_line(layer, &lineDsc);
+    }
+
+    drawForecastDivArc(layer, &lineDsc, x1 + r, cy, 180.0f, 90.0f, r);
+    lineDsc.p1.x = (lv_value_precise_t)(x1 + r);
+    lineDsc.p2.x = (lv_value_precise_t)(x2 - r);
+    lineDsc.p1.y = (lv_value_precise_t)y2;
+    lineDsc.p2.y = (lv_value_precise_t)y2;
+    lv_draw_line(layer, &lineDsc);
+    drawForecastDivArc(layer, &lineDsc, x2 - r, cy, 90.0f, 0.0f, r);
 }
 
 static int graphTickHour(int tick) {
@@ -128,6 +196,11 @@ void TTWeatherPage::buildContent(lv_obj_t* screen) {
     lv_obj_remove_flag(_btnRow, LV_OBJ_FLAG_SCROLLABLE);
     lv_obj_add_flag(_btnRow, LV_OBJ_FLAG_HIDDEN);
 
+    _retryBtn = TTTextButton::create(_btnRow, "重试", font16, TT_WEATHER_BTN_W);
+    lv_obj_add_event_cb(_retryBtn, onRetryEvent, LV_EVENT_CLICKED, this);
+    addToFocusGroup(_retryBtn);
+    lv_obj_add_flag(_retryBtn, LV_OBJ_FLAG_HIDDEN);
+
     _webBtn = TTTextButton::create(_btnRow, "Web 设置", font16, TT_WEATHER_BTN_W);
     lv_obj_add_event_cb(_webBtn, onWebSettingsEvent, LV_EVENT_CLICKED, this);
     addToFocusGroup(_webBtn);
@@ -152,21 +225,35 @@ void TTWeatherPage::buildContent(lv_obj_t* screen) {
     _tempLabel = createPlainLabel(_content, font48, "--");
     lv_obj_set_pos(_tempLabel, TT_WEATHER_TEMP_X, TT_WEATHER_TEMP_Y);
 
-    _tempUnit = createPlainLabel(_content, font16, "°");
-    lv_obj_align_to(_tempUnit, _tempLabel, LV_ALIGN_OUT_RIGHT_TOP, 2, 8);
+    _tempUnit = lv_obj_create(_content);
+    lv_obj_set_size(_tempUnit, TT_WEATHER_TEMP_DOT_SIZE, TT_WEATHER_TEMP_DOT_SIZE);
+    lv_obj_set_style_bg_color(_tempUnit, lv_color_black(), 0);
+    lv_obj_set_style_bg_opa(_tempUnit, LV_OPA_COVER, 0);
+    lv_obj_set_style_radius(_tempUnit, LV_RADIUS_CIRCLE, 0);
+    lv_obj_set_style_border_width(_tempUnit, 0, 0);
+    lv_obj_set_style_pad_all(_tempUnit, 0, 0);
+    lv_obj_remove_flag(_tempUnit, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_remove_flag(_tempUnit, LV_OBJ_FLAG_CLICKABLE);
+    lv_obj_align_to(_tempUnit, _tempLabel, LV_ALIGN_OUT_RIGHT_TOP,
+                    TT_WEATHER_TEMP_DOT_GAP_X, TT_WEATHER_TEMP_DOT_GAP_Y);
 
     _feelsLabel = createPlainLabel(_content, font12, "");
-    lv_obj_align_to(_feelsLabel, _tempLabel, LV_ALIGN_OUT_BOTTOM_LEFT, 0, 2);
+    lv_obj_align_to(_feelsLabel, _tempLabel, LV_ALIGN_OUT_BOTTOM_LEFT, 0, TT_WEATHER_FEELS_GAP);
 
-    _condLabel = createPlainLabel(_content, font12, "");
+    _condLabel = createPlainLabel(_content, font16, "");
     lv_obj_set_width(_condLabel, TT_WEATHER_CITY_X - TT_WEATHER_TEMP_X - 4);
     lv_label_set_long_mode(_condLabel, LV_LABEL_LONG_CLIP);
     lv_obj_align_to(_condLabel, _feelsLabel, LV_ALIGN_OUT_BOTTOM_LEFT, 0, 2);
 
-    _ageLabel = createPlainLabel(_content, font10, "[--]");
+    _ageIcon = tt_stream_image_create(_content);
+    lv_obj_set_size(_ageIcon, TT_WEATHER_AGE_ICON, TT_WEATHER_AGE_ICON);
+    lv_obj_set_pos(_ageIcon, TT_WEATHER_AGE_X, TT_WEATHER_AGE_ICON_Y);
+    tt_stream_image_set_src(_ageIcon, TT_WEATHER_AGE_OK_SRC);
+
+    _ageLabel = createPlainLabel(_content, font10, "--");
     lv_obj_set_width(_ageLabel, TT_WEATHER_AGE_TEXT_W);
     lv_label_set_long_mode(_ageLabel, LV_LABEL_LONG_CLIP);
-    lv_obj_set_pos(_ageLabel, TT_WEATHER_CITY_X, TT_WEATHER_AGE_Y);
+    lv_obj_set_pos(_ageLabel, TT_WEATHER_AGE_TEXT_X, TT_WEATHER_AGE_Y);
 
     _cityLabel = createPlainLabel(_content, font16, "");
     lv_obj_set_width(_cityLabel, TT_WEATHER_CITY_W);
@@ -192,6 +279,16 @@ void TTWeatherPage::buildContent(lv_obj_t* screen) {
         lv_obj_set_style_text_align(_forecast[i].temps, LV_TEXT_ALIGN_CENTER, 0);
         lv_obj_set_pos(_forecast[i].temps, x, TT_WEATHER_FORECAST_TEMPS_Y);
     }
+    lv_obj_t* forecastDiv = lv_obj_create(_content);
+    lv_obj_set_pos(forecastDiv, TT_WEATHER_FORECAST_DIV_LEFT_X, TT_WEATHER_FORECAST_DIV_Y);
+    lv_obj_set_size(forecastDiv, TT_WEATHER_FORECAST_DIV_W, TT_WEATHER_FORECAST_DIV_H);
+    lv_obj_set_style_bg_opa(forecastDiv, LV_OPA_TRANSP, 0);
+    lv_obj_set_style_border_width(forecastDiv, 0, 0);
+    lv_obj_set_style_pad_all(forecastDiv, 0, 0);
+    lv_obj_set_style_radius(forecastDiv, 0, 0);
+    lv_obj_remove_flag(forecastDiv, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_remove_flag(forecastDiv, LV_OBJ_FLAG_CLICKABLE);
+    lv_obj_add_event_cb(forecastDiv, drawForecastDiv, LV_EVENT_DRAW_MAIN, nullptr);
 
     static const char* kDetailLabels[] = {
         "日出", "日落", "风", "湿度", "紫外线",
@@ -223,14 +320,17 @@ void TTWeatherPage::buildContent(lv_obj_t* screen) {
         lv_obj_set_pos(_details[i].icon, x, iconY);
 
         _details[i].value = createPlainLabel(_content, font12, "--");
-        if (i == TT_WEATHER_DETAIL_UVI || i == TT_WEATHER_DETAIL_AQI) {
+        if (i == TT_WEATHER_DETAIL_UVI || i == TT_WEATHER_DETAIL_AQI
+            || i == TT_WEATHER_DETAIL_WIND) {
             lv_obj_set_pos(_details[i].value, textX, textY);
             lv_obj_t* level = createPlainLabel(_content, font10, "");
             alignLevelLabel(level, _details[i].value);
             if (i == TT_WEATHER_DETAIL_UVI) {
                 _uviLevel = level;
-            } else {
+            } else if (i == TT_WEATHER_DETAIL_AQI) {
                 _aqiLevel = level;
+            } else {
+                _windLevel = level;
             }
         } else {
             lv_obj_set_width(_details[i].value, textW);
@@ -269,7 +369,7 @@ void TTWeatherPage::buildContent(lv_obj_t* screen) {
 
     showContent(false);
     showEmpty(true);
-    showSetupActions(false);
+    showEmptyActions(false, false);
     setMessage("正在获取天气");
     LOG_I("Weather page: built heap=%u", (unsigned)ESP.getFreeHeap());
 }
@@ -354,14 +454,32 @@ void TTWeatherPage::showEmpty(bool show) {
     }
 }
 
-void TTWeatherPage::showSetupActions(bool show) {
+void TTWeatherPage::showEmptyActions(bool showWeb, bool showRetry) {
     if (_btnRow == nullptr) {
         return;
     }
-    if (show) {
+    if (_retryBtn != nullptr) {
+        if (showRetry) {
+            lv_obj_remove_flag(_retryBtn, LV_OBJ_FLAG_HIDDEN);
+        } else {
+            lv_obj_add_flag(_retryBtn, LV_OBJ_FLAG_HIDDEN);
+        }
+    }
+    if (_webBtn != nullptr) {
+        if (showWeb) {
+            lv_obj_remove_flag(_webBtn, LV_OBJ_FLAG_HIDDEN);
+        } else {
+            lv_obj_add_flag(_webBtn, LV_OBJ_FLAG_HIDDEN);
+        }
+    }
+    if (showWeb || showRetry) {
         lv_obj_remove_flag(_btnRow, LV_OBJ_FLAG_HIDDEN);
-        if (_group != nullptr && _webBtn != nullptr) {
-            lv_group_focus_obj(_webBtn);
+        if (_group != nullptr) {
+            if (showRetry && _retryBtn != nullptr) {
+                lv_group_focus_obj(_retryBtn);
+            } else if (showWeb && _webBtn != nullptr) {
+                lv_group_focus_obj(_webBtn);
+            }
         }
     } else {
         lv_obj_add_flag(_btnRow, LV_OBJ_FLAG_HIDDEN);
@@ -385,6 +503,14 @@ void TTWeatherPage::onWebSettingsEvent(lv_event_t* e) {
     TTWeatherPage* self = (TTWeatherPage*)lv_event_get_user_data(e);
     if (self != nullptr) {
         self->goWebSettings();
+    }
+}
+
+void TTWeatherPage::onRetryEvent(lv_event_t* e) {
+    TTWeatherPage* self = (TTWeatherPage*)lv_event_get_user_data(e);
+    if (self != nullptr) {
+        LOG_I("Weather page: retry");
+        self->forceRefresh();
     }
 }
 
@@ -447,8 +573,12 @@ void TTWeatherPage::bindDetails(const TTWeatherPayload& payload) {
     formatLocalHm(payload.current.sunset, buf, sizeof(buf));
     lv_label_set_text(_details[1].value, buf);
 
-    snprintf(buf, sizeof(buf), "%.0f m/s", payload.current.windSpeed);
-    lv_label_set_text(_details[2].value, buf);
+    snprintf(buf, sizeof(buf), "%.1f", windSpeedToBeaufort(payload.current.windSpeed));
+    lv_label_set_text(_details[TT_WEATHER_DETAIL_WIND].value, buf);
+    if (_windLevel != nullptr) {
+        lv_label_set_text(_windLevel, "级");
+        alignLevelLabel(_windLevel, _details[TT_WEATHER_DETAIL_WIND].value);
+    }
     snprintf(buf, sizeof(buf), "%s风", tt_weather_wind_dir_text(payload.current.windDeg));
     lv_label_set_text(_details[2].label, buf);
     char windPath[TT_WEATHER_ICON_PATH_MAX];
@@ -809,25 +939,31 @@ void TTWeatherPage::updateAge(bool refreshIfChanged) {
     if (refreshIfChanged && contentHidden) {
         return;
     }
+    if (_ageIcon != nullptr) {
+        tt_stream_image_set_src(_ageIcon, _ageOk ? TT_WEATHER_AGE_OK_SRC : TT_WEATHER_AGE_FAIL_SRC);
+    }
     char buf[24];
     if (_fetchedAtMs == 0) {
-        strncpy(buf, "[--]", sizeof(buf) - 1);
+        strncpy(buf, "--", sizeof(buf) - 1);
         buf[sizeof(buf) - 1] = '\0';
     } else {
         const int minutes = (int)((millis() - _fetchedAtMs) / 60000u);
         if (minutes <= 0) {
-            strncpy(buf, "[刚刚]", sizeof(buf) - 1);
+            strncpy(buf, "刚刚", sizeof(buf) - 1);
             buf[sizeof(buf) - 1] = '\0';
         } else {
-            snprintf(buf, sizeof(buf), "[%d分钟前]", minutes);
+            snprintf(buf, sizeof(buf), "%d分钟前", minutes);
         }
     }
     const char* cur = lv_label_get_text(_ageLabel);
     if (cur != nullptr && strcmp(cur, buf) == 0) {
+        if (refreshIfChanged) {
+            requestRefresh(TT_REFRESH_PARTIAL);
+        }
         return;
     }
     lv_label_set_text(_ageLabel, buf);
-    LOG_I("Weather page: refresh age=%s", buf);
+    LOG_I("Weather page: refresh age=%s ok=%d", buf, _ageOk ? 1 : 0);
     if (refreshIfChanged) {
         requestRefresh(TT_REFRESH_PARTIAL);
     }
@@ -854,7 +990,8 @@ void TTWeatherPage::bindOk(const TTWeatherPayload& payload) {
     snprintf(buf, sizeof(buf), "%.0f", payload.current.temp);
     lv_label_set_text(_tempLabel, buf);
     if (_tempUnit != nullptr) {
-        lv_obj_align_to(_tempUnit, _tempLabel, LV_ALIGN_OUT_RIGHT_TOP, 2, 8);
+        lv_obj_align_to(_tempUnit, _tempLabel, LV_ALIGN_OUT_RIGHT_TOP,
+                        TT_WEATHER_TEMP_DOT_GAP_X, TT_WEATHER_TEMP_DOT_GAP_Y);
     }
     snprintf(buf, sizeof(buf), "体感 %.0f°", payload.current.feelsLike);
     lv_label_set_text(_feelsLabel, buf);
@@ -883,7 +1020,7 @@ void TTWeatherPage::forceRefresh() {
     _forceRefreshing = true;
     showContent(false);
     showEmpty(true);
-    showSetupActions(false);
+    showEmptyActions(false, false);
     setMessage("正在刷新天气");
     requestRefresh(TT_REFRESH_PARTIAL);
     LOG_I("Weather page: force refresh");
@@ -896,11 +1033,16 @@ bool TTWeatherPage::applyWeather(const TTWeatherPayload& payload) {
     }
     if (payload.state == TT_WEATHER_OK) {
         _forceRefreshing = false;
-        bindOk(payload);
+        _ageOk = !payload.refreshFailed;
+        if (!payload.refreshFailed) {
+            bindOk(payload);
+        } else {
+            LOG_I("Weather page: silent refresh failed, keep last ok");
+            updateAge(false);
+        }
         showContent(true);
         showEmpty(false);
-        showSetupActions(false);
-        updateAge(false);
+        showEmptyActions(false, false);
         return true;
     }
     if (payload.state == TT_WEATHER_FETCHING) {
@@ -926,6 +1068,7 @@ bool TTWeatherPage::applyWeather(const TTWeatherPayload& payload) {
     }
     const bool needSetup = payload.state == TT_WEATHER_NEED_WIFI
         || payload.state == TT_WEATHER_NEED_LOCATION;
-    showSetupActions(needSetup);
+    const bool needRetry = payload.state == TT_WEATHER_FAILED;
+    showEmptyActions(needSetup, needRetry);
     return true;
 }
