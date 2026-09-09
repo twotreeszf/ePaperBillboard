@@ -52,6 +52,8 @@
 #define TT_WEATHER_GRAPH_PAD_B    16
 #define TT_WEATHER_CITY_X         TT_WEATHER_GRAPH_X
 #define TT_WEATHER_CITY_W         TT_WEATHER_GRAPH_W
+#define TT_WEATHER_AGE_TEXT_W     40
+#define TT_WEATHER_AGE_Y          (TT_WEATHER_CITY_Y + 3)
 #define TT_WEATHER_FORECAST_X     TT_WEATHER_GRAPH_X
 #define TT_WEATHER_FORECAST_COL_X(i) \
     (TT_WEATHER_FORECAST_X + (i) * TT_WEATHER_GRAPH_W / TT_WEATHER_FORECAST_N)
@@ -97,10 +99,11 @@ protected:
     void buildContent(lv_obj_t* screen) override;
 
 private:
-    void applyWeather(const TTWeatherPayload& payload);
+    bool applyWeather(const TTWeatherPayload& payload);
     void bindOk(const TTWeatherPayload& payload);
     void bindDetails(const TTWeatherPayload& payload);
     void bindGraph(const TTWeatherPayload& payload);
+    void forceRefresh();
     void setMessage(const char* text);
     void showContent(bool show);
     void showEmpty(bool show);
@@ -113,6 +116,7 @@ private:
     void formatLocalHm(int64_t unixTime, char* out, size_t outMax);
     void formatWeekday(int64_t unixTime, char* out, size_t outMax);
     void formatDate(char* out, size_t outMax);
+    void bindAge(const TTWeatherPayload& payload);
 
     lv_obj_t* _content = nullptr;
     lv_obj_t* _empty = nullptr;
@@ -120,6 +124,7 @@ private:
     lv_obj_t* _btnRow = nullptr;
     lv_obj_t* _webBtn = nullptr;
     lv_obj_t* _backBtn = nullptr;
+    lv_obj_t* _ageLabel = nullptr;
     lv_obj_t* _cityLabel = nullptr;
     lv_obj_t* _currentIcon = nullptr;
     lv_obj_t* _tempLabel = nullptr;
@@ -145,5 +150,6 @@ private:
     TTWeatherForecastCol _forecast[TT_WEATHER_FORECAST_N];
     TTWeatherDetailCell _details[TT_WEATHER_DETAIL_N];
     bool _visible = false;
+    bool _forceRefreshing = false;
     uint32_t _refreshHandle = 0;
 };

@@ -85,6 +85,21 @@ void TTScreenPage::requestRefresh(TTRefreshLevel level) {
     }
 }
 
+void TTScreenPage::registerKeyAction(TTKeyId key, TTKeyGesture gesture, std::function<void()> action) {
+    _keyActions.push_back({key, gesture, std::move(action)});
+}
+
+bool TTScreenPage::handleKeyAction(TTKeyId key, TTKeyGesture gesture) {
+    bool handled = false;
+    for (auto& binding : _keyActions) {
+        if (binding.key == key && binding.gesture == gesture && binding.action) {
+            binding.action();
+            handled = true;
+        }
+    }
+    return handled;
+}
+
 void TTScreenPage::runOnce(uint32_t delayMs, std::function<void()> callback) {
     uint32_t handle = TTInstanceOf<TTUITask>().runOnce(delayMs, std::move(callback));
     if (handle != 0) {

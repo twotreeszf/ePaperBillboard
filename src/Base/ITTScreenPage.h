@@ -5,6 +5,17 @@
 
 class ITTNavigationController;
 
+enum TTKeyId {
+    TT_KEY_LEFT = 0,
+    TT_KEY_RIGHT,
+    TT_KEY_CENTER,
+};
+
+enum TTKeyGesture {
+    TT_KEY_CLICK = 0,
+    TT_KEY_LONG_PRESS,
+};
+
 class ITTScreenPage {
 public:
     virtual ~ITTScreenPage() = default;
@@ -18,6 +29,8 @@ public:
     virtual ITTNavigationController* getNavigationController() const = 0;
     virtual void addToFocusGroup(lv_obj_t* obj) = 0;
     virtual void requestRefresh(TTRefreshLevel level = TT_REFRESH_PARTIAL) = 0;
+
+    virtual bool handleKeyAction(TTKeyId, TTKeyGesture) { return false; }
 
     virtual void setup() {}
     virtual void willDestroy() {}

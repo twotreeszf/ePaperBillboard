@@ -30,6 +30,9 @@ void TTWeatherTask::requestFetchAsync(bool force) {
 }
 
 void TTWeatherTask::publish() {
+    if (_payload.state == TT_WEATHER_OK) {
+        _payload.fetchedAtMs = _lastOkMs;
+    }
     TTInstanceOf<TTUITask>().postNotification(TT_NOTIFICATION_WEATHER, _payload);
 }
 

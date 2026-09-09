@@ -20,6 +20,8 @@ public:
     TTWeatherTask() : TTVTask("WeatherTask", TT_WEATHER_TASK_STACK) {}
 
     void requestFetchAsync(bool force = false);
+    bool hasOk() const { return _hasOk; }
+    const TTWeatherPayload& lastPayload() const { return _payload; }
 
 protected:
     void setup() override;

@@ -21,6 +21,8 @@ public:
     ITTNavigationController* getNavigationController() const override { return _controller; }
     void addToFocusGroup(lv_obj_t* obj) override;
     void requestRefresh(TTRefreshLevel level = TT_REFRESH_PARTIAL) override;
+    void registerKeyAction(TTKeyId key, TTKeyGesture gesture, std::function<void()> action);
+    bool handleKeyAction(TTKeyId key, TTKeyGesture gesture) override;
 
     void runOnce(uint32_t delayMs, std::function<void()> callback);
     uint32_t runRepeat(uint32_t intervalMs, std::function<void()> callback, bool executeImmediately = true);
@@ -51,6 +53,12 @@ protected:
     lv_group_t* _group = nullptr;
     ITTNavigationController* _controller = nullptr;
     std::vector<uint32_t> _timerHandles;
+    struct TTKeyBinding {
+        TTKeyId key;
+        TTKeyGesture gesture;
+        std::function<void()> action;
+    };
+    std::vector<TTKeyBinding> _keyActions;
 };
 
 template<typename PayloadType>

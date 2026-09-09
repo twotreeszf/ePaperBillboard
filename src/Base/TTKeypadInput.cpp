@@ -1,5 +1,6 @@
 #include "TTKeypadInput.h"
 #include "ITTNavigationController.h"
+#include "ITTScreenPage.h"
 #include "Logger.h"
 #include <OneButton.h>
 
@@ -52,6 +53,16 @@ bool TTKeypadInput::begin(lv_display_t* display) {
     }, this);
     _btnR->attachClick([](void* param) { static_cast<TTKeypadInput*>(param)->emitKey(LV_KEY_NEXT); }, this);
     _btnC->attachClick([](void* param) { static_cast<TTKeypadInput*>(param)->emitKey(LV_KEY_ENTER); }, this);
+    _btnC->attachLongPressStart([](void* param) {
+        TTKeypadInput* self = static_cast<TTKeypadInput*>(param);
+        if (self->_nav == nullptr) {
+            return;
+        }
+        ITTScreenPage* page = self->_nav->getCurrentPage();
+        if (page != nullptr && page->handleKeyAction(TT_KEY_CENTER, TT_KEY_LONG_PRESS)) {
+            LOG_I("Keypad: center long press handled by %s", page->getName());
+        }
+    }, this);
 
     delay(50);
     _btnL->reset();
