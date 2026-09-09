@@ -12,18 +12,33 @@ void TTWiFiTask::setup() {
     LOG_I("WiFi task starting");
     _wifiManager.tryConnectSaved();
     publishStatus();
+    if (!_wifiManager.isConnecting() && !_wifiManager.isConnected()) {
+        scheduleReconnect();
+    }
 }
 
 void TTWiFiTask::loop() {
     _wifiManager.process();
-    if (_wifiManager.isConnected() != (_publishedState == TT_WIFI_LINK_CONNECTED)
-        || _wifiManager.isProvisioning() != (_publishedState == TT_WIFI_LINK_PROVISIONING)) {
-        publishStatus();
+    const TTWiFiLinkState now = _wifiManager.linkState();
+    if (now == _publishedState) {
+        return;
+    }
+    const bool connectFailed = (_publishedState == TT_WIFI_LINK_CONNECTING && now == TT_WIFI_LINK_IDLE);
+    const bool linkLost = (_publishedState == TT_WIFI_LINK_CONNECTED && now == TT_WIFI_LINK_IDLE);
+    publishStatus();
+    if (now == TT_WIFI_LINK_CONNECTED || now == TT_WIFI_LINK_PROVISIONING
+        || now == TT_WIFI_LINK_CONNECTING) {
+        cancelReconnect();
+        return;
+    }
+    if (connectFailed || linkLost) {
+        scheduleReconnect();
     }
 }
 
 void TTWiFiTask::requestStartProvisioningAsync() {
     auto* f = new std::function<void()>([this]() {
+        cancelReconnect();
         _wifiManager.startProvisioning();
         publishStatus();
     });
@@ -32,8 +47,12 @@ void TTWiFiTask::requestStartProvisioningAsync() {
 
 void TTWiFiTask::requestStopProvisioningAsync() {
     auto* f = new std::function<void()>([this]() {
+        cancelReconnect();
         _wifiManager.stopProvisioning();
         publishStatus();
+        if (!_wifiManager.isConnected() && !_wifiManager.isConnecting()) {
+            scheduleReconnect();
+        }
     });
     enqueue(f);
 }
@@ -48,8 +67,12 @@ void TTWiFiTask::requestStatusAsync() {
 void TTWiFiTask::requestReconnectAsync() {
     auto* f = new std::function<void()>([this]() {
         LOG_I("WiFi: reconnect saved network");
+        cancelReconnect();
         _wifiManager.tryConnectSaved();
         publishStatus();
+        if (!_wifiManager.isConnected() && !_wifiManager.isConnecting()) {
+            scheduleReconnect();
+        }
     });
     enqueue(f);
 }
@@ -93,6 +116,44 @@ void TTWiFiTask::syncNtp() {
     }
     publishTimeSync(ok ? TT_TIME_SYNC_OK : TT_TIME_SYNC_FAILED, ok ? "校时完成" : "校时失败");
     publishStatus();
+}
+
+void TTWiFiTask::scheduleReconnect() {
+    if (_reconnectHandle != 0) {
+        return;
+    }
+    if (!_wifiManager.hasConfiguredNetwork() || _wifiManager.isProvisioning()
+        || _wifiManager.isConnected() || _wifiManager.isConnecting()) {
+        return;
+    }
+    LOG_I("WiFi: reconnect in %u ms", (unsigned)TT_WIFI_RECONNECT_MS);
+    _reconnectHandle = runOnce(TT_WIFI_RECONNECT_MS, [this]() {
+        _reconnectHandle = 0;
+        if (_wifiManager.isProvisioning() || _wifiManager.isConnected()
+            || _wifiManager.isConnecting()) {
+            LOG_I("WiFi: skip auto reconnect state=%d", (int)_wifiManager.linkState());
+            return;
+        }
+        if (!_wifiManager.hasConfiguredNetwork()) {
+            LOG_I("WiFi: skip auto reconnect, no saved network");
+            return;
+        }
+        LOG_I("WiFi: auto reconnect start");
+        _wifiManager.tryConnectSaved();
+        publishStatus();
+        if (!_wifiManager.isConnected() && !_wifiManager.isConnecting()) {
+            scheduleReconnect();
+        }
+    });
+}
+
+void TTWiFiTask::cancelReconnect() {
+    if (_reconnectHandle == 0) {
+        return;
+    }
+    LOG_I("WiFi: cancel scheduled reconnect");
+    cancelRepeat(_reconnectHandle);
+    _reconnectHandle = 0;
 }
 
 void TTWiFiTask::publishStatus() {

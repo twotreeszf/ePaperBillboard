@@ -27,8 +27,8 @@ void TTScreenPage::createScreen() {
     lv_obj_remove_flag(_screen, LV_OBJ_FLAG_SCROLLABLE);
 
     lv_obj_t* content = lv_obj_create(_screen);
-    lv_obj_set_pos(content, 0, TT_NAV_BAR_HEIGHT);
-    lv_obj_set_size(content, EPD_WIDTH, EPD_HEIGHT - TT_NAV_BAR_HEIGHT);
+    lv_obj_set_pos(content, 0, 0);
+    lv_obj_set_size(content, EPD_WIDTH, EPD_HEIGHT - TT_NAV_PAGE_INSET);
     lv_obj_set_style_bg_opa(content, LV_OPA_TRANSP, 0);
     lv_obj_set_style_border_width(content, 0, 0);
     lv_obj_set_style_pad_all(content, 0, 0);

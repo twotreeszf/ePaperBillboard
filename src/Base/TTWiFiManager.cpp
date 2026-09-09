@@ -22,9 +22,10 @@ bool TTWiFiManager::tryConnectSaved() {
     }
     strncpy(_savedSsid, ssid.c_str(), TT_WIFI_SSID_MAX);
     _savedSsid[TT_WIFI_SSID_MAX] = '\0';
-    if (!_connectToWiFi(ssid, password)) {
-        LOG_W("WiFi: saved network connect failed ssid=%s", ssid.c_str());
+    if (!_startConnect(ssid, password)) {
+        LOG_W("WiFi: saved network connect start failed ssid=%s", ssid.c_str());
         _state = TT_WIFI_LINK_IDLE;
+        _connectStartedAt = 0;
         return false;
     }
     return true;
@@ -79,9 +80,14 @@ void TTWiFiManager::process() {
         }
         return;
     }
+    if (_state == TT_WIFI_LINK_CONNECTING) {
+        _pollConnect();
+        return;
+    }
     if (_state == TT_WIFI_LINK_CONNECTED && WiFi.status() != WL_CONNECTED) {
         LOG_W("WiFi: STA lost");
         _state = TT_WIFI_LINK_IDLE;
+        _connectStartedAt = 0;
     }
 }
 
@@ -106,9 +112,10 @@ void TTWiFiManager::fillStatus(TTWiFiStatusPayload& out) const {
     }
 }
 
-bool TTWiFiManager::_connectToWiFi(const String& ssid, const String& password) {
+bool TTWiFiManager::_startConnect(const String& ssid, const String& password) {
     LOG_I("WiFi: connecting ssid=%s", ssid.c_str());
     _state = TT_WIFI_LINK_CONNECTING;
+    _connectStartedAt = millis();
 
     ERR_CHECK_RET(WiFi.mode(WIFI_STA));
     WiFi.disconnect();
@@ -119,20 +126,22 @@ bool TTWiFiManager::_connectToWiFi(const String& ssid, const String& password) {
     } else {
         WiFi.begin(ssid.c_str(), password.c_str());
     }
-
-    uint32_t startTime = millis();
-    while (WiFi.status() != WL_CONNECTED) {
-        if (millis() - startTime > TT_WIFI_CONNECT_TIMEOUT_MS) {
-            LOG_E("WiFi: connect timeout");
-            _state = TT_WIFI_LINK_IDLE;
-            return false;
-        }
-        delay(400);
-    }
-
-    LOG_I("WiFi: connected ip=%s", WiFi.localIP().toString().c_str());
-    _state = TT_WIFI_LINK_CONNECTED;
     return true;
+}
+
+void TTWiFiManager::_pollConnect() {
+    if (WiFi.status() == WL_CONNECTED) {
+        LOG_I("WiFi: connected ip=%s", WiFi.localIP().toString().c_str());
+        _state = TT_WIFI_LINK_CONNECTED;
+        _connectStartedAt = 0;
+        return;
+    }
+    if ((int32_t)(millis() - _connectStartedAt) >= (int32_t)TT_WIFI_CONNECT_TIMEOUT_MS) {
+        LOG_E("WiFi: connect timeout ssid=%s", _savedSsid);
+        WiFi.disconnect(true, false);
+        _state = TT_WIFI_LINK_IDLE;
+        _connectStartedAt = 0;
+    }
 }
 
 void TTWiFiManager::_buildApSsid() {

@@ -13,16 +13,16 @@ static uint32_t lvglTickCallback() {
     return millis();
 }
 
-static void invalidatePageBelowNav() {
+static void invalidatePageContent() {
     lv_obj_t* scr = lv_scr_act();
     if (scr == nullptr) {
         return;
     }
     lv_area_t area;
     area.x1 = 0;
-    area.y1 = TT_NAV_BAR_HEIGHT;
+    area.y1 = 0;
     area.x2 = EPD_WIDTH - 1;
-    area.y2 = EPD_HEIGHT - 1;
+    area.y2 = EPD_HEIGHT - TT_NAV_PAGE_INSET - 1;
     lv_obj_invalidate_area(scr, &area);
 }
 
@@ -103,15 +103,16 @@ void TTLvglEpdDriver::_flushCallback(lv_display_t* disp, const lv_area_t* area, 
     int32_t x2 = area->x2;
     int32_t y2 = area->y2;
 
-    if (!pThis->_needDeepRefresh && !pThis->_flushingOverlay && y1 < TT_NAV_BAR_HEIGHT) {
+    const int32_t navTop = EPD_HEIGHT - TT_NAV_PAGE_INSET;
+    if (!pThis->_needDeepRefresh && !pThis->_flushingOverlay && y2 >= navTop) {
         pThis->_navTouched = true;
-        if (y2 < TT_NAV_BAR_HEIGHT) {
+        if (y1 >= navTop) {
             LOG_I("Flush: skip page paint in nav bar region");
             lv_display_flush_ready(disp);
             return;
         }
-        y1 = TT_NAV_BAR_HEIGHT;
-        LOG_I("Flush: clip page below nav bar y>=%d", TT_NAV_BAR_HEIGHT);
+        y2 = navTop - 1;
+        LOG_I("Flush: clip page above nav bar y<%d", navTop);
     }
 
     int32_t w = x2 - x1 + 1;
@@ -182,7 +183,7 @@ void TTLvglEpdDriver::requestRefresh(TTRefreshLevel level) {
             break;
 
         case TT_REFRESH_FULL:
-            invalidatePageBelowNav();
+            invalidatePageContent();
             lv_refr_now(_lvDisplay);
             _flushingOverlay = true;
             invalidateTopLayerWidgets(_lvDisplay);
@@ -193,7 +194,7 @@ void TTLvglEpdDriver::requestRefresh(TTRefreshLevel level) {
         case TT_REFRESH_DEEP:
             _needDeepRefresh = true;
             _partialCount = 0;
-            invalidatePageBelowNav();
+            invalidatePageContent();
             lv_refr_now(_lvDisplay);
             _flushingOverlay = true;
             invalidateTopLayerWidgets(_lvDisplay);

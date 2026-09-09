@@ -29,7 +29,7 @@ void TTNavigationBar::begin(lv_obj_t* parent, ITTNavigationController* nav) {
     lv_obj_add_flag(_bar, LV_OBJ_FLAG_IGNORE_LAYOUT);
     lv_obj_add_flag(_bar, LV_OBJ_FLAG_FLOATING);
     lv_obj_set_size(_bar, EPD_WIDTH, TT_NAV_BAR_HEIGHT);
-    lv_obj_align(_bar, LV_ALIGN_TOP_LEFT, 0, 0);
+    lv_obj_align(_bar, LV_ALIGN_BOTTOM_LEFT, 0, 0);
     lv_obj_set_style_bg_color(_bar, lv_color_white(), 0);
     lv_obj_set_style_bg_opa(_bar, LV_OPA_COVER, 0);
     lv_obj_set_style_border_width(_bar, 0, 0);
@@ -40,7 +40,7 @@ void TTNavigationBar::begin(lv_obj_t* parent, ITTNavigationController* nav) {
 
     _backBtn = lv_btn_create(_bar);
     lv_obj_set_size(_backBtn, TT_NAV_ARROW_W, TT_NAV_BAR_HEIGHT - TT_NAV_DIVIDER_H);
-    lv_obj_align(_backBtn, LV_ALIGN_LEFT_MID, TT_NAV_BAR_PAD, -(TT_NAV_DIVIDER_H / 2));
+    lv_obj_align(_backBtn, LV_ALIGN_LEFT_MID, TT_NAV_BAR_PAD, TT_NAV_BAR_CONTENT_Y);
     lv_obj_set_style_bg_opa(_backBtn, LV_OPA_TRANSP, 0);
     lv_obj_set_style_bg_opa(_backBtn, LV_OPA_TRANSP, LV_STATE_FOCUS_KEY);
     lv_obj_set_style_border_width(_backBtn, 0, 0);
@@ -65,7 +65,7 @@ void TTNavigationBar::begin(lv_obj_t* parent, ITTNavigationController* nav) {
 
     lv_obj_t* divider = lv_obj_create(_bar);
     lv_obj_set_size(divider, EPD_WIDTH, TT_NAV_DIVIDER_H);
-    lv_obj_align(divider, LV_ALIGN_BOTTOM_LEFT, 0, 0);
+    lv_obj_align(divider, LV_ALIGN_TOP_LEFT, 0, TT_NAV_DIVIDER_Y);
     lv_obj_set_style_bg_color(divider, lv_color_black(), 0);
     lv_obj_set_style_bg_opa(divider, LV_OPA_COVER, 0);
     lv_obj_set_style_border_width(divider, 0, 0);
@@ -83,7 +83,7 @@ void TTNavigationBar::begin(lv_obj_t* parent, ITTNavigationController* nav) {
 void TTNavigationBar::beginStatus(lv_font_t* font) {
     _statusRow = lv_obj_create(_bar);
     lv_obj_set_size(_statusRow, LV_SIZE_CONTENT, TT_NAV_BAR_HEIGHT - TT_NAV_DIVIDER_H);
-    lv_obj_align(_statusRow, LV_ALIGN_RIGHT_MID, -TT_NAV_BAR_PAD, -(TT_NAV_DIVIDER_H / 2));
+    lv_obj_align(_statusRow, LV_ALIGN_RIGHT_MID, -TT_NAV_BAR_PAD, TT_NAV_BAR_CONTENT_Y);
     lv_obj_set_style_bg_opa(_statusRow, LV_OPA_TRANSP, 0);
     lv_obj_set_style_border_width(_statusRow, 0, 0);
     lv_obj_set_style_pad_all(_statusRow, 0, 0);
@@ -94,15 +94,22 @@ void TTNavigationBar::beginStatus(lv_font_t* font) {
     lv_obj_set_style_pad_column(_statusRow, TT_NAV_STATUS_GAP, 0);
     lv_obj_remove_flag(_statusRow, LV_OBJ_FLAG_SCROLLABLE);
 
+    createWifiStatus(_statusRow);
+    _tempLabel = createSensorItem(_statusRow, font, TT_NAV_ICON_TEMP, TT_NAV_TEMP_ICON_W, "--.-℃");
+    _humLabel = createSensorItem(_statusRow, font, TT_NAV_ICON_HUM, TT_NAV_HUM_ICON_W, "--%");
+    _pressLabel = createSensorItem(_statusRow, font, TT_NAV_ICON_PRESS, TT_NAV_PRESS_ICON_W, "----p");
     _timeLabel = createValue(_statusRow, font, "--/-- --:--");
-    createWifiStatus(_statusRow, font);
-    _tempLabel = createValue(_statusRow, font, "温--.-℃");
-    _humLabel = createValue(_statusRow, font, "湿--%");
-    _pressLabel = createValue(_statusRow, font, "压----p");
     createBatteryStatus(_statusRow, font);
 }
 
-void TTNavigationBar::createWifiStatus(lv_obj_t* parent, lv_font_t* font) {
+void TTNavigationBar::createWifiStatus(lv_obj_t* parent) {
+    _wifiIcon = createIcon(parent, TT_NAV_ICON_WIFI_OFF, TT_NAV_WIFI_ICON_W, TT_NAV_WIFI_ICON_H);
+    lv_obj_set_style_pad_all(_wifiIcon, 0, 0);
+    lv_obj_set_style_translate_y(_wifiIcon, TT_NAV_WIFI_ICON_Y, 0);
+}
+
+lv_obj_t* TTNavigationBar::createSensorItem(lv_obj_t* parent, lv_font_t* font, const char* iconPath,
+                                            int32_t iconW, const char* placeholder) {
     lv_obj_t* group = lv_obj_create(parent);
     lv_obj_set_size(group, LV_SIZE_CONTENT, LV_SIZE_CONTENT);
     lv_obj_set_style_bg_opa(group, LV_OPA_TRANSP, 0);
@@ -112,16 +119,17 @@ void TTNavigationBar::createWifiStatus(lv_obj_t* parent, lv_font_t* font) {
     lv_obj_set_layout(group, LV_LAYOUT_FLEX);
     lv_obj_set_flex_flow(group, LV_FLEX_FLOW_ROW);
     lv_obj_set_flex_align(group, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
-    lv_obj_set_style_pad_column(group, TT_NAV_WIFI_ICON_GAP, 0);
+    lv_obj_set_style_pad_column(group, TT_NAV_SENSOR_ICON_GAP, 0);
     lv_obj_remove_flag(group, LV_OBJ_FLAG_SCROLLABLE);
 
-    _wifiLabel = createValue(group, font, TT_NAV_WIFI_TEXT);
-    lv_obj_set_style_pad_all(_wifiLabel, 0, 0);
-    lv_obj_set_height(_wifiLabel, lv_font_get_line_height(font));
+    lv_obj_t* icon = createIcon(group, iconPath, iconW, TT_NAV_SENSOR_ICON_H);
+    lv_obj_set_style_pad_all(icon, 0, 0);
+    lv_obj_set_style_translate_y(icon, TT_NAV_WIFI_ICON_Y, 0);
 
-    _wifiIcon = createIcon(group, TT_NAV_ICON_X);
-    lv_obj_set_style_pad_all(_wifiIcon, 0, 0);
-    lv_obj_set_style_translate_y(_wifiIcon, TT_NAV_WIFI_ICON_Y, 0);
+    lv_obj_t* label = createValue(group, font, placeholder);
+    lv_obj_set_style_pad_all(label, 0, 0);
+    lv_obj_set_height(label, lv_font_get_line_height(font));
+    return label;
 }
 
 void TTNavigationBar::createBatteryStatus(lv_obj_t* parent, lv_font_t* font) {
@@ -199,7 +207,7 @@ void TTNavigationBar::layoutTitle(bool showBack) {
     if (showBack) {
         lv_obj_align_to(_title, _backBtn, LV_ALIGN_OUT_RIGHT_MID, TT_NAV_BAR_PAD, 0);
     } else {
-        lv_obj_align(_title, LV_ALIGN_LEFT_MID, TT_NAV_BAR_PAD, -(TT_NAV_DIVIDER_H / 2));
+        lv_obj_align(_title, LV_ALIGN_LEFT_MID, TT_NAV_BAR_PAD, TT_NAV_BAR_CONTENT_Y);
     }
 
     if (_statusRow != nullptr) {
@@ -240,8 +248,7 @@ void TTNavigationBar::applyWiFi(const TTWiFiStatusPayload& status) {
         return;
     }
     _wifiState = status.state;
-    tt_stream_image_set_src(_wifiIcon,
-                            status.state == TT_WIFI_LINK_CONNECTED ? TT_NAV_ICON_CHECK : TT_NAV_ICON_X);
+    tt_stream_image_set_src(_wifiIcon, wifiIconPath(status.state));
     LOG_I("NavBar: wifi state=%d", (int)status.state);
     requestRedraw();
 }
@@ -278,13 +285,19 @@ void TTNavigationBar::applySensor(const TTSensorDataPayload& data) {
     _batteryUsb = data.usbPlugged;
 
     char text[24];
-    snprintf(text, sizeof(text), "温%.1f℃", _temperature);
+    snprintf(text, sizeof(text), "%.1f℃", _temperature);
     lv_label_set_text(_tempLabel, text);
-    snprintf(text, sizeof(text), "湿%.0f%%", _humidity);
+    snprintf(text, sizeof(text), "%.0f%%", _humidity);
     lv_label_set_text(_humLabel, text);
-    snprintf(text, sizeof(text), "压%.0fp", _pressure);
+    snprintf(text, sizeof(text), "%.0fp", _pressure);
     lv_label_set_text(_pressLabel, text);
-    tt_stream_image_set_src(_batteryIcon, batteryIconPath(data));
+    const char* batteryIcon = batteryIconPath(data);
+    tt_stream_image_set_src(_batteryIcon, batteryIcon);
+    if (batteryIcon == TT_NAV_ICON_BATTERY_USB) {
+        lv_obj_set_size(_batteryIcon, TT_NAV_PLUG_ICON_W, TT_NAV_PLUG_ICON_H);
+    } else {
+        lv_obj_set_size(_batteryIcon, TT_NAV_BATTERY_ICON_W, TT_NAV_BATTERY_ICON_H);
+    }
     snprintf(text, sizeof(text), "%u%%", (unsigned)_batteryPercent);
     lv_label_set_text(_batteryLabel, text);
     LOG_I("NavBar: sensor T=%.1f H=%.1f P=%.0f bat=%dmV %u%% usb=%d charging=%d",
@@ -294,6 +307,19 @@ void TTNavigationBar::applySensor(const TTSensorDataPayload& data) {
         layoutTitle(!lv_obj_has_flag(_backBtn, LV_OBJ_FLAG_HIDDEN));
     }
     requestRedraw();
+}
+
+const char* TTNavigationBar::wifiIconPath(TTWiFiLinkState state) const {
+    if (state == TT_WIFI_LINK_CONNECTED) {
+        return TT_NAV_ICON_WIFI_ON;
+    }
+    if (state == TT_WIFI_LINK_CONNECTING) {
+        return TT_NAV_ICON_WIFI_WAIT;
+    }
+    if (state == TT_WIFI_LINK_PROVISIONING) {
+        return TT_NAV_ICON_WIFI_AP;
+    }
+    return TT_NAV_ICON_WIFI_OFF;
 }
 
 const char* TTNavigationBar::batteryIconPath(const TTSensorDataPayload& data) const {

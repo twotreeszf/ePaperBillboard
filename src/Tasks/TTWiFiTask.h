@@ -25,7 +25,10 @@ private:
     void publishTimeSync(TTTimeSyncState state, const char* message = nullptr);
     void startNtpSync();
     void syncNtp();
+    void scheduleReconnect();
+    void cancelReconnect();
 
     TTWiFiManager _wifiManager;
     TTWiFiLinkState _publishedState = TT_WIFI_LINK_IDLE;
+    uint32_t _reconnectHandle = 0;
 };

@@ -61,6 +61,51 @@ function rotateMask90Cw(mask, width, height) {
   return { mask: out, width: height, height: width };
 }
 
+function cropMask(mask, width, height) {
+  let x0 = width;
+  let y0 = height;
+  let x1 = -1;
+  let y1 = -1;
+  for (let y = 0; y < height; y++) {
+    for (let x = 0; x < width; x++) {
+      if (!mask[y * width + x]) {
+        continue;
+      }
+      if (x < x0) x0 = x;
+      if (y < y0) y0 = y;
+      if (x > x1) x1 = x;
+      if (y > y1) y1 = y;
+    }
+  }
+  if (x1 < 0) {
+    return { mask, width, height };
+  }
+  const cropW = x1 - x0 + 1;
+  const cropH = y1 - y0 + 1;
+  const out = new Uint8Array(cropW * cropH);
+  for (let y = 0; y < cropH; y++) {
+    for (let x = 0; x < cropW; x++) {
+      out[y * cropW + x] = mask[(y + y0) * width + (x + x0)];
+    }
+  }
+  return { mask: out, width: cropW, height: cropH };
+}
+
+function scaleMaskNearest(mask, width, height, destW, destH) {
+  if (width === destW && height === destH) {
+    return { mask, width, height };
+  }
+  const out = new Uint8Array(destW * destH);
+  for (let y = 0; y < destH; y++) {
+    for (let x = 0; x < destW; x++) {
+      const sx = Math.min(width - 1, Math.floor(((x + 0.5) * width) / destW));
+      const sy = Math.min(height - 1, Math.floor(((y + 0.5) * height) / destH));
+      out[y * destW + x] = mask[sy * width + sx];
+    }
+  }
+  return { mask: out, width: destW, height: destH };
+}
+
 function maskToPng(mask, width, height) {
   const png = new PNG({
     width,
@@ -81,28 +126,29 @@ function maskToPng(mask, width, height) {
 }
 
 function sliceIcon(entry, svgDir, outputDir) {
-  const width = entry.width ?? entry.size;
-  const height = entry.height ?? entry.size;
+  const destW = entry.width ?? entry.size;
+  const destH = entry.height ?? entry.size;
+  const renderW = entry.renderSize ?? destW;
   const packagedSvg = path.join(PIXELART_ICONS_DIR, `${entry.id}.svg`);
   const localSvg = path.join(svgDir, `${entry.id}.svg`);
-  const srcSvg = fs.existsSync(localSvg) ? localSvg : packagedSvg;
+  const srcSvg = entry.fromPackage || !fs.existsSync(localSvg) ? packagedSvg : localSvg;
   if (!fs.existsSync(srcSvg)) {
     throw new Error(`Pixelarticons SVG not found: ${entry.id}.svg`);
   }
   const raw = fs.readFileSync(srcSvg, "utf8");
-  if (srcSvg !== localSvg) {
+  if (srcSvg === packagedSvg) {
     fs.writeFileSync(localSvg, raw);
   }
 
   const wrapped = prepareSvg(raw);
   const rendered = new Resvg(wrapped, {
-    fitTo: { mode: "width", value: width },
+    fitTo: { mode: "width", value: renderW },
     background: "white",
   }).render();
 
-  if (rendered.width !== width || rendered.height !== height) {
+  if (!entry.renderSize && (rendered.width !== destW || rendered.height !== destH)) {
     throw new Error(
-      `${entry.id}: unexpected raster size ${rendered.width}x${rendered.height}, expected ${width}x${height}`
+      `${entry.id}: unexpected raster size ${rendered.width}x${rendered.height}, expected ${destW}x${destH}`
     );
   }
 
@@ -111,6 +157,10 @@ function sliceIcon(entry, svgDir, outputDir) {
   for (let i = 0; i < turns; i++) {
     sliced = rotateMask90Cw(sliced.mask, sliced.width, sliced.height);
   }
+  if (entry.crop) {
+    sliced = cropMask(sliced.mask, sliced.width, sliced.height);
+  }
+  sliced = scaleMaskNearest(sliced.mask, sliced.width, sliced.height, destW, destH);
   const png = maskToPng(sliced.mask, sliced.width, sliced.height);
   const outPath = path.join(outputDir, entry.file);
   fs.writeFileSync(outPath, png);

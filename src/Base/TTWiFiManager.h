@@ -10,6 +10,7 @@
 #define PREF_WIFI_PASSWORD  "wifi_password"
 #define TT_WIFI_AP_SSID_PREFIX  "Billboard"
 #define TT_WIFI_CONNECT_TIMEOUT_MS  15000
+#define TT_WIFI_RECONNECT_MS        300000
 #define TT_WIFI_APPLY_DELAY_MS      800
 #define TT_WIFI_DNS_PORT  53
 
@@ -24,10 +25,14 @@ public:
     void fillStatus(TTWiFiStatusPayload& out) const;
 
     bool isConnected() const { return _state == TT_WIFI_LINK_CONNECTED; }
+    bool isConnecting() const { return _state == TT_WIFI_LINK_CONNECTING; }
     bool isProvisioning() const { return _state == TT_WIFI_LINK_PROVISIONING; }
+    bool hasConfiguredNetwork() const { return _savedSsid[0] != '\0'; }
+    TTWiFiLinkState linkState() const { return _state; }
 
 private:
-    bool _connectToWiFi(const String& ssid, const String& password);
+    bool _startConnect(const String& ssid, const String& password);
+    void _pollConnect();
     bool _scanWiFi();
     bool _startAP();
     bool _startWebServer();
@@ -51,4 +56,5 @@ private:
     bool _serverStarted = false;
     bool _applyPending = false;
     uint32_t _applyAt = 0;
+    uint32_t _connectStartedAt = 0;
 };

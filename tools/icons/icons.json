@@ -44,18 +44,6 @@
       "file": "back.png",
       "size": 14,
       "strokeWidth": 1.75
-    },
-    {
-      "id": "check",
-      "file": "check_sm.png",
-      "size": 12,
-      "strokeWidth": 4
-    },
-    {
-      "id": "x",
-      "file": "x_sm.png",
-      "size": 12,
-      "strokeWidth": 4
     }
   ],
   "pixelart": {
@@ -94,7 +82,49 @@
       {
         "id": "plug",
         "file": "plug_sm.png",
-        "width": 18,
+        "width": 16,
+        "height": 12
+      },
+      {
+        "id": "wifi-on",
+        "file": "wifi_sm.png",
+        "width": 16,
+        "height": 12
+      },
+      {
+        "id": "wifi-off",
+        "file": "wifi_off_sm.png",
+        "width": 16,
+        "height": 12
+      },
+      {
+        "id": "wifi-wait",
+        "file": "wifi_wait_sm.png",
+        "width": 16,
+        "height": 12
+      },
+      {
+        "id": "wifi-ap",
+        "file": "wifi_ap_sm.png",
+        "width": 16,
+        "height": 12
+      },
+      {
+        "id": "temp",
+        "file": "temp_sm.png",
+        "width": 9,
+        "height": 12
+      },
+      {
+        "id": "humidity",
+        "file": "humidity_sm.png",
+        "width": 9,
+        "height": 12
+      },
+      {
+        "id": "pressure",
+        "file": "pressure_sm.png",
+        "width": 10,
         "height": 12
       }
     ]
