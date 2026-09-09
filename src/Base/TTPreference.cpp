@@ -1,7 +1,19 @@
 #include "TTPreference.h"
 #include "ErrorCheck.h"
+#include "Logger.h"
+
+void TTPreference::ensureMutex() {
+    if (_mutex == nullptr) {
+        _mutex = xSemaphoreCreateMutex();
+        if (_mutex == nullptr) {
+            LOG_E("Preference: mutex create failed");
+        }
+    }
+}
 
 bool TTPreference::begin() {
+    ensureMutex();
+    Lock lock(_mutex);
     _dirty = false;
     ERR_CHECK_RET(storage.begin());
     ERR_CHECK_RET(_load());
@@ -27,6 +39,8 @@ bool TTPreference::_save() {
 }
 
 bool TTPreference::remove(const char* key) {
+    ensureMutex();
+    Lock lock(_mutex);
     if (!_loaded) {
         ERR_CHECK_RET(_load());
     }
@@ -41,6 +55,8 @@ bool TTPreference::remove(const char* key) {
 }
 
 bool TTPreference::clear() {
+    ensureMutex();
+    Lock lock(_mutex);
     _doc.clear();
     _loaded = true;
     _dirty = true;
@@ -48,5 +64,7 @@ bool TTPreference::clear() {
 }
 
 bool TTPreference::sync() {
+    ensureMutex();
+    Lock lock(_mutex);
     return _save();
 }

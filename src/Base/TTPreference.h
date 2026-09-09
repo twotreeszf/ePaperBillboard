@@ -3,6 +3,8 @@
 #include "TTStorage.h"
 #include "ErrorCheck.h"
 #include <ArduinoJson.h>
+#include <freertos/FreeRTOS.h>
+#include <freertos/semphr.h>
 
 #define CAPACITY 1024 * 4
 
@@ -28,18 +30,39 @@ public:
     bool sync();
 
 private:
-    TTStorage storage;
-    JsonDocument _doc;
-    bool _loaded = false;
-    bool _dirty = false;
-    
+    class Lock {
+    public:
+        explicit Lock(SemaphoreHandle_t mutex) : _mutex(mutex) {
+            if (_mutex != nullptr) {
+                xSemaphoreTake(_mutex, portMAX_DELAY);
+            }
+        }
+        ~Lock() {
+            if (_mutex != nullptr) {
+                xSemaphoreGive(_mutex);
+            }
+        }
+        Lock(const Lock&) = delete;
+        Lock& operator=(const Lock&) = delete;
+    private:
+        SemaphoreHandle_t _mutex;
+    };
+
+    void ensureMutex();
     bool _load();
     bool _save();
+
+    TTStorage storage;
+    JsonDocument _doc;
+    SemaphoreHandle_t _mutex = nullptr;
+    bool _loaded = false;
+    bool _dirty = false;
 };
 
-// Template function implementations
 template<typename T>
 bool TTPreference::get(const char* key, T& outValue, const T& defaultValue) {
+    ensureMutex();
+    Lock lock(_mutex);
     if (!_loaded) {
         ERR_CHECK_RET(_load());
     }
@@ -55,6 +78,8 @@ bool TTPreference::get(const char* key, T& outValue, const T& defaultValue) {
 
 template<typename T>
 bool TTPreference::set(const char* key, T value) {
+    ensureMutex();
+    Lock lock(_mutex);
     if (!_loaded) {
         ERR_CHECK_RET(_load());
     }

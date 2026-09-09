@@ -7,10 +7,11 @@
 void TTVTask::start(int coreId, uint32_t loopDelayMs)
 {
     _loopDelayMs = loopDelayMs;
-    // Create queue for function pointers
     _queue = xQueueCreate(10, sizeof(std::function<void()> *));
-
-    // Create task with lambda
+    if (_queue == nullptr) {
+        LOG_E("Task %s: queue create failed", _name);
+        return;
+    }
     xTaskCreatePinnedToCore(
         [](void *param)
         {
@@ -31,9 +32,17 @@ void TTVTask::start(int coreId, uint32_t loopDelayMs)
 
 void TTVTask::enqueue(std::function<void()> *func)
 {
-    if (_queue != nullptr)
-    {
-        xQueueSend(_queue, &func, portMAX_DELAY);
+    if (func == nullptr) {
+        return;
+    }
+    if (_queue == nullptr) {
+        LOG_E("Task %s: enqueue before start, drop", _name);
+        delete func;
+        return;
+    }
+    if (xQueueSend(_queue, &func, portMAX_DELAY) != pdTRUE) {
+        LOG_E("Task %s: enqueue failed", _name);
+        delete func;
     }
 }
 
