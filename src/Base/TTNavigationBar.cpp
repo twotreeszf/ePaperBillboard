@@ -52,7 +52,6 @@ void TTNavigationBar::begin(lv_obj_t* parent, ITTNavigationController* nav) {
 
     lv_obj_t* arrow = tt_stream_image_create(_backBtn);
     tt_stream_image_set_src(arrow, TT_NAV_BACK_ICON);
-    tt_stream_image_set_invert(arrow, true);
     lv_obj_center(arrow);
 
     _titleBox = lv_obj_create(_bar);
@@ -88,6 +87,15 @@ void TTNavigationBar::begin(lv_obj_t* parent, ITTNavigationController* nav) {
     lv_obj_set_style_text_font(rightBracket, font, 0);
 
     beginStatus(TTFontManager::instance().getFont(TT_NAV_STATUS_FONT));
+
+    lv_obj_t* divider = lv_obj_create(_bar);
+    lv_obj_set_size(divider, EPD_WIDTH, TT_NAV_DIVIDER_H);
+    lv_obj_align(divider, LV_ALIGN_TOP_LEFT, 0, TT_NAV_DIVIDER_Y);
+    lv_obj_set_style_bg_color(divider, TT_NAV_BAR_FG_COLOR, 0);
+    lv_obj_set_style_bg_opa(divider, LV_OPA_COVER, 0);
+    lv_obj_set_style_border_width(divider, 0, 0);
+    lv_obj_set_style_pad_all(divider, 0, 0);
+    lv_obj_set_style_radius(divider, 0, 0);
 
     updateTime(false);
     subscribeStatus();
@@ -188,7 +196,6 @@ void TTNavigationBar::createBatteryStatus(lv_obj_t* parent, lv_font_t* font) {
 lv_obj_t* TTNavigationBar::createIcon(lv_obj_t* parent, const char* path, int32_t width, int32_t height) {
     lv_obj_t* icon = tt_stream_image_create(parent);
     tt_stream_image_set_src(icon, path);
-    tt_stream_image_set_invert(icon, true);
     lv_obj_set_size(icon, width, height < 0 ? width : height);
     return icon;
 }

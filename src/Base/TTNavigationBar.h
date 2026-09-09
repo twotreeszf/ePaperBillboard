@@ -30,7 +30,7 @@
 #define TT_NAV_SENSOR_ICON_GAP 2
 #define TT_NAV_WIFI_ICON_Y     -1
 #define TT_NAV_SENSOR_ICON_Y   -2
-#define TT_NAV_BAR_CONTENT_Y   2
+#define TT_NAV_BAR_CONTENT_Y   5
 #define TT_NAV_STATUS_CLOCK_MS 1000
 #define TT_NAV_ICON_WIFI_OFF         "/icons/wifi_off_sm.i1"
 #define TT_NAV_ICON_WIFI_WAIT        "/icons/wifi_wait_sm.i1"
@@ -48,8 +48,8 @@
 #define TT_NAV_TEMP_PREFIX           "室内"
 #define TT_NAV_TEMP_PREFIX_FONT      10
 #define TT_NAV_TEMP_PREFIX_Y         (-2)
-#define TT_NAV_BAR_BG_COLOR          lv_color_black()
-#define TT_NAV_BAR_FG_COLOR          lv_color_white()
+#define TT_NAV_BAR_BG_COLOR          lv_color_white()
+#define TT_NAV_BAR_FG_COLOR          lv_color_black()
 #define TT_NAV_BATTERY_PERCENT_DEADBAND  2
 
 class ITTNavigationController;
