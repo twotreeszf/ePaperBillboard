@@ -1,5 +1,4 @@
 #include "TTUITask.h"
-#include "TTWeatherTask.h"
 #include "../Pages/TTHomePage.h"
 #include <SPI.h>
 #include <LittleFS.h>
@@ -38,7 +37,6 @@ void TTUITask::setup() {
 
     _nav.setRootPage(std::unique_ptr<TTScreenPage>(new TTHomePage()));
 
-    TTInstanceOf<TTWeatherTask>().start(1, TT_WEATHER_LOOP_DELAY_MS);
     LOG_I("UI task started, heap=%u", (unsigned)ESP.getFreeHeap());
 }
 

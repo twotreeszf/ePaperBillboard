@@ -5,6 +5,7 @@
 
 #define TT_WIFI_TASK_STACK  12288
 #define TT_WIFI_LOOP_DELAY_MS  10
+#define TT_WIFI_TASK_CORE      1
 
 class TTWiFiTask : public TTVTask {
 public:

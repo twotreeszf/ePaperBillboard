@@ -1,9 +1,9 @@
-#include "TTWeatherTask.h"
-#include "TTUITask.h"
+#include "TTWeatherPage.h"
+#include "../Tasks/TTUITask.h"
 #include "../Base/Logger.h"
+#include "../Base/TTAsyncQueue.h"
 #include "../Base/TTInstance.h"
 #include "../Base/TTPreference.h"
-#include "../Base/TTRtc.h"
 #include <ArduinoJson.h>
 #include <HTTPClient.h>
 #include <WiFi.h>
@@ -13,30 +13,19 @@
 #include <cstring>
 #include <ctime>
 
-void TTWeatherTask::setup() {
-    LOG_I("Weather task starting");
-    memset(&_payload, 0, sizeof(_payload));
-    _payload.state = TT_WEATHER_IDLE;
-}
+static TTWeatherPayload s_payload = {};
+static uint32_t s_lastOkMs = 0;
+static bool s_hasOk = false;
+static volatile bool s_fetchBusy = false;
 
-void TTWeatherTask::loop() {
-}
-
-void TTWeatherTask::requestFetchAsync(bool force) {
-    auto* f = new std::function<void()>([this, force]() {
-        fetchWeather(force);
-    });
-    enqueue(f);
-}
-
-void TTWeatherTask::publish() {
-    if (_payload.state == TT_WEATHER_OK) {
-        _payload.fetchedAtMs = _lastOkMs;
+static void publish() {
+    if (s_payload.state == TT_WEATHER_OK) {
+        s_payload.fetchedAtMs = s_lastOkMs;
     }
-    TTInstanceOf<TTUITask>().postNotification(TT_NOTIFICATION_WEATHER, _payload);
+    TTInstanceOf<TTUITask>().postNotification(TT_NOTIFICATION_WEATHER, s_payload);
 }
 
-bool TTWeatherTask::loadLocation(float& lat, float& lon, char* city, size_t cityMax) {
+static bool loadLocation(float& lat, float& lon, char* city, size_t cityMax) {
     auto& pref = TTInstanceOf<TTPreference>();
     String cityStr;
     pref.get(PREF_WEATHER_CITY, cityStr, String(""));
@@ -122,7 +111,7 @@ static bool httpGetJson(const char* url, JsonDocument& doc, JsonDocument* filter
     return true;
 }
 
-bool TTWeatherTask::fetchForecast(float lat, float lon) {
+static bool fetchForecast(float lat, float lon) {
     char url[TT_WEATHER_URL_MAX];
     snprintf(url, sizeof(url),
              "%s://%s/v1/forecast?latitude=%.4f&longitude=%.4f"
@@ -135,7 +124,7 @@ bool TTWeatherTask::fetchForecast(float lat, float lon) {
              "&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_sum,"
              "precipitation_probability_max,sunrise,sunset,uv_index_max",
              TT_WEATHER_URL_SCHEME, TT_WEATHER_FORECAST_HOST, lat, lon,
-             TT_WEATHER_DAYS, TT_WEATHER_FORECAST_HOURS);
+             TT_WEATHER_DAYS, TT_WEATHER_HOURS);
 
     JsonDocument filter;
     filter["current"] = true;
@@ -161,18 +150,18 @@ bool TTWeatherTask::fetchForecast(float lat, float lon) {
               current.isNull() ? 1 : 0, (unsigned)dailyTime.size());
         return false;
     }
-    _payload.current.temp = current["temperature_2m"] | 0.0f;
-    _payload.current.feelsLike = current["apparent_temperature"] | 0.0f;
-    _payload.current.humidity = current["relative_humidity_2m"] | 0.0f;
-    _payload.current.dewPoint = current["dew_point_2m"] | 0.0f;
-    _payload.current.pressure = current["pressure_msl"] | 0.0f;
-    _payload.current.windSpeed = current["wind_speed_10m"] | 0.0f;
-    _payload.current.windGust = current["wind_gusts_10m"] | 0.0f;
-    _payload.current.windDeg = current["wind_direction_10m"] | 0;
-    _payload.current.precip = current["precipitation"] | 0.0f;
-    _payload.current.weatherCode = current["weather_code"] | 0;
-    _payload.current.visibility = current["visibility"] | 0.0f;
-    _payload.current.isDay = (current["is_day"] | 1) != 0;
+    s_payload.current.temp = current["temperature_2m"] | 0.0f;
+    s_payload.current.feelsLike = current["apparent_temperature"] | 0.0f;
+    s_payload.current.humidity = current["relative_humidity_2m"] | 0.0f;
+    s_payload.current.dewPoint = current["dew_point_2m"] | 0.0f;
+    s_payload.current.pressure = current["pressure_msl"] | 0.0f;
+    s_payload.current.windSpeed = current["wind_speed_10m"] | 0.0f;
+    s_payload.current.windGust = current["wind_gusts_10m"] | 0.0f;
+    s_payload.current.windDeg = current["wind_direction_10m"] | 0;
+    s_payload.current.precip = current["precipitation"] | 0.0f;
+    s_payload.current.weatherCode = current["weather_code"] | 0;
+    s_payload.current.visibility = current["visibility"] | 0.0f;
+    s_payload.current.isDay = (current["is_day"] | 1) != 0;
 
     JsonArray dailyCode = doc["daily"]["weather_code"];
     JsonArray dailyMax = doc["daily"]["temperature_2m_max"];
@@ -184,23 +173,23 @@ bool TTWeatherTask::fetchForecast(float lat, float lon) {
     JsonArray dailyUvi = doc["daily"]["uv_index_max"];
     const int dayCount = min((int)dailyTime.size(), TT_WEATHER_DAYS);
     for (int i = 0; i < TT_WEATHER_DAYS; i++) {
-        memset(&_payload.daily[i], 0, sizeof(_payload.daily[i]));
+        memset(&s_payload.daily[i], 0, sizeof(s_payload.daily[i]));
         if (i >= dayCount) {
             continue;
         }
-        _payload.daily[i].time = dailyTime[i] | (int64_t)0;
-        _payload.daily[i].weatherCode = dailyCode[i] | 0;
-        _payload.daily[i].tempMax = dailyMax[i] | 0.0f;
-        _payload.daily[i].tempMin = dailyMin[i] | 0.0f;
-        _payload.daily[i].precipSum = dailyPrecip[i] | 0.0f;
-        _payload.daily[i].precipProb = dailyProb[i] | 0;
-        _payload.daily[i].sunrise = dailyRise[i] | (int64_t)0;
-        _payload.daily[i].sunset = dailySet[i] | (int64_t)0;
+        s_payload.daily[i].time = dailyTime[i] | (int64_t)0;
+        s_payload.daily[i].weatherCode = dailyCode[i] | 0;
+        s_payload.daily[i].tempMax = dailyMax[i] | 0.0f;
+        s_payload.daily[i].tempMin = dailyMin[i] | 0.0f;
+        s_payload.daily[i].precipSum = dailyPrecip[i] | 0.0f;
+        s_payload.daily[i].precipProb = dailyProb[i] | 0;
+        s_payload.daily[i].sunrise = dailyRise[i] | (int64_t)0;
+        s_payload.daily[i].sunset = dailySet[i] | (int64_t)0;
     }
     if (dayCount > 0) {
-        _payload.current.sunrise = _payload.daily[0].sunrise;
-        _payload.current.sunset = _payload.daily[0].sunset;
-        _payload.current.uvi = dailyUvi[0] | 0.0f;
+        s_payload.current.sunrise = s_payload.daily[0].sunrise;
+        s_payload.current.sunset = s_payload.daily[0].sunset;
+        s_payload.current.uvi = dailyUvi[0] | 0.0f;
     }
 
     JsonArray hourlyTime = doc["hourly"]["time"];
@@ -223,30 +212,30 @@ bool TTWeatherTask::fetchForecast(float lat, float lon) {
         }
     }
     for (int i = 0; i < TT_WEATHER_HOURS; i++) {
-        memset(&_payload.hourly[i], 0, sizeof(_payload.hourly[i]));
+        memset(&s_payload.hourly[i], 0, sizeof(s_payload.hourly[i]));
         const int src = start + i;
         if (src >= hourCount) {
             continue;
         }
-        _payload.hourly[i].time = hourlyTime[src] | (int64_t)0;
-        _payload.hourly[i].temp = hourlyTemp[src] | 0.0f;
-        _payload.hourly[i].humidity = hourlyHum[src] | 0.0f;
-        _payload.hourly[i].precip = hourlyPrecip[src] | 0.0f;
-        _payload.hourly[i].precipProb = hourlyProb[src] | 0.0f;
-        _payload.hourly[i].weatherCode = hourlyCode[src] | 0;
-        _payload.hourly[i].uvi = hourlyUvi[src] | 0.0f;
-        _payload.hourly[i].isDay = (hourlyDay[src] | 1) != 0;
+        s_payload.hourly[i].time = hourlyTime[src] | (int64_t)0;
+        s_payload.hourly[i].temp = hourlyTemp[src] | 0.0f;
+        s_payload.hourly[i].humidity = hourlyHum[src] | 0.0f;
+        s_payload.hourly[i].precip = hourlyPrecip[src] | 0.0f;
+        s_payload.hourly[i].precipProb = hourlyProb[src] | 0.0f;
+        s_payload.hourly[i].weatherCode = hourlyCode[src] | 0;
+        s_payload.hourly[i].uvi = hourlyUvi[src] | 0.0f;
+        s_payload.hourly[i].isDay = (hourlyDay[src] | 1) != 0;
     }
     if (hourCount > start) {
-        _payload.current.uvi = _payload.hourly[0].uvi;
+        s_payload.current.uvi = s_payload.hourly[0].uvi;
     }
 
     LOG_I("Weather: forecast ok temp=%.1f code=%d days=%d hours_from=%d",
-          _payload.current.temp, _payload.current.weatherCode, dayCount, start);
+          s_payload.current.temp, s_payload.current.weatherCode, dayCount, start);
     return true;
 }
 
-bool TTWeatherTask::fetchAqi(float lat, float lon) {
+static bool fetchAqi(float lat, float lon) {
     char url[TT_WEATHER_URL_MAX];
     snprintf(url, sizeof(url),
              "%s://%s/v1/air-quality?latitude=%.4f&longitude=%.4f&current=us_aqi",
@@ -255,79 +244,107 @@ bool TTWeatherTask::fetchAqi(float lat, float lon) {
     filter["current"]["us_aqi"] = true;
     JsonDocument doc;
     if (!httpGetJson(url, doc, &filter)) {
-        _payload.current.hasAqi = false;
-        _payload.current.aqi = 0;
+        s_payload.current.hasAqi = false;
+        s_payload.current.aqi = 0;
         LOG_W("Weather: AQI fetch failed");
         return false;
     }
     JsonVariantConst aqi = doc["current"]["us_aqi"];
     if (aqi.isNull()) {
-        _payload.current.hasAqi = false;
-        _payload.current.aqi = 0;
+        s_payload.current.hasAqi = false;
+        s_payload.current.aqi = 0;
         LOG_W("Weather: AQI missing");
         return false;
     }
-    _payload.current.aqi = aqi | 0;
-    _payload.current.hasAqi = true;
-    LOG_I("Weather: AQI=%d", _payload.current.aqi);
+    s_payload.current.aqi = aqi | 0;
+    s_payload.current.hasAqi = true;
+    LOG_I("Weather: AQI=%d", s_payload.current.aqi);
     return true;
 }
 
-void TTWeatherTask::fetchWeather(bool force) {
+static void fetchWeather(bool force) {
     float lat = NAN;
     float lon = NAN;
-    loadLocation(lat, lon, _payload.city, sizeof(_payload.city));
+    loadLocation(lat, lon, s_payload.city, sizeof(s_payload.city));
 
     if (WiFi.status() != WL_CONNECTED) {
         LOG_W("Weather: need Wi-Fi");
-        _payload.state = TT_WEATHER_NEED_WIFI;
-        strncpy(_payload.message, "未连接 Wi-Fi", sizeof(_payload.message) - 1);
-        _payload.message[sizeof(_payload.message) - 1] = '\0';
+        s_payload.state = TT_WEATHER_NEED_WIFI;
+        strncpy(s_payload.message, "未连接 Wi-Fi", sizeof(s_payload.message) - 1);
+        s_payload.message[sizeof(s_payload.message) - 1] = '\0';
         publish();
         return;
     }
     if (!isfinite(lat) || !isfinite(lon)) {
         LOG_W("Weather: location not configured");
-        _payload.state = TT_WEATHER_NEED_LOCATION;
-        strncpy(_payload.message, "未配置地点", sizeof(_payload.message) - 1);
-        _payload.message[sizeof(_payload.message) - 1] = '\0';
+        s_payload.state = TT_WEATHER_NEED_LOCATION;
+        strncpy(s_payload.message, "未配置地点", sizeof(s_payload.message) - 1);
+        s_payload.message[sizeof(s_payload.message) - 1] = '\0';
         publish();
         return;
     }
 
-    if (!force && _hasOk && (int32_t)(millis() - _lastOkMs) < (int32_t)TT_WEATHER_STALE_MS) {
-        LOG_I("Weather: use cached data age=%u ms", (unsigned)(millis() - _lastOkMs));
-        _payload.state = TT_WEATHER_OK;
-        _payload.message[0] = '\0';
+    if (!force && s_hasOk && (int32_t)(millis() - s_lastOkMs) < (int32_t)TT_WEATHER_STALE_MS) {
+        LOG_I("Weather: use cached data age=%u ms", (unsigned)(millis() - s_lastOkMs));
+        s_payload.state = TT_WEATHER_OK;
+        s_payload.message[0] = '\0';
         publish();
         return;
     }
 
-    if (!_hasOk) {
-        _payload.state = TT_WEATHER_FETCHING;
-        strncpy(_payload.message, "正在获取天气", sizeof(_payload.message) - 1);
-        _payload.message[sizeof(_payload.message) - 1] = '\0';
+    if (!s_hasOk) {
+        s_payload.state = TT_WEATHER_FETCHING;
+        strncpy(s_payload.message, "正在获取天气", sizeof(s_payload.message) - 1);
+        s_payload.message[sizeof(s_payload.message) - 1] = '\0';
         publish();
     }
 
     LOG_I("Weather: fetch lat=%.4f lon=%.4f city=%s force=%d heap=%u largest=%u",
-          lat, lon, _payload.city, force ? 1 : 0,
+          lat, lon, s_payload.city, force ? 1 : 0,
           (unsigned)ESP.getFreeHeap(),
           (unsigned)heap_caps_get_largest_free_block(MALLOC_CAP_8BIT));
 
     if (!fetchForecast(lat, lon)) {
         LOG_E("Weather: forecast failed");
-        _payload.state = TT_WEATHER_FAILED;
-        strncpy(_payload.message, "获取天气失败", sizeof(_payload.message) - 1);
-        _payload.message[sizeof(_payload.message) - 1] = '\0';
+        s_payload.state = TT_WEATHER_FAILED;
+        strncpy(s_payload.message, "获取天气失败", sizeof(s_payload.message) - 1);
+        s_payload.message[sizeof(s_payload.message) - 1] = '\0';
         publish();
         return;
     }
     fetchAqi(lat, lon);
 
-    _payload.state = TT_WEATHER_OK;
-    _payload.message[0] = '\0';
-    _hasOk = true;
-    _lastOkMs = millis();
+    s_payload.state = TT_WEATHER_OK;
+    s_payload.message[0] = '\0';
+    s_hasOk = true;
+    s_lastOkMs = millis();
     publish();
+}
+
+bool TTWeatherPage::fetchBusy() {
+    return s_fetchBusy;
+}
+
+void TTWeatherPage::requestFetch(bool force) {
+    if (s_fetchBusy) {
+        LOG_I("Weather page: fetch ignored (busy)");
+        return;
+    }
+    if (!force && s_hasOk) {
+        if (_visible) {
+            applyWeather(s_payload);
+        }
+        if ((int32_t)(millis() - s_lastOkMs) < (int32_t)TT_WEATHER_STALE_MS) {
+            LOG_I("Weather page: use cached data age=%u ms", (unsigned)(millis() - s_lastOkMs));
+            return;
+        }
+    }
+
+    s_fetchBusy = true;
+    if (!TTInstanceOf<TTAsyncQueue>().post([force]() {
+            fetchWeather(force);
+            s_fetchBusy = false;
+        })) {
+        s_fetchBusy = false;
+    }
 }

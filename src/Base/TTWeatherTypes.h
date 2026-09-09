@@ -13,6 +13,13 @@
 #define TT_WEATHER_DAYS            6
 #define TT_WEATHER_FORECAST_OFFSET 1
 #define TT_WEATHER_ICON_PATH_MAX  64
+#define TT_WEATHER_STALE_MS       (15 * 60 * 1000)
+#define TT_WEATHER_HTTP_TIMEOUT_MS  15000
+#define TT_WEATHER_URL_MAX        768
+#define TT_WEATHER_JSON_BODY_MAX  16384
+#define TT_WEATHER_URL_SCHEME     "http"
+#define TT_WEATHER_FORECAST_HOST  "api.open-meteo.com"
+#define TT_WEATHER_AQI_HOST       "air-quality-api.open-meteo.com"
 
 enum TTWeatherState {
     TT_WEATHER_IDLE = 0,

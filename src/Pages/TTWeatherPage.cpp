@@ -6,7 +6,6 @@
 #include "../Base/TTInstance.h"
 #include "../Base/TTRtc.h"
 #include "../Base/TTTextButton.h"
-#include "../Tasks/TTWeatherTask.h"
 #include "../Base/TTNavigationBar.h"
 #include <Arduino.h>
 #include <EPDConfig.h>
@@ -160,17 +159,20 @@ void TTWeatherPage::buildContent(lv_obj_t* screen) {
     lv_obj_align_to(_feelsLabel, _tempLabel, LV_ALIGN_OUT_BOTTOM_LEFT, 0, 2);
 
     _condLabel = createPlainLabel(_content, font12, "");
+    lv_obj_set_width(_condLabel, TT_WEATHER_CITY_X - TT_WEATHER_TEMP_X - 4);
+    lv_label_set_long_mode(_condLabel, LV_LABEL_LONG_CLIP);
     lv_obj_align_to(_condLabel, _feelsLabel, LV_ALIGN_OUT_BOTTOM_LEFT, 0, 2);
 
-    _ageLabel = createPlainLabel(_content, font10, "--");
+    _ageLabel = createPlainLabel(_content, font10, "[--]");
     lv_obj_set_width(_ageLabel, TT_WEATHER_AGE_TEXT_W);
+    lv_label_set_long_mode(_ageLabel, LV_LABEL_LONG_CLIP);
     lv_obj_set_pos(_ageLabel, TT_WEATHER_CITY_X, TT_WEATHER_AGE_Y);
 
     _cityLabel = createPlainLabel(_content, font16, "");
-    lv_obj_set_width(_cityLabel, TT_WEATHER_CITY_W - TT_WEATHER_AGE_TEXT_W);
+    lv_obj_set_width(_cityLabel, TT_WEATHER_CITY_W);
     lv_obj_set_style_text_align(_cityLabel, LV_TEXT_ALIGN_RIGHT, 0);
     lv_label_set_long_mode(_cityLabel, LV_LABEL_LONG_DOT);
-    lv_obj_set_pos(_cityLabel, TT_WEATHER_CITY_X + TT_WEATHER_AGE_TEXT_W, TT_WEATHER_CITY_Y);
+    lv_obj_set_pos(_cityLabel, TT_WEATHER_CITY_X, TT_WEATHER_CITY_Y);
 
     for (int i = 0; i < TT_WEATHER_FORECAST_N; i++) {
         const int x = TT_WEATHER_FORECAST_COL_X(i);
@@ -296,14 +298,15 @@ void TTWeatherPage::setup() {
 void TTWeatherPage::willAppear() {
     TTScreenPage::willAppear();
     _visible = true;
-    TTWeatherTask& weather = TTInstanceOf<TTWeatherTask>();
-    if (weather.hasOk()) {
-        applyWeather(weather.lastPayload());
-    }
-    weather.requestFetchAsync(false);
+    requestFetch(false);
     if (_refreshHandle == 0) {
         _refreshHandle = runRepeat(TT_WEATHER_PAGE_REFRESH_MS, [this]() {
-            TTInstanceOf<TTWeatherTask>().requestFetchAsync(false);
+            requestFetch(false);
+        }, false);
+    }
+    if (_ageHandle == 0) {
+        _ageHandle = runRepeat(TT_WEATHER_AGE_TICK_MS, [this]() {
+            updateAge(true);
         }, false);
     }
 }
@@ -315,6 +318,10 @@ void TTWeatherPage::willDisappear() {
     if (_refreshHandle != 0) {
         cancelRepeat(_refreshHandle);
         _refreshHandle = 0;
+    }
+    if (_ageHandle != 0) {
+        cancelRepeat(_ageHandle);
+        _ageHandle = 0;
     }
 }
 
@@ -430,7 +437,7 @@ void TTWeatherPage::formatDate(char* out, size_t outMax) {
         }
         return;
     }
-    snprintf(out, outMax, "%s, %d月%d日", kDays[t.tm_wday], t.tm_mon + 1, t.tm_mday);
+    snprintf(out, outMax, "%s %d月%d日", kDays[t.tm_wday], t.tm_mon + 1, t.tm_mday);
 }
 
 void TTWeatherPage::bindDetails(const TTWeatherPayload& payload) {
@@ -785,20 +792,45 @@ void TTWeatherPage::onGraphDraw(lv_event_t* e) {
     }
 }
 
-void TTWeatherPage::bindAge(const TTWeatherPayload& payload) {
-    if (_ageLabel == nullptr) {
+void TTWeatherPage::bindAge(uint32_t fetchedAtMs) {
+    _fetchedAtMs = fetchedAtMs != 0 ? fetchedAtMs : millis();
+    if (_fetchedAtMs == 0) {
+        _fetchedAtMs = 1;
+    }
+    updateAge(false);
+}
+
+void TTWeatherPage::updateAge(bool refreshIfChanged) {
+    if (_ageLabel == nullptr || !_visible) {
         return;
     }
-    if (payload.fetchedAtMs == 0) {
-        lv_label_set_text(_ageLabel, "--");
+    const bool contentHidden = _content == nullptr
+        || lv_obj_has_flag(_content, LV_OBJ_FLAG_HIDDEN);
+    if (refreshIfChanged && contentHidden) {
         return;
     }
-    const uint32_t ageMs = millis() - payload.fetchedAtMs;
-    const int minutes = (int)(ageMs / 60000u);
-    char buf[16];
-    snprintf(buf, sizeof(buf), "%d分前", minutes);
+    char buf[24];
+    if (_fetchedAtMs == 0) {
+        strncpy(buf, "[--]", sizeof(buf) - 1);
+        buf[sizeof(buf) - 1] = '\0';
+    } else {
+        const int minutes = (int)((millis() - _fetchedAtMs) / 60000u);
+        if (minutes <= 0) {
+            strncpy(buf, "[刚刚]", sizeof(buf) - 1);
+            buf[sizeof(buf) - 1] = '\0';
+        } else {
+            snprintf(buf, sizeof(buf), "[%d分钟前]", minutes);
+        }
+    }
+    const char* cur = lv_label_get_text(_ageLabel);
+    if (cur != nullptr && strcmp(cur, buf) == 0) {
+        return;
+    }
     lv_label_set_text(_ageLabel, buf);
-    LOG_I("Weather page: refresh age=%d min", minutes);
+    LOG_I("Weather page: refresh age=%s", buf);
+    if (refreshIfChanged) {
+        requestRefresh(TT_REFRESH_PARTIAL);
+    }
 }
 
 void TTWeatherPage::bindOk(const TTWeatherPayload& payload) {
@@ -811,7 +843,7 @@ void TTWeatherPage::bindOk(const TTWeatherPayload& payload) {
         snprintf(cityLine, sizeof(cityLine), "%s", dateBuf);
     }
     lv_label_set_text(_cityLabel, cityLine);
-    bindAge(payload);
+    bindAge(payload.fetchedAtMs);
 
     char iconPath[TT_WEATHER_ICON_PATH_MAX];
     tt_weather_condition_path(iconPath, sizeof(iconPath), payload.current.weatherCode,
@@ -844,7 +876,7 @@ void TTWeatherPage::bindOk(const TTWeatherPayload& payload) {
 }
 
 void TTWeatherPage::forceRefresh() {
-    if (_forceRefreshing) {
+    if (_forceRefreshing || fetchBusy()) {
         LOG_I("Weather page: force refresh ignored (busy)");
         return;
     }
@@ -855,7 +887,7 @@ void TTWeatherPage::forceRefresh() {
     setMessage("正在刷新天气");
     requestRefresh(TT_REFRESH_PARTIAL);
     LOG_I("Weather page: force refresh");
-    TTInstanceOf<TTWeatherTask>().requestFetchAsync(true);
+    requestFetch(true);
 }
 
 bool TTWeatherPage::applyWeather(const TTWeatherPayload& payload) {
@@ -868,6 +900,7 @@ bool TTWeatherPage::applyWeather(const TTWeatherPayload& payload) {
         showContent(true);
         showEmpty(false);
         showSetupActions(false);
+        updateAge(false);
         return true;
     }
     if (payload.state == TT_WEATHER_FETCHING) {

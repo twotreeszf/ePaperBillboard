@@ -52,8 +52,9 @@
 #define TT_WEATHER_GRAPH_PAD_B    16
 #define TT_WEATHER_CITY_X         TT_WEATHER_GRAPH_X
 #define TT_WEATHER_CITY_W         TT_WEATHER_GRAPH_W
-#define TT_WEATHER_AGE_TEXT_W     40
+#define TT_WEATHER_AGE_TEXT_W     72
 #define TT_WEATHER_AGE_Y          (TT_WEATHER_CITY_Y + 3)
+#define TT_WEATHER_AGE_TICK_MS    (60 * 1000)
 #define TT_WEATHER_FORECAST_X     TT_WEATHER_GRAPH_X
 #define TT_WEATHER_FORECAST_COL_X(i) \
     (TT_WEATHER_FORECAST_X + (i) * TT_WEATHER_GRAPH_W / TT_WEATHER_FORECAST_N)
@@ -104,6 +105,8 @@ private:
     void bindDetails(const TTWeatherPayload& payload);
     void bindGraph(const TTWeatherPayload& payload);
     void forceRefresh();
+    void requestFetch(bool force);
+    static bool fetchBusy();
     void setMessage(const char* text);
     void showContent(bool show);
     void showEmpty(bool show);
@@ -116,7 +119,8 @@ private:
     void formatLocalHm(int64_t unixTime, char* out, size_t outMax);
     void formatWeekday(int64_t unixTime, char* out, size_t outMax);
     void formatDate(char* out, size_t outMax);
-    void bindAge(const TTWeatherPayload& payload);
+    void bindAge(uint32_t fetchedAtMs);
+    void updateAge(bool refreshIfChanged);
 
     lv_obj_t* _content = nullptr;
     lv_obj_t* _empty = nullptr;
@@ -151,5 +155,7 @@ private:
     TTWeatherDetailCell _details[TT_WEATHER_DETAIL_N];
     bool _visible = false;
     bool _forceRefreshing = false;
+    uint32_t _fetchedAtMs = 0;
     uint32_t _refreshHandle = 0;
+    uint32_t _ageHandle = 0;
 };
