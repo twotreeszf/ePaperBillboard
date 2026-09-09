@@ -70,7 +70,7 @@
                                    TT_WEATHER_AGE_ICON_GAP)
 #define TT_WEATHER_AGE_Y          (TT_WEATHER_TEMP_Y + TT_WEATHER_TEXT_STACK_H + \
                                    TT_WEATHER_TEXT_STACK_GAP)
-#define TT_WEATHER_AGE_ICON_Y     (TT_WEATHER_AGE_Y + 2)
+#define TT_WEATHER_AGE_ICON_Y     (TT_WEATHER_AGE_Y + 3)
 #define TT_WEATHER_AGE_OK_SRC     "/icons/weather/check_8.i1"
 #define TT_WEATHER_AGE_FAIL_SRC   "/icons/weather/cross_8.i1"
 #define TT_WEATHER_AGE_TICK_MS    (60 * 1000)
