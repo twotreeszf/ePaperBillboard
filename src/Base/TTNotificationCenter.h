@@ -34,8 +34,22 @@ template<typename PayloadType>
 void TTNotificationCenter::sendNotification(const char* name, const PayloadType& payload) {
     std::map<std::string, std::vector<std::pair<void*, Handler>>>::iterator it = _handlers.find(name);
     if (it == _handlers.end()) return;
+    std::vector<std::pair<void*, Handler>> snapshot = it->second;
     const void* p = &payload;
-    for (size_t i = 0; i < it->second.size(); i++) {
-        it->second[i].second(p);
+    for (size_t i = 0; i < snapshot.size(); i++) {
+        it = _handlers.find(name);
+        if (it == _handlers.end()) {
+            return;
+        }
+        bool still = false;
+        for (size_t j = 0; j < it->second.size(); j++) {
+            if (it->second[j].first == snapshot[i].first) {
+                still = true;
+                break;
+            }
+        }
+        if (still) {
+            snapshot[i].second(p);
+        }
     }
 }

@@ -1,4 +1,5 @@
 #include "TTUITask.h"
+#include "TTWeatherTask.h"
 #include "../Pages/TTHomePage.h"
 #include <SPI.h>
 #include <LittleFS.h>
@@ -20,12 +21,13 @@ void TTUITask::setup() {
     _display.init(115200, true, 2, false, SPI, SPISettings(4000000, MSBFIRST, SPI_MODE0));
 
     ERR_CHECK_FAIL(LittleFS.begin());
-    LOG_I("LittleFS initialized");
-
-    ERR_CHECK_FAIL(TTFontManager::instance().begin());
+    LOG_I("LittleFS initialized, heap=%u", (unsigned)ESP.getFreeHeap());
 
     LOG_I("Initializing LVGL...");
     ERR_CHECK_FAIL(TTInstanceOf<TTLvglEpdDriver>().begin(_display));
+
+    ERR_CHECK_FAIL(TTFontManager::instance().begin());
+    LOG_I("Fonts ready, heap=%u", (unsigned)ESP.getFreeHeap());
     TTInstanceOf<TTPopupLayer>().begin(TTInstanceOf<TTLvglEpdDriver>().getDisplay());
 
     lv_display_t* disp = TTInstanceOf<TTLvglEpdDriver>().getDisplay();
@@ -36,7 +38,8 @@ void TTUITask::setup() {
 
     _nav.setRootPage(std::unique_ptr<TTScreenPage>(new TTHomePage()));
 
-    LOG_I("UI task started.");
+    TTInstanceOf<TTWeatherTask>().start(1, TT_WEATHER_LOOP_DELAY_MS);
+    LOG_I("UI task started, heap=%u", (unsigned)ESP.getFreeHeap());
 }
 
 void TTUITask::requestDeepRefreshAsync() {

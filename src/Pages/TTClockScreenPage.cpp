@@ -43,7 +43,7 @@ void TTClockScreenPage::buildContent(lv_obj_t* screen) {
     lv_obj_align(_timeLabel, LV_ALIGN_CENTER, 0, 0);
 
     lv_obj_t* timeIcon = tt_stream_image_create(screen);
-    tt_stream_image_set_src(timeIcon, "/icons/clock_sm.png");
+    tt_stream_image_set_src(timeIcon, "/icons/clock_sm.i1");
     lv_obj_align_to(timeIcon, timeContainer, LV_ALIGN_OUT_LEFT_MID, -6, 0);
 }
 

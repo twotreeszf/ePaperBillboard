@@ -44,7 +44,7 @@ bool TTPreference::get(const char* key, T& outValue, const T& defaultValue) {
         ERR_CHECK_RET(_load());
     }
     
-    if (!_doc.containsKey(key)) {
+    if (!_doc[key].template is<T>()) {
         outValue = defaultValue;
         return true;
     }

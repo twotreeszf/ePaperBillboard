@@ -6,10 +6,10 @@
 #include <Adafruit_GFX.h>
 #include <lvgl.h>
 
-// Maximum glyph bitmap size for A8 format (48x48 = 2304 bytes)
-#define TT_FONT_GLYPH_BUF_SIZE 2304
-
-#define TT_FONT_GLYPH_CACHE_MAX 1000
+#define TT_FONT_GLYPH_BUF_SIZE    2304
+#define TT_FONT_FILE_BUF_SIZE     256
+#define TT_FONT_CMAP_RECORD_SIZE  16
+#define TT_FONT_GLYPH_CACHE_MAX   1000
 
 class TTFontLoader {
 public:
@@ -80,7 +80,6 @@ private:
             uint16_t entriesCount;
             uint8_t type;
         };
-        CMAPSubtable* cmaps = nullptr;
         uint16_t cmapCount = 0;
         
         // Bit-stream reader state
@@ -99,10 +98,7 @@ private:
     bool _glyphCacheGet(uint32_t unicode, GlyphInfo& info);
     void _glyphCachePut(uint32_t unicode, const GlyphInfo& info);
 
-    // Shared LVGL font structure and glyph buffer
     lv_font_t _lvFont;
-    uint8_t _glyphBuf[TT_FONT_GLYPH_BUF_SIZE];
-    lv_draw_buf_t _drawBuf;
 
     // For compatibility with _head access
     decltype(_main.head)& _head = _main.head;
@@ -113,6 +109,7 @@ private:
     
     // Font data access helpers
     bool _seekToTable(FontData& fd, const char* tag);
+    bool _readCmapSubtable(FontData& fd, uint16_t index, FontData::CMAPSubtable& out);
     uint32_t _getGlyphID(FontData& fd, uint32_t unicode);
     uint32_t _getGlyphOffset(FontData& fd, uint32_t glyphId);
     uint32_t _readBits(FontData& fd, uint8_t bits);

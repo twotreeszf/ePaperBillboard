@@ -24,6 +24,10 @@
    MEMORY SETTINGS
  *====================*/
 
+#define LV_USE_STDLIB_MALLOC    LV_STDLIB_CLIB
+#define LV_USE_STDLIB_STRING    LV_STDLIB_CLIB
+#define LV_USE_STDLIB_SPRINTF   LV_STDLIB_CLIB
+
 /* Size of the memory available for `lv_malloc()` in bytes (>= 2kB) */
 #define LV_MEM_SIZE (32 * 1024U)
 
@@ -174,7 +178,7 @@
 #define LV_USE_KEYBOARD   0
 #define LV_USE_LABEL      1  /* Required for text display */
 #define LV_USE_LED        0
-#define LV_USE_LINE       0
+#define LV_USE_LINE       1
 #define LV_USE_LIST       0
 #define LV_USE_MENU       0
 #define LV_USE_MSGBOX     0

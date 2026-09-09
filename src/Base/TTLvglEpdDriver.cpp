@@ -63,10 +63,15 @@ bool TTLvglEpdDriver::begin(EPaperDisplay& display) {
     lv_display_set_color_format(_lvDisplay, LV_COLOR_FORMAT_I1);
 
     if (_drawBuf == nullptr) {
+        LOG_I("LVGL alloc %u bytes, heap=%u largest=%u",
+              (unsigned)EPD_BUF_SIZE, (unsigned)ESP.getFreeHeap(),
+              (unsigned)heap_caps_get_largest_free_block(MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT));
         _drawBuf = (uint8_t*)heap_caps_aligned_alloc(4, EPD_BUF_SIZE, MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT);
     }
     if (_drawBuf == nullptr) {
-        LOG_E("Failed to allocate LVGL draw buffer (%u bytes)", (unsigned)EPD_BUF_SIZE);
+        LOG_E("Failed to allocate LVGL draw buffer (%u bytes), heap=%u largest=%u",
+              (unsigned)EPD_BUF_SIZE, (unsigned)ESP.getFreeHeap(),
+              (unsigned)heap_caps_get_largest_free_block(MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT));
         return false;
     }
 

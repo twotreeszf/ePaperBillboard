@@ -11,7 +11,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { Resvg } from "@resvg/resvg-js";
-import { PNG } from "pngjs";
+import { maskToI1 } from "./write_i1.mjs";
 
 const require = createRequire(import.meta.url);
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -106,24 +106,6 @@ function scaleMaskNearest(mask, width, height, destW, destH) {
   return { mask: out, width: destW, height: destH };
 }
 
-function maskToPng(mask, width, height) {
-  const png = new PNG({
-    width,
-    height,
-    colorType: 6,
-    inputColorType: 6,
-    inputHasAlpha: true,
-  });
-  for (let i = 0; i < width * height; i++) {
-    const o = i * 4;
-    const ink = mask[i] ? 0 : 255;
-    png.data[o] = ink;
-    png.data[o + 1] = ink;
-    png.data[o + 2] = ink;
-    png.data[o + 3] = 255;
-  }
-  return PNG.sync.write(png, { colorType: 6, inputHasAlpha: true });
-}
 
 function sliceIcon(entry, svgDir, outputDir) {
   const destW = entry.width ?? entry.size;
@@ -161,12 +143,12 @@ function sliceIcon(entry, svgDir, outputDir) {
     sliced = cropMask(sliced.mask, sliced.width, sliced.height);
   }
   sliced = scaleMaskNearest(sliced.mask, sliced.width, sliced.height, destW, destH);
-  const png = maskToPng(sliced.mask, sliced.width, sliced.height);
+  const i1 = maskToI1(sliced.mask, sliced.width, sliced.height);
   const outPath = path.join(outputDir, entry.file);
-  fs.writeFileSync(outPath, png);
+  fs.writeFileSync(outPath, i1);
   console.log(
     `sliced ${entry.id} -> ${path.relative(path.join(__dirname, "../.."), outPath)} ` +
-      `(${sliced.width}x${sliced.height}, ${png.length} bytes)`
+      `(${sliced.width}x${sliced.height}, ${i1.length} bytes)`
   );
 }
 

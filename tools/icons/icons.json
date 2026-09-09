@@ -5,128 +5,45 @@
   "icons": [
     {
       "id": "globe",
-      "file": "globe.png",
+      "file": "globe.i1",
       "size": 48,
       "strokeWidth": 1.5
     },
     {
       "id": "wifi",
-      "file": "wifi.png",
+      "file": "wifi.i1",
       "size": 48,
       "strokeWidth": 1.5
     },
     {
       "id": "clock",
-      "file": "clock.png",
+      "file": "clock.i1",
       "size": 48,
       "strokeWidth": 1.5
     },
     {
       "id": "clock-arrow-up",
-      "file": "ntp.png",
+      "file": "ntp.i1",
       "size": 48,
       "strokeWidth": 1.5
     },
     {
       "id": "clock",
-      "file": "clock_sm.png",
+      "file": "clock_sm.i1",
       "size": 32,
       "strokeWidth": 1.5
     },
     {
       "id": "settings",
-      "file": "settings.png",
+      "file": "settings.i1",
       "size": 48,
       "strokeWidth": 1.5
     },
     {
       "id": "chevron-left",
-      "file": "back.png",
+      "file": "back.i1",
       "size": 14,
       "strokeWidth": 1.75
     }
-  ],
-  "pixelart": {
-    "source": "https://pixelarticons.com/",
-    "icons": [
-      {
-        "id": "battery",
-        "file": "battery_sm.png",
-        "width": 18,
-        "height": 12
-      },
-      {
-        "id": "battery-low",
-        "file": "battery_low_sm.png",
-        "width": 18,
-        "height": 12
-      },
-      {
-        "id": "battery-medium",
-        "file": "battery_medium_sm.png",
-        "width": 18,
-        "height": 12
-      },
-      {
-        "id": "battery-full",
-        "file": "battery_full_sm.png",
-        "width": 18,
-        "height": 12
-      },
-      {
-        "id": "battery-plus",
-        "file": "battery_charging_sm.png",
-        "width": 18,
-        "height": 12
-      },
-      {
-        "id": "plug",
-        "file": "plug_sm.png",
-        "width": 16,
-        "height": 12
-      },
-      {
-        "id": "wifi-on",
-        "file": "wifi_sm.png",
-        "width": 16,
-        "height": 12
-      },
-      {
-        "id": "wifi-off",
-        "file": "wifi_off_sm.png",
-        "width": 16,
-        "height": 12
-      },
-      {
-        "id": "wifi-wait",
-        "file": "wifi_wait_sm.png",
-        "width": 16,
-        "height": 12
-      },
-      {
-        "id": "wifi-ap",
-        "file": "wifi_ap_sm.png",
-        "width": 16,
-        "height": 12
-      },
-      {
-        "id": "temp",
-        "file": "temp_sm.png",
-        "width": 9,
-        "height": 12
-      },
-      {
-        "id": "humidity",
-        "file": "humidity_sm.png",
-        "width": 9,
-        "height": 12
-      },
-      {
-        "id": "pressure",
-        "file": "pressure_sm.png",
-        "width": 10,
-        "height": 12
-      }
-    ]
-  }
+  ]
 }

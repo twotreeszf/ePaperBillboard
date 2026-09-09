@@ -54,12 +54,34 @@ void TTNavigationBar::begin(lv_obj_t* parent, ITTNavigationController* nav) {
     tt_stream_image_set_src(arrow, TT_NAV_BACK_ICON);
     lv_obj_center(arrow);
 
-    _title = lv_label_create(_bar);
+    _titleBox = lv_obj_create(_bar);
+    lv_obj_set_size(_titleBox, LV_SIZE_CONTENT, LV_SIZE_CONTENT);
+    lv_obj_set_style_bg_opa(_titleBox, LV_OPA_TRANSP, 0);
+    lv_obj_set_style_border_width(_titleBox, 0, 0);
+    lv_obj_set_style_pad_all(_titleBox, 0, 0);
+    lv_obj_set_style_radius(_titleBox, 0, 0);
+    lv_obj_set_layout(_titleBox, LV_LAYOUT_FLEX);
+    lv_obj_set_flex_flow(_titleBox, LV_FLEX_FLOW_ROW);
+    lv_obj_set_flex_align(_titleBox, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
+    lv_obj_set_style_pad_column(_titleBox, TT_NAV_TITLE_BRACKET_GAP, 0);
+    lv_obj_remove_flag(_titleBox, LV_OBJ_FLAG_SCROLLABLE);
+
+    lv_obj_t* leftBracket = lv_label_create(_titleBox);
+    lv_label_set_text(leftBracket, "[");
+    lv_obj_set_style_text_color(leftBracket, lv_color_black(), 0);
+    lv_obj_set_style_text_font(leftBracket, font, 0);
+
+    _title = lv_label_create(_titleBox);
     lv_label_set_text(_title, "");
     lv_obj_set_style_text_color(_title, lv_color_black(), 0);
     lv_obj_set_style_text_font(_title, font, 0);
     lv_obj_set_style_text_align(_title, LV_TEXT_ALIGN_LEFT, 0);
     lv_label_set_long_mode(_title, LV_LABEL_LONG_DOT);
+
+    lv_obj_t* rightBracket = lv_label_create(_titleBox);
+    lv_label_set_text(rightBracket, "]");
+    lv_obj_set_style_text_color(rightBracket, lv_color_black(), 0);
+    lv_obj_set_style_text_font(rightBracket, font, 0);
 
     beginStatus(TTFontManager::instance().getFont(TT_NAV_STATUS_FONT));
 
@@ -124,7 +146,7 @@ lv_obj_t* TTNavigationBar::createSensorItem(lv_obj_t* parent, lv_font_t* font, c
 
     lv_obj_t* icon = createIcon(group, iconPath, iconW, TT_NAV_SENSOR_ICON_H);
     lv_obj_set_style_pad_all(icon, 0, 0);
-    lv_obj_set_style_translate_y(icon, TT_NAV_WIFI_ICON_Y, 0);
+    lv_obj_set_style_translate_y(icon, TT_NAV_SENSOR_ICON_Y, 0);
 
     lv_obj_t* label = createValue(group, font, placeholder);
     lv_obj_set_style_pad_all(label, 0, 0);
@@ -147,7 +169,7 @@ void TTNavigationBar::createBatteryStatus(lv_obj_t* parent, lv_font_t* font) {
 
     _batteryIcon = createIcon(group, TT_NAV_ICON_BATTERY_EMPTY, TT_NAV_BATTERY_ICON_W, TT_NAV_BATTERY_ICON_H);
     lv_obj_set_style_pad_all(_batteryIcon, 0, 0);
-    lv_obj_set_style_translate_y(_batteryIcon, TT_NAV_WIFI_ICON_Y, 0);
+    lv_obj_set_style_translate_y(_batteryIcon, TT_NAV_SENSOR_ICON_Y, 0);
 
     _batteryLabel = createValue(group, font, "--%");
     lv_obj_set_style_pad_all(_batteryLabel, 0, 0);
@@ -187,9 +209,7 @@ void TTNavigationBar::subscribeStatus() {
 
 void TTNavigationBar::show(const char* title, bool showBack) {
     if (_bar == nullptr) return;
-    char titled[TT_NAV_TITLE_MAX];
-    snprintf(titled, sizeof(titled), "[%s]", title != nullptr ? title : "");
-    lv_label_set_text(_title, titled);
+    lv_label_set_text(_title, title != nullptr ? title : "");
     if (showBack) {
         lv_obj_remove_flag(_backBtn, LV_OBJ_FLAG_HIDDEN);
     } else {
@@ -202,25 +222,34 @@ void TTNavigationBar::show(const char* title, bool showBack) {
 }
 
 void TTNavigationBar::layoutTitle(bool showBack) {
-    if (_title == nullptr) return;
+    if (_titleBox == nullptr || _title == nullptr) return;
 
     if (showBack) {
-        lv_obj_align_to(_title, _backBtn, LV_ALIGN_OUT_RIGHT_MID, TT_NAV_BAR_PAD, 0);
+        lv_obj_align_to(_titleBox, _backBtn, LV_ALIGN_OUT_RIGHT_MID, TT_NAV_BAR_PAD, 0);
     } else {
-        lv_obj_align(_title, LV_ALIGN_LEFT_MID, TT_NAV_BAR_PAD, TT_NAV_BAR_CONTENT_Y);
+        lv_obj_align(_titleBox, LV_ALIGN_LEFT_MID, TT_NAV_BAR_PAD, TT_NAV_BAR_CONTENT_Y);
     }
 
     if (_statusRow != nullptr) {
         lv_obj_update_layout(_statusRow);
+        lv_obj_update_layout(_titleBox);
         const int32_t left = showBack
             ? (TT_NAV_BAR_PAD + TT_NAV_ARROW_W + TT_NAV_BAR_PAD)
             : TT_NAV_BAR_PAD;
         const int32_t statusW = lv_obj_get_width(_statusRow);
-        int32_t maxTitle = EPD_WIDTH - left - statusW - TT_NAV_BAR_PAD * 2;
+        lv_obj_t* leftBracket = lv_obj_get_child(_titleBox, 0);
+        lv_obj_t* rightBracket = lv_obj_get_child(_titleBox, 2);
+        const int32_t bracketW = lv_obj_get_width(leftBracket) + lv_obj_get_width(rightBracket)
+            + TT_NAV_TITLE_BRACKET_GAP * 2;
+        int32_t maxTitle = EPD_WIDTH - left - statusW - TT_NAV_BAR_PAD * 2 - bracketW;
         if (maxTitle < 24) {
             maxTitle = 24;
         }
-        lv_obj_set_width(_title, maxTitle);
+        lv_obj_set_width(_title, LV_SIZE_CONTENT);
+        lv_obj_update_layout(_title);
+        if (lv_obj_get_width(_title) > maxTitle) {
+            lv_obj_set_width(_title, maxTitle);
+        }
     }
 }
 

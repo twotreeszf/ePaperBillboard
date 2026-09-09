@@ -31,7 +31,7 @@ bool TTPreference::remove(const char* key) {
         ERR_CHECK_RET(_load());
     }
     
-    if (!_doc.containsKey(key)) {
+    if (_doc[key].isNull()) {
         return true;
     }
     

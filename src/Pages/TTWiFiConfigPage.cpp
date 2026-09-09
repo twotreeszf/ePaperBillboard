@@ -55,7 +55,9 @@ void TTWiFiConfigPage::setup() {
         TT_NOTIFICATION_WIFI_STATUS,
         [this](const TTWiFiStatusPayload& status) {
             applyStatus(status);
-            requestRefresh(TT_REFRESH_PARTIAL);
+            if (_visible) {
+                requestRefresh(TT_REFRESH_PARTIAL);
+            }
         });
 }
 
@@ -86,9 +88,12 @@ void TTWiFiConfigPage::applyStatus(const TTWiFiStatusPayload& status) {
     if (status.state == TT_WIFI_LINK_CONNECTED) {
         LOG_I("WiFi page: config done, leave");
         hideProvisionQr();
-        if (getNavigationController() != nullptr) {
-            getNavigationController()->pop();
-        }
+        _visible = false;
+        runOnce(0, [this]() {
+            if (getNavigationController() != nullptr) {
+                getNavigationController()->pop();
+            }
+        });
         return;
     }
     if (status.state == TT_WIFI_LINK_CONNECTING) {

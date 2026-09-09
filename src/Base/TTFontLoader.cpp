@@ -1,6 +1,9 @@
 #include "TTFontLoader.h"
 #include "Base/Logger.h"
 
+static uint8_t s_glyphBuf[TT_FONT_GLYPH_BUF_SIZE];
+static lv_draw_buf_t s_drawBuf;
+
 bool TTFontLoader::_seekToTable(FontData& fd, const char* tag) {
     fd.file.seek(0);
     while (fd.file.available() >= 8) {
@@ -18,8 +21,12 @@ bool TTFontLoader::_seekToTable(FontData& fd, const char* tag) {
 bool TTFontLoader::_loadFontData(FontData& fd, const char* path) {
     fd.file = LittleFS.open(path, "r");
     if (!fd.file) return false;
+    if (!fd.file.setBufferSize(TT_FONT_FILE_BUF_SIZE)) {
+        LOG_W("Font: setBufferSize(%u) failed %s", (unsigned)TT_FONT_FILE_BUF_SIZE, path);
+    } else {
+        LOG_I("Font: open %s buf=%u", path, (unsigned)TT_FONT_FILE_BUF_SIZE);
+    }
 
-    // 1. Parse HEAD
     if (!_seekToTable(fd, "head")) return false;
     uint32_t headStart = fd.file.position() - 8;
     fd.file.seek(headStart + 8 + 8);
@@ -43,16 +50,6 @@ bool TTFontLoader::_loadFontData(FontData& fd, const char* path) {
     uint32_t subtablesCount;
     fd.file.read((uint8_t*)&subtablesCount, 4);
     fd.cmapCount = (uint16_t)subtablesCount;
-    fd.cmaps = new FontData::CMAPSubtable[fd.cmapCount];
-    for (int i = 0; i < fd.cmapCount; i++) {
-        fd.file.read((uint8_t*)&fd.cmaps[i].dataOffset, 4);
-        fd.file.read((uint8_t*)&fd.cmaps[i].startUnicode, 4);
-        fd.file.read((uint8_t*)&fd.cmaps[i].length, 2);
-        fd.file.read((uint8_t*)&fd.cmaps[i].glyphIdOffset, 2);
-        fd.file.read((uint8_t*)&fd.cmaps[i].entriesCount, 2);
-        fd.file.read(&fd.cmaps[i].type, 1);
-        fd.file.seek(fd.file.position() + 1);
-    }
 
     // 3. Locate tables
     if (_seekToTable(fd, "loca")) fd.locaOffset = fd.file.position() - 8;
@@ -62,12 +59,25 @@ bool TTFontLoader::_loadFontData(FontData& fd, const char* path) {
 }
 
 void TTFontLoader::_freeFontData(FontData& fd) {
-    if (fd.cmaps) {
-        delete[] fd.cmaps;
-        fd.cmaps = nullptr;
-    }
     fd.cmapCount = 0;
     fd.file.close();
+}
+
+bool TTFontLoader::_readCmapSubtable(FontData& fd, uint16_t index, FontData::CMAPSubtable& out) {
+    if (index >= fd.cmapCount) {
+        return false;
+    }
+    const uint32_t recOff = fd.cmapOffset + 12 + (uint32_t)index * TT_FONT_CMAP_RECORD_SIZE;
+    if (!fd.file.seek(recOff)) {
+        return false;
+    }
+    if (fd.file.read((uint8_t*)&out.dataOffset, 4) != 4) return false;
+    if (fd.file.read((uint8_t*)&out.startUnicode, 4) != 4) return false;
+    if (fd.file.read((uint8_t*)&out.length, 2) != 2) return false;
+    if (fd.file.read((uint8_t*)&out.glyphIdOffset, 2) != 2) return false;
+    if (fd.file.read((uint8_t*)&out.entriesCount, 2) != 2) return false;
+    if (fd.file.read(&out.type, 1) != 1) return false;
+    return true;
 }
 
 void TTFontLoader::_glyphCacheClear() {
@@ -132,27 +142,40 @@ void TTFontLoader::end() {
 }
 
 uint32_t TTFontLoader::_getGlyphID(FontData& fd, uint32_t unicode) {
-    for (int i = 0; i < fd.cmapCount; i++) {
-        if (unicode >= fd.cmaps[i].startUnicode && 
-            unicode < fd.cmaps[i].startUnicode + fd.cmaps[i].length) {
-            uint32_t offset = unicode - fd.cmaps[i].startUnicode;
-            uint32_t dataBase = fd.cmapOffset + fd.cmaps[i].dataOffset;
-            
-            if (fd.cmaps[i].type == 0 || fd.cmaps[i].type == 2) {
-                if (fd.cmaps[i].type == 2) return fd.cmaps[i].glyphIdOffset + offset;
-                fd.file.seek(dataBase + offset);
-                return fd.cmaps[i].glyphIdOffset + fd.file.read();
-            } else if (fd.cmaps[i].type == 1 || fd.cmaps[i].type == 3) {
-                for (uint16_t j = 0; j < fd.cmaps[i].entriesCount; j++) {
-                    fd.file.seek(dataBase + j * 2);
-                    uint16_t diff; fd.file.read((uint8_t*)&diff, 2);
-                    if (diff == offset) {
-                        if (fd.cmaps[i].type == 3) return fd.cmaps[i].glyphIdOffset + j;
-                        fd.file.seek(dataBase + fd.cmaps[i].entriesCount * 2 + j * 2);
-                        uint16_t gid; fd.file.read((uint8_t*)&gid, 2);
-                        return gid;
-                    }
+    FontData::CMAPSubtable cmap;
+    for (uint16_t i = 0; i < fd.cmapCount; i++) {
+        if (!_readCmapSubtable(fd, i, cmap)) {
+            return 0;
+        }
+        if (unicode < cmap.startUnicode ||
+            unicode >= cmap.startUnicode + cmap.length) {
+            continue;
+        }
+        const uint32_t offset = unicode - cmap.startUnicode;
+        const uint32_t dataBase = fd.cmapOffset + cmap.dataOffset;
+
+        if (cmap.type == 0 || cmap.type == 2) {
+            if (cmap.type == 2) {
+                return cmap.glyphIdOffset + offset;
+            }
+            fd.file.seek(dataBase + offset);
+            return cmap.glyphIdOffset + fd.file.read();
+        }
+        if (cmap.type == 1 || cmap.type == 3) {
+            for (uint16_t j = 0; j < cmap.entriesCount; j++) {
+                fd.file.seek(dataBase + j * 2);
+                uint16_t diff = 0;
+                fd.file.read((uint8_t*)&diff, 2);
+                if (diff != offset) {
+                    continue;
                 }
+                if (cmap.type == 3) {
+                    return cmap.glyphIdOffset + j;
+                }
+                fd.file.seek(dataBase + cmap.entriesCount * 2 + j * 2);
+                uint16_t gid = 0;
+                fd.file.read((uint8_t*)&gid, 2);
+                return gid;
             }
         }
     }
@@ -334,34 +357,31 @@ const void* TTFontLoader::lvglGetGlyphBitmap(lv_font_glyph_dsc_t* dsc, lv_draw_b
     if (!fd.file) return nullptr;
     
     uint32_t a8Size = info.box_w * info.box_h;
-    if (a8Size > sizeof(loader->_glyphBuf)) {
+    if (a8Size > sizeof(s_glyphBuf)) {
         LOG_E("Glyph too large: %ux%u = %u bytes", info.box_w, info.box_h, a8Size);
         return nullptr;
     }
-    
-    // Read bitmap from the correct font file
+
     fd.file.seek(info.glyfOffset);
     loader->_resetBitReader(fd);
     loader->_readBits(fd, info.bitmapBits);
-    
-    // Convert A1 to A8
-    uint8_t* dst = loader->_glyphBuf;
+
+    uint8_t* dst = s_glyphBuf;
     for (uint32_t i = 0; i < a8Size; i++) {
         uint8_t bit = loader->_readBits(fd, fd.head.bpp);
         *dst++ = bit ? 0xFF : 0x00;
     }
-    
-    // Setup draw buffer
-    memset(&loader->_drawBuf, 0, sizeof(loader->_drawBuf));
-    loader->_drawBuf.header.magic = LV_IMAGE_HEADER_MAGIC;
-    loader->_drawBuf.header.cf = LV_COLOR_FORMAT_A8;
-    loader->_drawBuf.header.w = info.box_w;
-    loader->_drawBuf.header.h = info.box_h;
-    loader->_drawBuf.header.stride = info.box_w;
-    loader->_drawBuf.data_size = a8Size;
-    loader->_drawBuf.data = loader->_glyphBuf;
-    
-    return &loader->_drawBuf;
+
+    memset(&s_drawBuf, 0, sizeof(s_drawBuf));
+    s_drawBuf.header.magic = LV_IMAGE_HEADER_MAGIC;
+    s_drawBuf.header.cf = LV_COLOR_FORMAT_A8;
+    s_drawBuf.header.w = info.box_w;
+    s_drawBuf.header.h = info.box_h;
+    s_drawBuf.header.stride = info.box_w;
+    s_drawBuf.data_size = a8Size;
+    s_drawBuf.data = s_glyphBuf;
+
+    return &s_drawBuf;
 }
 
 // LVGL callback: release glyph

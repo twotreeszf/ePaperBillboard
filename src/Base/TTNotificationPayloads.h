@@ -2,9 +2,12 @@
 
 #include <stdint.h>
 
+#include "TTWeatherTypes.h"
+
 #define TT_NOTIFICATION_SENSOR_DATA_UPDATE "TTNotify.SensorDataUpdate"
 #define TT_NOTIFICATION_WIFI_STATUS        "TTNotify.WiFiStatus"
 #define TT_NOTIFICATION_TIME_SYNC          "TTNotify.TimeSync"
+#define TT_NOTIFICATION_WEATHER            "TTNotify.Weather"
 
 #define TT_WIFI_SSID_MAX   32
 #define TT_WIFI_PASS_MAX   16

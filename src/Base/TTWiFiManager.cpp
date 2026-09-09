@@ -6,7 +6,25 @@
 #include "TTRtc.h"
 #include <ArduinoJson.h>
 #include <algorithm>
+#include <cmath>
 #include <cstring>
+#include <cstdlib>
+
+static bool tt_parse_coord(const String& text, float& out, float minV, float maxV) {
+    if (text.isEmpty()) {
+        return false;
+    }
+    char* end = nullptr;
+    const float value = strtof(text.c_str(), &end);
+    if (end == text.c_str() || (end != nullptr && *end != '\0')) {
+        return false;
+    }
+    if (!isfinite(value) || value < minV || value > maxV) {
+        return false;
+    }
+    out = value;
+    return true;
+}
 
 bool TTWiFiManager::tryConnectSaved() {
     String ssid;
@@ -248,17 +266,34 @@ void TTWiFiManager::_handleSave() {
     String password = _server.arg("password");
     String timezone = _server.arg("timezone");
     String label = _server.arg("timezone_label");
-    LOG_I("WiFi: portal save args=%d ssid_len=%u tz_len=%u label_len=%u",
-          _server.args(), (unsigned)ssid.length(), (unsigned)timezone.length(), (unsigned)label.length());
+    String weatherCity = _server.arg("weather_city");
+    String weatherLat = _server.arg("weather_lat");
+    String weatherLon = _server.arg("weather_lon");
+    LOG_I("WiFi: portal save args=%d ssid_len=%u tz_len=%u label_len=%u city_len=%u",
+          _server.args(), (unsigned)ssid.length(), (unsigned)timezone.length(),
+          (unsigned)label.length(), (unsigned)weatherCity.length());
     ssid.trim();
     timezone.trim();
     label.trim();
+    weatherCity.trim();
+    weatherLat.trim();
+    weatherLon.trim();
     if (ssid.isEmpty()) {
         _sendSaveResult(400, "保存失败", "Wi-Fi 名称不能为空");
         return;
     }
     if (timezone.isEmpty()) {
         _sendSaveResult(400, "保存失败", "请选择时区");
+        return;
+    }
+
+    float weatherLatVal = 0;
+    float weatherLonVal = 0;
+    const bool weatherHasCoord = !weatherLat.isEmpty() || !weatherLon.isEmpty();
+    if (weatherHasCoord
+        && (!tt_parse_coord(weatherLat, weatherLatVal, -90.0f, 90.0f)
+            || !tt_parse_coord(weatherLon, weatherLonVal, -180.0f, 180.0f))) {
+        _sendSaveResult(400, "保存失败", "请填写有效的纬度和经度");
         return;
     }
 
@@ -280,6 +315,18 @@ void TTWiFiManager::_handleSave() {
         _sendSaveResult(500, "保存失败", "时区保存失败");
         return;
     }
+
+    pref.set(PREF_WEATHER_CITY, weatherCity);
+    if (!weatherHasCoord) {
+        pref.remove(PREF_WEATHER_LAT);
+        pref.remove(PREF_WEATHER_LON);
+        LOG_I("Weather: cleared lat/lon city=%s", weatherCity.c_str());
+    } else {
+        pref.set(PREF_WEATHER_LAT, weatherLatVal);
+        pref.set(PREF_WEATHER_LON, weatherLonVal);
+        LOG_I("Weather: save city=%s lat=%.4f lon=%.4f", weatherCity.c_str(), weatherLatVal, weatherLonVal);
+    }
+    pref.sync();
 
     _sendSaveResult(200, "配置已保存", "热点即将关闭，设备正在连接 Wi-Fi。可以关闭此页面。");
     _applyAt = millis() + TT_WIFI_APPLY_DELAY_MS;
@@ -307,8 +354,22 @@ void TTWiFiManager::_handleStatus() {
     if (TTRtc::loadTimezoneLabel(label, sizeof(label))) {
         doc["label"] = label;
     }
-    LOG_I("WiFi: status fill ssid=%s password_len=%u tz=%s label=%s",
-          ssid.c_str(), (unsigned)password.length(), tz, label);
+
+    String weatherCity;
+    float weatherLat = NAN;
+    float weatherLon = NAN;
+    pref.get(PREF_WEATHER_CITY, weatherCity, String(""));
+    pref.get(PREF_WEATHER_LAT, weatherLat, NAN);
+    pref.get(PREF_WEATHER_LON, weatherLon, NAN);
+    doc["weather_city"] = weatherCity;
+    if (isfinite(weatherLat)) {
+        doc["weather_lat"] = weatherLat;
+    }
+    if (isfinite(weatherLon)) {
+        doc["weather_lon"] = weatherLon;
+    }
+    LOG_I("WiFi: status fill ssid=%s password_len=%u tz=%s label=%s city=%s",
+          ssid.c_str(), (unsigned)password.length(), tz, label, weatherCity.c_str());
     String result;
     serializeJson(doc, result);
     _server.send(200, "application/json", result);
@@ -362,7 +423,7 @@ String TTWiFiManager::_getHTMLContent() {
 <body>
     <div class="box">
         <h2>设备设置</h2>
-        <p class="tip">设置 Wi-Fi 和时区，点击完成配置后设备将关闭热点并以 STA 模式连接。</p>
+        <p class="tip">设置 Wi-Fi、时区和天气地点，点击完成配置后设备将关闭热点并以 STA 模式连接。</p>
         <form method="post" action="/save" onsubmit="return onSubmit()">
             <h3>Wi-Fi</h3>
             <label>名称</label>
@@ -379,6 +440,14 @@ String TTWiFiManager::_getHTMLContent() {
             <select id="city" onchange="applyCity()"></select>
             <input type="hidden" id="timezone" name="timezone" value="CST-8">
             <input type="hidden" id="timezone_label" name="timezone_label" value="上海">
+            <h3>天气</h3>
+            <p class="tip">城市名仅用于展示。纬度为负表示南纬，经度为负表示西经。</p>
+            <label>城市</label>
+            <input type="text" id="weather_city" name="weather_city" placeholder="例如 上海" maxlength="32">
+            <label>纬度</label>
+            <input type="text" id="weather_lat" name="weather_lat" placeholder="例如 31.2304" inputmode="decimal">
+            <label>经度</label>
+            <input type="text" id="weather_lon" name="weather_lon" placeholder="例如 121.4737" inputmode="decimal">
             <button type="submit">完成配置</button>
         </form>
     </div>
@@ -464,6 +533,15 @@ String TTWiFiManager::_getHTMLContent() {
             }
             if (status.timezone || status.label) {
                 selectCity(status.timezone || '', status.label || '');
+            }
+            if (status.weather_city) {
+                document.getElementById('weather_city').value = status.weather_city;
+            }
+            if (status.weather_lat !== undefined && status.weather_lat !== null) {
+                document.getElementById('weather_lat').value = status.weather_lat;
+            }
+            if (status.weather_lon !== undefined && status.weather_lon !== null) {
+                document.getElementById('weather_lon').value = status.weather_lon;
             }
         }
         function onSubmit() {

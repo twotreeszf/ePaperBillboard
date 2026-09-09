@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Slice Lucide icons (https://lucide.dev/) into high-contrast PNGs for e-paper.
+ * Slice Lucide icons (https://lucide.dev/) into uncompressed TTI1 bitmaps.
  *
  * Usage (from repo root or this directory):
  *   cd tools/icons && npm install && node slice_lucide_icons.mjs
@@ -14,7 +14,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { Resvg } from "@resvg/resvg-js";
-import { PNG } from "pngjs";
+import { maskToI1 } from "./write_i1.mjs";
 
 const require = createRequire(import.meta.url);
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -71,24 +71,6 @@ function averageDownsample2(rgba, width, height, threshold) {
   return { mask, width: outW, height: outH };
 }
 
-function maskToPng(mask, width, height) {
-  const png = new PNG({
-    width,
-    height,
-    colorType: 6,
-    inputColorType: 6,
-    inputHasAlpha: true,
-  });
-  for (let i = 0; i < width * height; i++) {
-    const o = i * 4;
-    const ink = mask[i] ? 0 : 255;
-    png.data[o] = ink;
-    png.data[o + 1] = ink;
-    png.data[o + 2] = ink;
-    png.data[o + 3] = 255;
-  }
-  return PNG.sync.write(png, { colorType: 6, inputHasAlpha: true });
-}
 
 function sliceIcon(entry, svgDir, outputDir) {
   const srcSvg = path.join(LUCIDE_ICONS_DIR, `${entry.id}.svg`);
@@ -112,12 +94,12 @@ function sliceIcon(entry, svgDir, outputDir) {
   }
 
   const mono = averageDownsample2(rendered.pixels, rendered.width, rendered.height, 96);
-  const png = maskToPng(mono.mask, mono.width, mono.height);
+  const i1 = maskToI1(mono.mask, mono.width, mono.height);
   const outPath = path.join(outputDir, entry.file);
-  fs.writeFileSync(outPath, png);
+  fs.writeFileSync(outPath, i1);
   console.log(
     `sliced ${entry.id} -> ${path.relative(path.join(__dirname, "../.."), outPath)} ` +
-      `(${mono.width}x${mono.height}, ${png.length} bytes)`
+      `(${mono.width}x${mono.height}, ${i1.length} bytes)`
   );
 }
 

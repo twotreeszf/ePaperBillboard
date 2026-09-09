@@ -23,9 +23,17 @@ void TTWiFiTask::loop() {
     if (now == _publishedState) {
         return;
     }
+    const bool becameConnected = (now == TT_WIFI_LINK_CONNECTED
+        && _publishedState != TT_WIFI_LINK_CONNECTED);
     const bool connectFailed = (_publishedState == TT_WIFI_LINK_CONNECTING && now == TT_WIFI_LINK_IDLE);
     const bool linkLost = (_publishedState == TT_WIFI_LINK_CONNECTED && now == TT_WIFI_LINK_IDLE);
     publishStatus();
+    if (becameConnected) {
+        cancelReconnect();
+        LOG_I("NTP: auto start after Wi-Fi connected");
+        startNtpSync();
+        return;
+    }
     if (now == TT_WIFI_LINK_CONNECTED || now == TT_WIFI_LINK_PROVISIONING
         || now == TT_WIFI_LINK_CONNECTING) {
         cancelReconnect();

@@ -37,7 +37,7 @@ void setup() {
     delay(100);
     LOG_I("");
     LOG_I("=================================");
-    LOG_I("E-Paper Clock Demo (LVGL Version)");
+    LOG_I("E-Paper Weather Clock (LVGL Version)");
     LOG_I("=================================");
 
     Util::printChipInfo();
