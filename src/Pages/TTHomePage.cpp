@@ -1,6 +1,5 @@
 #include "TTHomePage.h"
 #include "TTSettingsPage.h"
-#include "TTClockScreenPage.h"
 #include "TTWeatherPage.h"
 #include "../Base/TTFontManager.h"
 #include "../Base/TTStreamImage.h"
@@ -87,9 +86,6 @@ void TTHomePage::buildContent(lv_obj_t* screen) {
     MenuItem::create(&_items[0], container, this, "/icons/settings.i1", "设置", fontBtn,
         [this]() { getNavigationController()->pushPage(std::unique_ptr<TTScreenPage>(new TTSettingsPage())); });
 
-    MenuItem::create(&_items[1], container, this, "/icons/clock.i1", "时钟", fontBtn,
-        [this]() { getNavigationController()->pushPage(std::unique_ptr<TTScreenPage>(new TTClockScreenPage())); });
-
-    MenuItem::create(&_items[2], container, this, "/icons/weather.i1", "天气", fontBtn,
+    MenuItem::create(&_items[1], container, this, "/icons/weather.i1", "天气", fontBtn,
         [this]() { getNavigationController()->pushPage(std::unique_ptr<TTScreenPage>(new TTWeatherPage())); });
 }

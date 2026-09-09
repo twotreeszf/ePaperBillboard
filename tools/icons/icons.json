@@ -16,21 +16,9 @@
       "strokeWidth": 1.5
     },
     {
-      "id": "clock",
-      "file": "clock.i1",
-      "size": 48,
-      "strokeWidth": 1.5
-    },
-    {
       "id": "clock-arrow-up",
       "file": "ntp.i1",
       "size": 48,
-      "strokeWidth": 1.5
-    },
-    {
-      "id": "clock",
-      "file": "clock_sm.i1",
-      "size": 32,
       "strokeWidth": 1.5
     },
     {

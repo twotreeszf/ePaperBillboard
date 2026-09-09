@@ -32,5 +32,5 @@ protected:
     void buildContent(lv_obj_t* screen) override;
 
 private:
-    std::array<MenuItem, 3> _items;
+    std::array<MenuItem, 2> _items;
 };
