@@ -30,7 +30,7 @@ void TTNavigationBar::begin(lv_obj_t* parent, ITTNavigationController* nav) {
     lv_obj_add_flag(_bar, LV_OBJ_FLAG_FLOATING);
     lv_obj_set_size(_bar, EPD_WIDTH, TT_NAV_BAR_HEIGHT);
     lv_obj_align(_bar, LV_ALIGN_BOTTOM_LEFT, 0, 0);
-    lv_obj_set_style_bg_color(_bar, lv_color_white(), 0);
+    lv_obj_set_style_bg_color(_bar, TT_NAV_BAR_BG_COLOR, 0);
     lv_obj_set_style_bg_opa(_bar, LV_OPA_COVER, 0);
     lv_obj_set_style_border_width(_bar, 0, 0);
     lv_obj_set_style_pad_all(_bar, 0, 0);
@@ -52,6 +52,7 @@ void TTNavigationBar::begin(lv_obj_t* parent, ITTNavigationController* nav) {
 
     lv_obj_t* arrow = tt_stream_image_create(_backBtn);
     tt_stream_image_set_src(arrow, TT_NAV_BACK_ICON);
+    tt_stream_image_set_invert(arrow, true);
     lv_obj_center(arrow);
 
     _titleBox = lv_obj_create(_bar);
@@ -68,31 +69,25 @@ void TTNavigationBar::begin(lv_obj_t* parent, ITTNavigationController* nav) {
 
     lv_obj_t* leftBracket = lv_label_create(_titleBox);
     lv_label_set_text(leftBracket, "[");
-    lv_obj_set_style_text_color(leftBracket, lv_color_black(), 0);
+    lv_obj_set_style_text_color(leftBracket, TT_NAV_BAR_FG_COLOR, 0);
+    lv_obj_set_style_bg_opa(leftBracket, LV_OPA_TRANSP, 0);
     lv_obj_set_style_text_font(leftBracket, font, 0);
 
     _title = lv_label_create(_titleBox);
     lv_label_set_text(_title, "");
-    lv_obj_set_style_text_color(_title, lv_color_black(), 0);
+    lv_obj_set_style_text_color(_title, TT_NAV_BAR_FG_COLOR, 0);
+    lv_obj_set_style_bg_opa(_title, LV_OPA_TRANSP, 0);
     lv_obj_set_style_text_font(_title, font, 0);
     lv_obj_set_style_text_align(_title, LV_TEXT_ALIGN_LEFT, 0);
     lv_label_set_long_mode(_title, LV_LABEL_LONG_DOT);
 
     lv_obj_t* rightBracket = lv_label_create(_titleBox);
     lv_label_set_text(rightBracket, "]");
-    lv_obj_set_style_text_color(rightBracket, lv_color_black(), 0);
+    lv_obj_set_style_text_color(rightBracket, TT_NAV_BAR_FG_COLOR, 0);
+    lv_obj_set_style_bg_opa(rightBracket, LV_OPA_TRANSP, 0);
     lv_obj_set_style_text_font(rightBracket, font, 0);
 
     beginStatus(TTFontManager::instance().getFont(TT_NAV_STATUS_FONT));
-
-    lv_obj_t* divider = lv_obj_create(_bar);
-    lv_obj_set_size(divider, EPD_WIDTH, TT_NAV_DIVIDER_H);
-    lv_obj_align(divider, LV_ALIGN_TOP_LEFT, 0, TT_NAV_DIVIDER_Y);
-    lv_obj_set_style_bg_color(divider, lv_color_black(), 0);
-    lv_obj_set_style_bg_opa(divider, LV_OPA_COVER, 0);
-    lv_obj_set_style_border_width(divider, 0, 0);
-    lv_obj_set_style_pad_all(divider, 0, 0);
-    lv_obj_set_style_radius(divider, 0, 0);
 
     updateTime(false);
     subscribeStatus();
@@ -193,6 +188,7 @@ void TTNavigationBar::createBatteryStatus(lv_obj_t* parent, lv_font_t* font) {
 lv_obj_t* TTNavigationBar::createIcon(lv_obj_t* parent, const char* path, int32_t width, int32_t height) {
     lv_obj_t* icon = tt_stream_image_create(parent);
     tt_stream_image_set_src(icon, path);
+    tt_stream_image_set_invert(icon, true);
     lv_obj_set_size(icon, width, height < 0 ? width : height);
     return icon;
 }
@@ -200,7 +196,8 @@ lv_obj_t* TTNavigationBar::createIcon(lv_obj_t* parent, const char* path, int32_
 lv_obj_t* TTNavigationBar::createValue(lv_obj_t* parent, lv_font_t* font, const char* text) {
     lv_obj_t* label = lv_label_create(parent);
     lv_label_set_text(label, text);
-    lv_obj_set_style_text_color(label, lv_color_black(), 0);
+    lv_obj_set_style_text_color(label, TT_NAV_BAR_FG_COLOR, 0);
+    lv_obj_set_style_bg_opa(label, LV_OPA_TRANSP, 0);
     lv_obj_set_style_text_font(label, font, 0);
     return label;
 }

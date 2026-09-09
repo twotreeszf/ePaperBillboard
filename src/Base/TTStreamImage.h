@@ -24,5 +24,6 @@ typedef struct tt_stream_image_t tt_stream_image_t;
 
 lv_obj_t* tt_stream_image_create(lv_obj_t* parent);
 void tt_stream_image_set_src(lv_obj_t* obj, const char* path);
+void tt_stream_image_set_invert(lv_obj_t* obj, bool invert);
 
 extern const lv_obj_class_t tt_stream_image_class;

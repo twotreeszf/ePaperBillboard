@@ -29,6 +29,8 @@ struct tt_stream_image_t {
     int32_t img_w;
     int32_t img_h;
     tt_stream_image_cache_entry_t* entry;
+    uint8_t* invert_data;
+    bool invert;
 };
 
 static tt_stream_image_cache_entry_t* s_lru_head = nullptr;
@@ -49,6 +51,8 @@ static bool cache_load_i1(tt_stream_image_cache_entry_t* entry);
 static tt_stream_image_cache_entry_t* cache_acquire(const char* path, int32_t w, int32_t h);
 static void cache_release(tt_stream_image_cache_entry_t* entry);
 static void image_clear_src(tt_stream_image_t* img);
+static void image_free_invert(tt_stream_image_t* img);
+static void image_refresh_invert(tt_stream_image_t* img);
 
 const lv_obj_class_t tt_stream_image_class = {
     .base_class = &lv_obj_class,
@@ -115,7 +119,18 @@ void tt_stream_image_set_src(lv_obj_t* obj, const char* path) {
     }
     img->img_w = img->entry->img_w;
     img->img_h = img->entry->img_h;
+    image_refresh_invert(img);
     lv_obj_set_size(obj, img->img_w, img->img_h);
+    lv_obj_invalidate(obj);
+}
+
+void tt_stream_image_set_invert(lv_obj_t* obj, bool invert) {
+    tt_stream_image_t* img = (tt_stream_image_t*)obj;
+    if (img->invert == invert) {
+        return;
+    }
+    img->invert = invert;
+    image_refresh_invert(img);
     lv_obj_invalidate(obj);
 }
 
@@ -126,6 +141,8 @@ static void constructor(const lv_obj_class_t* class_p, lv_obj_t* obj) {
     img->img_w = 0;
     img->img_h = 0;
     img->entry = nullptr;
+    img->invert_data = nullptr;
+    img->invert = false;
     lv_obj_set_style_pad_all(obj, 0, 0);
     lv_obj_set_style_border_width(obj, 0, 0);
 }
@@ -135,7 +152,30 @@ static void destructor(const lv_obj_class_t* class_p, lv_obj_t* obj) {
     image_clear_src((tt_stream_image_t*)obj);
 }
 
+static void image_free_invert(tt_stream_image_t* img) {
+    if (img->invert_data != nullptr) {
+        heap_caps_free(img->invert_data);
+        img->invert_data = nullptr;
+    }
+}
+
+static void image_refresh_invert(tt_stream_image_t* img) {
+    image_free_invert(img);
+    if (!img->invert || img->entry == nullptr || img->entry->i1_data == nullptr) {
+        return;
+    }
+    img->invert_data = (uint8_t*)heap_caps_malloc(img->entry->i1_bytes, MALLOC_CAP_8BIT);
+    if (img->invert_data == nullptr) {
+        LOG_E("TTStreamImage: invert alloc failed %u bytes", (unsigned)img->entry->i1_bytes);
+        return;
+    }
+    for (size_t i = 0; i < img->entry->i1_bytes; i++) {
+        img->invert_data[i] = (uint8_t)~img->entry->i1_data[i];
+    }
+}
+
 static void image_clear_src(tt_stream_image_t* img) {
+    image_free_invert(img);
     if (img->entry != nullptr) {
         cache_release(img->entry);
         img->entry = nullptr;
@@ -366,9 +406,18 @@ static void draw_main(lv_event_t* e) {
     draw_buf.header.w = (uint32_t)entry->img_w;
     draw_buf.header.h = (uint32_t)entry->img_h;
     draw_buf.header.stride = entry->i1_stride;
+    uint8_t* pixels = entry->i1_data;
+    if (img->invert) {
+        if (img->invert_data == nullptr) {
+            image_refresh_invert(img);
+        }
+        if (img->invert_data != nullptr) {
+            pixels = img->invert_data;
+        }
+    }
     draw_buf.data_size = entry->i1_bytes;
-    draw_buf.data = entry->i1_data;
-    draw_buf.unaligned_data = entry->i1_data;
+    draw_buf.data = pixels;
+    draw_buf.unaligned_data = pixels;
     draw_buf.handlers = TTDrawBufPassthroughDecoder_get_handlers();
 
     lv_draw_image_dsc_t draw_dsc;
