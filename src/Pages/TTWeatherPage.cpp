@@ -343,6 +343,18 @@ void TTWeatherPage::buildContent(lv_obj_t* screen) {
         lv_label_set_long_mode(_details[i].label, LV_LABEL_LONG_DOT);
         lv_obj_set_pos(_details[i].label, textX, textY + TT_WEATHER_DETAIL_LINE_H);
     }
+    for (int i = 0; i < TT_WEATHER_DETAIL_DIV_N; i++) {
+        lv_obj_t* detailDiv = lv_obj_create(_content);
+        lv_obj_set_pos(detailDiv, TT_WEATHER_DETAIL_DIV_X, TT_WEATHER_DETAIL_DIV_Y(i));
+        lv_obj_set_size(detailDiv, TT_WEATHER_DETAIL_DIV_W, TT_WEATHER_DETAIL_DIV_H);
+        lv_obj_set_style_bg_opa(detailDiv, LV_OPA_TRANSP, 0);
+        lv_obj_set_style_border_width(detailDiv, 0, 0);
+        lv_obj_set_style_pad_all(detailDiv, 0, 0);
+        lv_obj_set_style_radius(detailDiv, 0, 0);
+        lv_obj_remove_flag(detailDiv, LV_OBJ_FLAG_SCROLLABLE);
+        lv_obj_remove_flag(detailDiv, LV_OBJ_FLAG_CLICKABLE);
+        lv_obj_add_event_cb(detailDiv, drawForecastDiv, LV_EVENT_DRAW_MAIN, nullptr);
+    }
 
     _graph = lv_obj_create(_content);
     lv_obj_set_pos(_graph, TT_WEATHER_GRAPH_X, TT_WEATHER_GRAPH_Y);
