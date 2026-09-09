@@ -81,7 +81,7 @@ static void drawForecastDivArc(lv_layer_t* layer, lv_draw_line_dsc_t* dsc,
     }
 }
 
-static void drawForecastDiv(lv_event_t* e) {
+static void drawLDiv(lv_event_t* e, bool roundRight) {
     lv_layer_t* layer = lv_event_get_layer(e);
     lv_obj_t* obj = (lv_obj_t*)lv_event_get_current_target(e);
     lv_area_t coords;
@@ -113,12 +113,26 @@ static void drawForecastDiv(lv_event_t* e) {
     }
 
     drawForecastDivArc(layer, &lineDsc, x1 + r, cy, 180.0f, 90.0f, r);
-    lineDsc.p1.x = (lv_value_precise_t)(x1 + r);
-    lineDsc.p2.x = (lv_value_precise_t)(x2 - r);
     lineDsc.p1.y = (lv_value_precise_t)y2;
     lineDsc.p2.y = (lv_value_precise_t)y2;
-    lv_draw_line(layer, &lineDsc);
-    drawForecastDivArc(layer, &lineDsc, x2 - r, cy, 90.0f, 0.0f, r);
+    if (roundRight) {
+        lineDsc.p1.x = (lv_value_precise_t)(x1 + r);
+        lineDsc.p2.x = (lv_value_precise_t)(x2 - r);
+        lv_draw_line(layer, &lineDsc);
+        drawForecastDivArc(layer, &lineDsc, x2 - r, cy, 90.0f, 0.0f, r);
+    } else {
+        lineDsc.p1.x = (lv_value_precise_t)(x1 + r);
+        lineDsc.p2.x = (lv_value_precise_t)x2;
+        lv_draw_line(layer, &lineDsc);
+    }
+}
+
+static void drawForecastDiv(lv_event_t* e) {
+    drawLDiv(e, true);
+}
+
+static void drawDetailDiv(lv_event_t* e) {
+    drawLDiv(e, false);
 }
 
 static int graphTickHour(int tick) {
@@ -241,9 +255,15 @@ void TTWeatherPage::buildContent(lv_obj_t* screen) {
     lv_obj_align_to(_feelsLabel, _tempLabel, LV_ALIGN_OUT_BOTTOM_LEFT, 0, TT_WEATHER_FEELS_GAP);
 
     _condLabel = createPlainLabel(_content, font16, "");
-    lv_obj_set_width(_condLabel, TT_WEATHER_CITY_X - TT_WEATHER_TEMP_X - 4);
+    lv_obj_set_style_text_color(_condLabel, lv_color_white(), 0);
+    lv_obj_set_style_bg_color(_condLabel, lv_color_black(), 0);
+    lv_obj_set_style_bg_opa(_condLabel, LV_OPA_COVER, 0);
+    lv_obj_set_style_radius(_condLabel, LV_RADIUS_CIRCLE, 0);
+    lv_obj_set_style_pad_hor(_condLabel, TT_WEATHER_COND_PAD_X, 0);
+    lv_obj_set_style_pad_ver(_condLabel, TT_WEATHER_COND_PAD_Y, 0);
     lv_label_set_long_mode(_condLabel, LV_LABEL_LONG_CLIP);
-    lv_obj_align_to(_condLabel, _feelsLabel, LV_ALIGN_OUT_BOTTOM_LEFT, 0, 2);
+    lv_obj_set_style_max_width(_condLabel, TT_WEATHER_CITY_X - TT_WEATHER_TEMP_X - 4, 0);
+    lv_obj_align_to(_condLabel, _feelsLabel, LV_ALIGN_OUT_BOTTOM_LEFT, 0, TT_WEATHER_TEXT_STACK_GAP);
 
     _ageIcon = tt_stream_image_create(_content);
     lv_obj_set_size(_ageIcon, TT_WEATHER_AGE_ICON, TT_WEATHER_AGE_ICON);
@@ -256,10 +276,15 @@ void TTWeatherPage::buildContent(lv_obj_t* screen) {
     lv_obj_set_pos(_ageLabel, TT_WEATHER_AGE_TEXT_X, TT_WEATHER_AGE_Y);
 
     _cityLabel = createPlainLabel(_content, font16, "");
-    lv_obj_set_width(_cityLabel, TT_WEATHER_CITY_W);
-    lv_obj_set_style_text_align(_cityLabel, LV_TEXT_ALIGN_RIGHT, 0);
+    lv_obj_set_style_text_color(_cityLabel, lv_color_white(), 0);
+    lv_obj_set_style_bg_color(_cityLabel, lv_color_black(), 0);
+    lv_obj_set_style_bg_opa(_cityLabel, LV_OPA_COVER, 0);
+    lv_obj_set_style_radius(_cityLabel, LV_RADIUS_CIRCLE, 0);
+    lv_obj_set_style_pad_hor(_cityLabel, TT_WEATHER_COND_PAD_X, 0);
+    lv_obj_set_style_pad_ver(_cityLabel, TT_WEATHER_COND_PAD_Y, 0);
     lv_label_set_long_mode(_cityLabel, LV_LABEL_LONG_DOT);
-    lv_obj_set_pos(_cityLabel, TT_WEATHER_CITY_X, TT_WEATHER_CITY_Y);
+    lv_obj_set_style_max_width(_cityLabel, TT_WEATHER_CITY_W, 0);
+    lv_obj_align(_cityLabel, LV_ALIGN_TOP_RIGHT, 0, TT_WEATHER_CITY_Y);
 
     for (int i = 0; i < TT_WEATHER_FORECAST_N; i++) {
         const int x = TT_WEATHER_FORECAST_COL_X(i);
@@ -353,7 +378,7 @@ void TTWeatherPage::buildContent(lv_obj_t* screen) {
         lv_obj_set_style_radius(detailDiv, 0, 0);
         lv_obj_remove_flag(detailDiv, LV_OBJ_FLAG_SCROLLABLE);
         lv_obj_remove_flag(detailDiv, LV_OBJ_FLAG_CLICKABLE);
-        lv_obj_add_event_cb(detailDiv, drawForecastDiv, LV_EVENT_DRAW_MAIN, nullptr);
+        lv_obj_add_event_cb(detailDiv, drawDetailDiv, LV_EVENT_DRAW_MAIN, nullptr);
     }
 
     _graph = lv_obj_create(_content);
@@ -991,6 +1016,7 @@ void TTWeatherPage::bindOk(const TTWeatherPayload& payload) {
         snprintf(cityLine, sizeof(cityLine), "%s", dateBuf);
     }
     lv_label_set_text(_cityLabel, cityLine);
+    lv_obj_align(_cityLabel, LV_ALIGN_TOP_RIGHT, 0, TT_WEATHER_CITY_Y);
     bindAge(payload.fetchedAtMs);
 
     char iconPath[TT_WEATHER_ICON_PATH_MAX];
@@ -1008,6 +1034,7 @@ void TTWeatherPage::bindOk(const TTWeatherPayload& payload) {
     snprintf(buf, sizeof(buf), "体感 %.0f°", payload.current.feelsLike);
     lv_label_set_text(_feelsLabel, buf);
     lv_label_set_text(_condLabel, tt_weather_condition_text(payload.current.weatherCode));
+    lv_obj_align_to(_condLabel, _feelsLabel, LV_ALIGN_OUT_BOTTOM_LEFT, 0, TT_WEATHER_TEXT_STACK_GAP);
 
     for (int i = 0; i < TT_WEATHER_FORECAST_N; i++) {
         const int day = i + TT_WEATHER_FORECAST_OFFSET;

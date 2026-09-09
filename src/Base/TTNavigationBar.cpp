@@ -117,10 +117,11 @@ void TTNavigationBar::beginStatus(lv_font_t* font) {
     lv_obj_remove_flag(_statusRow, LV_OBJ_FLAG_SCROLLABLE);
 
     createWifiStatus(_statusRow);
-    _tempLabel = createSensorItem(_statusRow, font, TT_NAV_ICON_TEMP, TT_NAV_TEMP_ICON_W, "--.-℃");
+    _tempLabel = createSensorItem(_statusRow, font, TT_NAV_ICON_TEMP, TT_NAV_TEMP_ICON_W, "--.-℃",
+                                  TT_NAV_TEMP_PREFIX);
     _humLabel = createSensorItem(_statusRow, font, TT_NAV_ICON_HUM, TT_NAV_HUM_ICON_W, "--%");
     _pressLabel = createSensorItem(_statusRow, font, TT_NAV_ICON_PRESS, TT_NAV_PRESS_ICON_W, "----p");
-    _timeLabel = createValue(_statusRow, font, "--/-- --:--");
+    _timeLabel = createValue(_statusRow, font, "--:--");
     createBatteryStatus(_statusRow, font);
 }
 
@@ -131,7 +132,7 @@ void TTNavigationBar::createWifiStatus(lv_obj_t* parent) {
 }
 
 lv_obj_t* TTNavigationBar::createSensorItem(lv_obj_t* parent, lv_font_t* font, const char* iconPath,
-                                            int32_t iconW, const char* placeholder) {
+                                            int32_t iconW, const char* placeholder, const char* prefix) {
     lv_obj_t* group = lv_obj_create(parent);
     lv_obj_set_size(group, LV_SIZE_CONTENT, LV_SIZE_CONTENT);
     lv_obj_set_style_bg_opa(group, LV_OPA_TRANSP, 0);
@@ -143,6 +144,19 @@ lv_obj_t* TTNavigationBar::createSensorItem(lv_obj_t* parent, lv_font_t* font, c
     lv_obj_set_flex_align(group, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
     lv_obj_set_style_pad_column(group, TT_NAV_SENSOR_ICON_GAP, 0);
     lv_obj_remove_flag(group, LV_OBJ_FLAG_SCROLLABLE);
+
+    if (prefix != nullptr && prefix[0] != '\0') {
+        lv_font_t* prefixFont = TTFontManager::instance().getFont(TT_NAV_TEMP_PREFIX_FONT);
+        lv_obj_t* prefixLabel = createValue(group, prefixFont, prefix);
+        lv_obj_set_style_pad_all(prefixLabel, 0, 0);
+        const int32_t valueH = lv_font_get_line_height(font);
+        const int32_t prefixH = lv_font_get_line_height(prefixFont);
+        lv_obj_set_height(prefixLabel, valueH);
+        if (valueH > prefixH) {
+            lv_obj_set_style_pad_top(prefixLabel, (valueH - prefixH) / 2, 0);
+        }
+        lv_obj_set_style_translate_y(prefixLabel, TT_NAV_TEMP_PREFIX_Y, 0);
+    }
 
     lv_obj_t* icon = createIcon(group, iconPath, iconW, TT_NAV_SENSOR_ICON_H);
     lv_obj_set_style_pad_all(icon, 0, 0);
@@ -377,7 +391,7 @@ void TTNavigationBar::updateTime(bool refreshIfChanged) {
     if (!TTInstanceOf<TTRtc>().getLocalTime(t)) {
         if (_lastMinute != -2) {
             _lastMinute = -2;
-            lv_label_set_text(_timeLabel, "--/-- --:--");
+            lv_label_set_text(_timeLabel, "--:--");
             LOG_I("NavBar: time invalid");
             if (refreshIfChanged) {
                 requestRedraw();
@@ -392,8 +406,7 @@ void TTNavigationBar::updateTime(bool refreshIfChanged) {
     _lastMinute = minuteKey;
 
     char text[20];
-    snprintf(text, sizeof(text), "%02d/%02d %02d:%02d",
-             t.tm_mon + 1, t.tm_mday, t.tm_hour, t.tm_min);
+    snprintf(text, sizeof(text), "%02d:%02d", t.tm_hour, t.tm_min);
     lv_label_set_text(_timeLabel, text);
     LOG_I("NavBar: time %s", text);
     if (refreshIfChanged) {

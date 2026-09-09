@@ -45,6 +45,9 @@
 #define TT_NAV_ICON_TEMP             "/icons/temp_sm.i1"
 #define TT_NAV_ICON_HUM              "/icons/humidity_sm.i1"
 #define TT_NAV_ICON_PRESS            "/icons/pressure_sm.i1"
+#define TT_NAV_TEMP_PREFIX           "室内"
+#define TT_NAV_TEMP_PREFIX_FONT      10
+#define TT_NAV_TEMP_PREFIX_Y         (-2)
 #define TT_NAV_BATTERY_PERCENT_DEADBAND  2
 
 class ITTNavigationController;
@@ -72,7 +75,7 @@ private:
     void createWifiStatus(lv_obj_t* parent);
     void createBatteryStatus(lv_obj_t* parent, lv_font_t* font);
     lv_obj_t* createSensorItem(lv_obj_t* parent, lv_font_t* font, const char* iconPath,
-                               int32_t iconW, const char* placeholder);
+                               int32_t iconW, const char* placeholder, const char* prefix = nullptr);
     const char* wifiIconPath(TTWiFiLinkState state) const;
     const char* batteryIconPath(const TTSensorDataPayload& data) const;
     lv_obj_t* createIcon(lv_obj_t* parent, const char* path, int32_t width = TT_NAV_STATUS_ICON, int32_t height = -1);
