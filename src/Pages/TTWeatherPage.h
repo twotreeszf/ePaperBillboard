@@ -208,6 +208,7 @@ private:
     bool _visible = false;
     bool _forceRefreshing = false;
     bool _waitingWifi = false;
+    bool _fetching = false;
     bool _ageOk = true;
     uint32_t _fetchedAtMs = 0;
     uint32_t _refreshHandle = 0;

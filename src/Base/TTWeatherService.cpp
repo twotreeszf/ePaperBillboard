@@ -84,35 +84,6 @@ bool httpGetJson(const char* url, JsonDocument& doc, JsonDocument* filter) {
 
 }  // namespace
 
-void TTWeatherService::ensureMux() {
-    if (_mux == nullptr) {
-        _mux = xSemaphoreCreateMutex();
-        if (_mux == nullptr) {
-            LOG_E("Weather: mutex create failed");
-        }
-    }
-}
-
-void TTWeatherService::lock() {
-    ensureMux();
-    if (_mux != nullptr) {
-        xSemaphoreTake(_mux, portMAX_DELAY);
-    }
-}
-
-void TTWeatherService::unlock() {
-    if (_mux != nullptr) {
-        xSemaphoreGive(_mux);
-    }
-}
-
-bool TTWeatherService::isBusy() {
-    lock();
-    const bool busy = _fetchBusy;
-    unlock();
-    return busy;
-}
-
 void TTWeatherService::holdWifi() {
     if (_wifiHeld) {
         return;
@@ -129,23 +100,6 @@ void TTWeatherService::releaseWifi() {
     _wifiHeld = false;
     LOG_I("Weather: release Wi-Fi");
     TTInstanceOf<TTWiFiTask>().requestReleaseAsync("weather");
-}
-
-bool TTWeatherService::tryBeginFetch() {
-    lock();
-    if (_fetchBusy) {
-        unlock();
-        return false;
-    }
-    _fetchBusy = true;
-    unlock();
-    return true;
-}
-
-void TTWeatherService::endFetch() {
-    lock();
-    _fetchBusy = false;
-    unlock();
 }
 
 void TTWeatherService::publish(const TTWeatherPayload& payload) {
@@ -374,17 +328,13 @@ void TTWeatherService::fetchWeather() {
 }
 
 void TTWeatherService::requestFetch() {
-    if (!tryBeginFetch()) {
-        LOG_I("Weather: fetch ignored (busy)");
-        return;
-    }
     holdWifi();
     if (!TTInstanceOf<TTAsyncQueue>().post([this]() {
             fetchWeather();
-            endFetch();
             releaseWifi();
         })) {
-        endFetch();
+        LOG_E("Weather: fetch post failed");
         releaseWifi();
+        publishStatus(TT_WEATHER_FAILED, "获取天气失败");
     }
 }

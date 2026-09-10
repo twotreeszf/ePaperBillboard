@@ -471,9 +471,8 @@ void TTWeatherPage::willDisappear() {
     _visible = false;
     _forceRefreshing = false;
     _waitingWifi = false;
-    auto& weather = TTInstanceOf<TTWeatherService>();
-    if (!weather.isBusy()) {
-        weather.releaseWifi();
+    if (!_fetching) {
+        TTInstanceOf<TTWeatherService>().releaseWifi();
     }
     if (_refreshHandle != 0) {
         cancelRepeat(_refreshHandle);
@@ -1146,6 +1145,10 @@ void TTWeatherPage::onWifiStatus(const TTWiFiStatusPayload& status) {
 }
 
 void TTWeatherPage::requestFetch(bool allowWake) {
+    if (_fetching) {
+        LOG_I("Weather page: fetch ignored (busy)");
+        return;
+    }
     auto& weather = TTInstanceOf<TTWeatherService>();
     if (WiFi.status() != WL_CONNECTED) {
         if (allowWake) {
@@ -1161,12 +1164,13 @@ void TTWeatherPage::requestFetch(bool allowWake) {
         return;
     }
     _waitingWifi = false;
+    _fetching = true;
     LOG_I("Weather page: fetch");
     weather.requestFetch();
 }
 
 void TTWeatherPage::forceRefresh() {
-    if (_forceRefreshing || TTInstanceOf<TTWeatherService>().isBusy()) {
+    if (_fetching || _forceRefreshing) {
         LOG_I("Weather page: force refresh ignored (busy)");
         return;
     }
@@ -1181,6 +1185,9 @@ void TTWeatherPage::forceRefresh() {
 }
 
 bool TTWeatherPage::applyWeather(const TTWeatherPayload& payload) {
+    if (payload.state != TT_WEATHER_FETCHING) {
+        _fetching = false;
+    }
     if (!_visible) {
         return false;
     }
