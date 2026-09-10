@@ -453,6 +453,11 @@ void TTWeatherPage::willAppear() {
             updateAge(true);
         }, false);
     }
+    if (_clockHandle == 0) {
+        _clockHandle = runRepeat(TT_WEATHER_CLOCK_TICK_MS, [this]() {
+            updateClock(true);
+        }, false);
+    }
 }
 
 void TTWeatherPage::willDisappear() {
@@ -466,6 +471,10 @@ void TTWeatherPage::willDisappear() {
     if (_ageHandle != 0) {
         cancelRepeat(_ageHandle);
         _ageHandle = 0;
+    }
+    if (_clockHandle != 0) {
+        cancelRepeat(_clockHandle);
+        _clockHandle = 0;
     }
 }
 
@@ -607,7 +616,8 @@ void TTWeatherPage::formatDate(char* out, size_t outMax) {
         }
         return;
     }
-    snprintf(out, outMax, "%s %d月%d日", kDays[t.tm_wday], t.tm_mon + 1, t.tm_mday);
+    snprintf(out, outMax, "%s %d/%d %02d:%02d",
+             kDays[t.tm_wday], t.tm_mon + 1, t.tm_mday, t.tm_hour, t.tm_min);
 }
 
 void TTWeatherPage::bindDetails(const TTWeatherPayload& payload) {
@@ -1013,17 +1023,50 @@ void TTWeatherPage::updateAge(bool refreshIfChanged) {
     }
 }
 
-void TTWeatherPage::bindOk(const TTWeatherPayload& payload) {
+void TTWeatherPage::updateClock(bool refreshIfChanged) {
+    if (_cityLabel == nullptr || !_visible) {
+        return;
+    }
+    const bool contentHidden = _content == nullptr
+        || lv_obj_has_flag(_content, LV_OBJ_FLAG_HIDDEN);
+    if (refreshIfChanged && contentHidden) {
+        return;
+    }
+
     char dateBuf[32];
     formatDate(dateBuf, sizeof(dateBuf));
+
+    struct tm t;
+    int minuteKey = -2;
+    if (TTInstanceOf<TTRtc>().getLocalTime(t)) {
+        minuteKey = t.tm_yday * 24 * 60 + t.tm_hour * 60 + t.tm_min;
+    }
+    if (minuteKey == _lastClockMinute) {
+        return;
+    }
+    _lastClockMinute = minuteKey;
+
     char cityLine[64];
-    if (payload.city[0] != '\0') {
-        snprintf(cityLine, sizeof(cityLine), "%s  %s", payload.city, dateBuf);
+    if (_cityName[0] != '\0' && dateBuf[0] != '\0') {
+        snprintf(cityLine, sizeof(cityLine), "%s  %s", _cityName, dateBuf);
+    } else if (_cityName[0] != '\0') {
+        snprintf(cityLine, sizeof(cityLine), "%s", _cityName);
     } else {
         snprintf(cityLine, sizeof(cityLine), "%s", dateBuf);
     }
     lv_label_set_text(_cityLabel, cityLine);
     lv_obj_align(_cityLabel, LV_ALIGN_TOP_RIGHT, 0, TT_WEATHER_CITY_Y);
+    LOG_I("Weather page: clock %s", cityLine);
+    if (refreshIfChanged) {
+        requestRefresh(TT_REFRESH_PARTIAL);
+    }
+}
+
+void TTWeatherPage::bindOk(const TTWeatherPayload& payload) {
+    strncpy(_cityName, payload.city, sizeof(_cityName) - 1);
+    _cityName[sizeof(_cityName) - 1] = '\0';
+    _lastClockMinute = -1;
+    updateClock(false);
     bindAge(payload.fetchedAtMs);
 
     char iconPath[TT_WEATHER_ICON_PATH_MAX];

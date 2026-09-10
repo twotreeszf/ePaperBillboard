@@ -83,6 +83,7 @@
 #define TT_WEATHER_AGE_OK_SRC     "/icons/weather/check_8.i1"
 #define TT_WEATHER_AGE_FAIL_SRC   "/icons/weather/cross_8.i1"
 #define TT_WEATHER_AGE_TICK_MS    (60 * 1000)
+#define TT_WEATHER_CLOCK_TICK_MS  1000
 #define TT_WEATHER_FORECAST_X     TT_WEATHER_GRAPH_X
 #define TT_WEATHER_FORECAST_COL_X(i) \
     (TT_WEATHER_FORECAST_X + (i) * TT_WEATHER_GRAPH_W / TT_WEATHER_FORECAST_N)
@@ -168,6 +169,7 @@ private:
     void formatDate(char* out, size_t outMax);
     void bindAge(uint32_t fetchedAtMs);
     void updateAge(bool refreshIfChanged);
+    void updateClock(bool refreshIfChanged);
 
     lv_obj_t* _content = nullptr;
     lv_obj_t* _empty = nullptr;
@@ -209,4 +211,7 @@ private:
     uint32_t _fetchedAtMs = 0;
     uint32_t _refreshHandle = 0;
     uint32_t _ageHandle = 0;
+    uint32_t _clockHandle = 0;
+    int _lastClockMinute = -1;
+    char _cityName[TT_WEATHER_CITY_MAX + 1] = {};
 };
