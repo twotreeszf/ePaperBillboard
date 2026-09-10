@@ -419,12 +419,10 @@ void TTWeatherPage::setup() {
     subscribe<TTWeatherPayload>(
         TT_NOTIFICATION_WEATHER,
         [this](const TTWeatherPayload& payload) {
-            const bool hadContent = _content != nullptr
-                && !lv_obj_has_flag(_content, LV_OBJ_FLAG_HIDDEN);
             if (!applyWeather(payload)) {
                 return;
             }
-            if (payload.state == TT_WEATHER_OK && !hadContent) {
+            if (payload.state == TT_WEATHER_OK) {
                 requestRefresh(TT_REFRESH_DEEP);
             } else {
                 requestRefresh(TT_REFRESH_PARTIAL);
@@ -450,7 +448,7 @@ TTRefreshLevel TTWeatherPage::enterRefreshLevel() const {
 void TTWeatherPage::willAppear() {
     TTScreenPage::willAppear();
     _visible = true;
-    requestFetch(false);
+    requestFetch(true);
     if (_refreshHandle == 0) {
         _refreshHandle = runRepeat(TT_WEATHER_PAGE_REFRESH_MS, [this]() {
             requestFetch(false);
@@ -1119,10 +1117,10 @@ void TTWeatherPage::onWifiStatus(const TTWiFiStatusPayload& status) {
         return;
     }
     if (status.state == TT_WIFI_LINK_CONNECTED) {
-        const bool force = _forceRefreshing;
         _waitingWifi = false;
-        LOG_I("Weather page: Wi-Fi up, fetch force=%d", force ? 1 : 0);
-        requestFetch(force);
+        LOG_I("Weather page: Wi-Fi up, fetch");
+        TTInstanceOf<TTWeatherService>().holdWifi();
+        requestFetch();
         return;
     }
     if (status.state == TT_WIFI_LINK_CONNECTING || status.state == TT_WIFI_LINK_PROVISIONING) {
@@ -1147,31 +1145,24 @@ void TTWeatherPage::onWifiStatus(const TTWiFiStatusPayload& status) {
     LOG_I("Weather page: Wi-Fi unavailable ssid=%s", status.ssid);
 }
 
-void TTWeatherPage::requestFetch(bool force) {
+void TTWeatherPage::requestFetch(bool allowWake) {
     auto& weather = TTInstanceOf<TTWeatherService>();
-    TTWeatherPayload snapshot = {};
-    bool hasOk = false;
-    uint32_t lastOkMs = 0;
-    weather.peek(snapshot, hasOk, lastOkMs);
-    if (!force && hasOk) {
-        if (_visible) {
-            applyWeather(snapshot);
-        }
-        if ((int32_t)(millis() - lastOkMs) < (int32_t)TT_WEATHER_STALE_MS) {
-            LOG_I("Weather page: use cached data age=%u ms", (unsigned)(millis() - lastOkMs));
+    if (WiFi.status() != WL_CONNECTED) {
+        if (allowWake) {
+            _waitingWifi = true;
+            LOG_I("Weather page: wake Wi-Fi");
+            weather.holdWifi();
+            TTInstanceOf<TTWiFiTask>().requestConnectAsync();
             return;
         }
-    }
-
-    if (WiFi.status() != WL_CONNECTED) {
-        _waitingWifi = true;
-        LOG_I("Weather page: wait for Wi-Fi force=%d", force ? 1 : 0);
-        weather.holdWifi();
-        TTInstanceOf<TTWiFiTask>().requestConnectAsync();
+        LOG_I("Weather page: skip fetch, Wi-Fi off");
+        _waitingWifi = false;
+        weather.releaseWifi();
         return;
     }
     _waitingWifi = false;
-    weather.requestFetch(force);
+    LOG_I("Weather page: fetch");
+    weather.requestFetch();
 }
 
 void TTWeatherPage::forceRefresh() {
@@ -1195,13 +1186,8 @@ bool TTWeatherPage::applyWeather(const TTWeatherPayload& payload) {
     }
     if (payload.state == TT_WEATHER_OK) {
         _forceRefreshing = false;
-        _ageOk = !payload.refreshFailed;
-        if (!payload.refreshFailed) {
-            bindOk(payload);
-        } else {
-            LOG_I("Weather page: silent refresh failed, keep last ok");
-            updateAge(false);
-        }
+        _ageOk = true;
+        bindOk(payload);
         showContent(true);
         showEmpty(false);
         showEmptyActions(false, false);
@@ -1210,14 +1196,18 @@ bool TTWeatherPage::applyWeather(const TTWeatherPayload& payload) {
     if (payload.state == TT_WEATHER_FETCHING) {
         return false;
     }
-    if (payload.state != TT_WEATHER_FETCHING) {
-        _forceRefreshing = false;
+    _forceRefreshing = false;
+    const bool hadContent = _content != nullptr
+        && !lv_obj_has_flag(_content, LV_OBJ_FLAG_HIDDEN);
+    if (hadContent) {
+        _ageOk = false;
+        LOG_I("Weather page: refresh failed, keep content");
+        updateAge(false);
+        return true;
     }
     showContent(false);
     showEmpty(true);
-    if (_forceRefreshing && payload.state == TT_WEATHER_FETCHING) {
-        setMessage("正在刷新天气");
-    } else if (payload.message[0] != '\0') {
+    if (payload.message[0] != '\0') {
         setMessage(payload.message);
     } else if (payload.state == TT_WEATHER_NEED_WIFI) {
         setMessage("未连接 Wi-Fi");
@@ -1226,7 +1216,7 @@ bool TTWeatherPage::applyWeather(const TTWeatherPayload& payload) {
     } else if (payload.state == TT_WEATHER_FAILED) {
         setMessage("获取天气失败");
     } else {
-        setMessage(_forceRefreshing ? "正在刷新天气" : "正在获取天气");
+        setMessage("正在获取天气");
     }
     const bool needSetup = payload.state == TT_WEATHER_NEED_WIFI
         || payload.state == TT_WEATHER_NEED_LOCATION;

@@ -97,7 +97,7 @@ void TTNavigationBar::begin(lv_obj_t* parent, ITTNavigationController* nav) {
     lv_obj_set_style_pad_all(divider, 0, 0);
     lv_obj_set_style_radius(divider, 0, 0);
 
-    updateTime(false);
+    updateTime();
     subscribeStatus();
     TTInstanceOf<TTUITask>().runRepeat(TT_NAV_STATUS_CLOCK_MS, [this]() { onClockTick(); }, false);
     TTInstanceOf<TTWiFiTask>().requestStatusAsync();
@@ -236,7 +236,7 @@ void TTNavigationBar::show(const char* title, bool showBack) {
     layoutTitle(showBack);
     lv_obj_remove_flag(_bar, LV_OBJ_FLAG_HIDDEN);
     _visible = true;
-    updateTime(false);
+    updateTime();
     LOG_I("NavBar: show title=%s back=%d", title != nullptr ? title : "", showBack ? 1 : 0);
 }
 
@@ -287,7 +287,9 @@ void TTNavigationBar::onBackClicked(lv_event_t* e) {
 }
 
 void TTNavigationBar::onClockTick() {
-    updateTime(true);
+    if (updateTime()) {
+        requestRedraw();
+    }
 }
 
 void TTNavigationBar::applyWiFi(const TTWiFiStatusPayload& status) {
@@ -298,7 +300,9 @@ void TTNavigationBar::applyWiFi(const TTWiFiStatusPayload& status) {
     _wifiState = status.state;
     tt_stream_image_set_src(_wifiIcon, wifiIconPath(status.state));
     LOG_I("NavBar: wifi state=%d", (int)status.state);
-    requestRedraw();
+    TTInstanceOf<TTUITask>().runOnce(0, [this]() {
+        requestRedraw();
+    });
 }
 
 void TTNavigationBar::applySensor(const TTSensorDataPayload& data) {
@@ -389,8 +393,8 @@ const char* TTNavigationBar::batteryIconPath(const TTSensorDataPayload& data) co
     return TT_NAV_ICON_BATTERY_FULL;
 }
 
-void TTNavigationBar::updateTime(bool refreshIfChanged) {
-    if (_timeLabel == nullptr) return;
+bool TTNavigationBar::updateTime() {
+    if (_timeLabel == nullptr) return false;
 
     struct tm t;
     if (!TTInstanceOf<TTRtc>().getLocalTime(t)) {
@@ -398,15 +402,13 @@ void TTNavigationBar::updateTime(bool refreshIfChanged) {
             _lastMinute = -2;
             lv_label_set_text(_timeLabel, "--:--");
             LOG_I("NavBar: time invalid");
-            if (refreshIfChanged) {
-                requestRedraw();
-            }
+            return true;
         }
-        return;
+        return false;
     }
     const int minuteKey = t.tm_yday * 24 * 60 + t.tm_hour * 60 + t.tm_min;
     if (minuteKey == _lastMinute) {
-        return;
+        return false;
     }
     _lastMinute = minuteKey;
 
@@ -414,9 +416,7 @@ void TTNavigationBar::updateTime(bool refreshIfChanged) {
     snprintf(text, sizeof(text), "%02d:%02d", t.tm_hour, t.tm_min);
     lv_label_set_text(_timeLabel, text);
     LOG_I("NavBar: time %s", text);
-    if (refreshIfChanged) {
-        requestRedraw();
-    }
+    return true;
 }
 
 void TTNavigationBar::requestRedraw() {

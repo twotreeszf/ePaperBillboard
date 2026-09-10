@@ -71,7 +71,7 @@ private:
     void onClockTick();
     void applyWiFi(const TTWiFiStatusPayload& status);
     void applySensor(const TTSensorDataPayload& data);
-    void updateTime(bool refreshIfChanged);
+    bool updateTime();
     void requestRedraw();
     void layoutTitle(bool showBack);
     void createWifiStatus(lv_obj_t* parent);

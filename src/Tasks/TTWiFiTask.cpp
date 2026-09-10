@@ -39,6 +39,8 @@ void TTWiFiTask::loop() {
     if (becameConnected) {
         LOG_I("WiFi: connected, refs=%u", (unsigned)_useCount);
         schedulePeriod();
+        cancelIdleCheck();
+        _idleCheckReady = false;
         armIdleCheck();
         if (!_ntpAutoDone) {
             _ntpAutoDone = true;
@@ -49,7 +51,6 @@ void TTWiFiTask::loop() {
             startNtpSync();
         }
         _ntpOnConnect = false;
-        trySleepIfIdle();
         return;
     }
     if (connectFailed || linkLost) {

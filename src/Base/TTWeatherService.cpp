@@ -85,24 +85,24 @@ bool httpGetJson(const char* url, JsonDocument& doc, JsonDocument* filter) {
 }  // namespace
 
 void TTWeatherService::ensureMux() {
-    if (_cacheMux == nullptr) {
-        _cacheMux = xSemaphoreCreateMutex();
-        if (_cacheMux == nullptr) {
-            LOG_E("Weather: cache mutex create failed");
+    if (_mux == nullptr) {
+        _mux = xSemaphoreCreateMutex();
+        if (_mux == nullptr) {
+            LOG_E("Weather: mutex create failed");
         }
     }
 }
 
 void TTWeatherService::lock() {
     ensureMux();
-    if (_cacheMux != nullptr) {
-        xSemaphoreTake(_cacheMux, portMAX_DELAY);
+    if (_mux != nullptr) {
+        xSemaphoreTake(_mux, portMAX_DELAY);
     }
 }
 
 void TTWeatherService::unlock() {
-    if (_cacheMux != nullptr) {
-        xSemaphoreGive(_cacheMux);
+    if (_mux != nullptr) {
+        xSemaphoreGive(_mux);
     }
 }
 
@@ -111,14 +111,6 @@ bool TTWeatherService::isBusy() {
     const bool busy = _fetchBusy;
     unlock();
     return busy;
-}
-
-void TTWeatherService::peek(TTWeatherPayload& payload, bool& hasOk, uint32_t& lastOkMs) {
-    lock();
-    payload = _payload;
-    hasOk = _hasOk;
-    lastOkMs = _lastOkMs;
-    unlock();
 }
 
 void TTWeatherService::holdWifi() {
@@ -156,41 +148,19 @@ void TTWeatherService::endFetch() {
     unlock();
 }
 
-void TTWeatherService::publishFromCache() {
-    TTWeatherPayload copy;
-    lock();
-    if (_payload.state == TT_WEATHER_OK) {
-        _payload.fetchedAtMs = _lastOkMs;
-    }
-    copy = _payload;
-    unlock();
-    TTInstanceOf<TTUITask>().postNotification(TT_NOTIFICATION_WEATHER, copy);
+void TTWeatherService::publish(const TTWeatherPayload& payload) {
+    TTInstanceOf<TTUITask>().postNotification(TT_NOTIFICATION_WEATHER, payload);
 }
 
-void TTWeatherService::cachePatchStatus(TTWeatherState state, bool refreshFailed, const char* message) {
-    lock();
-    _payload.state = state;
-    _payload.refreshFailed = refreshFailed;
-    if (message == nullptr || message[0] == '\0') {
-        _payload.message[0] = '\0';
-    } else {
-        strncpy(_payload.message, message, sizeof(_payload.message) - 1);
-        _payload.message[sizeof(_payload.message) - 1] = '\0';
+void TTWeatherService::publishStatus(TTWeatherState state, const char* message) {
+    TTWeatherPayload payload = {};
+    payload.state = state;
+    payload.refreshFailed = state != TT_WEATHER_OK && state != TT_WEATHER_FETCHING;
+    if (message != nullptr && message[0] != '\0') {
+        strncpy(payload.message, message, sizeof(payload.message) - 1);
+        payload.message[sizeof(payload.message) - 1] = '\0';
     }
-    unlock();
-    publishFromCache();
-}
-
-void TTWeatherService::cacheCommitOk(const TTWeatherPayload& next) {
-    lock();
-    _payload = next;
-    _payload.state = TT_WEATHER_OK;
-    _payload.refreshFailed = false;
-    _payload.message[0] = '\0';
-    _hasOk = true;
-    _lastOkMs = millis();
-    unlock();
-    publishFromCache();
+    publish(payload);
 }
 
 bool TTWeatherService::loadLocation(float& lat, float& lon, char* city, size_t cityMax) {
@@ -365,71 +335,52 @@ bool TTWeatherService::fetchAqi(float lat, float lon, TTWeatherPayload& out) {
     return true;
 }
 
-void TTWeatherService::fetchWeather(bool force) {
+void TTWeatherService::fetchWeather() {
     TTWeatherPayload draft = {};
-    bool hasOk = false;
-    uint32_t lastOkMs = 0;
-    peek(draft, hasOk, lastOkMs);
-
     float lat = NAN;
     float lon = NAN;
     loadLocation(lat, lon, draft.city, sizeof(draft.city));
 
     if (WiFi.status() != WL_CONNECTED) {
         LOG_W("Weather: need Wi-Fi");
-        if (hasOk && !force) {
-            cachePatchStatus(TT_WEATHER_OK, true, "");
-            return;
-        }
-        cachePatchStatus(TT_WEATHER_NEED_WIFI, false, "未连接 Wi-Fi");
+        publishStatus(TT_WEATHER_NEED_WIFI, "未连接 Wi-Fi");
         return;
     }
     if (!isfinite(lat) || !isfinite(lon)) {
         LOG_W("Weather: location not configured");
-        if (hasOk && !force) {
-            cachePatchStatus(TT_WEATHER_OK, true, "");
-            return;
-        }
-        cachePatchStatus(TT_WEATHER_NEED_LOCATION, false, "未配置地点");
+        publishStatus(TT_WEATHER_NEED_LOCATION, "未配置地点");
         return;
     }
 
-    if (!force && hasOk && (int32_t)(millis() - lastOkMs) < (int32_t)TT_WEATHER_STALE_MS) {
-        LOG_I("Weather: use cached data age=%u ms", (unsigned)(millis() - lastOkMs));
-        cachePatchStatus(TT_WEATHER_OK, false, "");
-        return;
-    }
-
-    if (!hasOk) {
-        cachePatchStatus(TT_WEATHER_FETCHING, false, "正在获取天气");
-    }
-
-    LOG_I("Weather: fetch lat=%.4f lon=%.4f city=%s force=%d heap=%u largest=%u",
-          lat, lon, draft.city, force ? 1 : 0,
+    LOG_I("Weather: fetch lat=%.4f lon=%.4f city=%s heap=%u largest=%u",
+          lat, lon, draft.city,
           (unsigned)ESP.getFreeHeap(),
           (unsigned)heap_caps_get_largest_free_block(MALLOC_CAP_8BIT));
 
     if (!fetchForecast(lat, lon, draft)) {
         LOG_E("Weather: forecast failed");
-        if (hasOk && !force) {
-            cachePatchStatus(TT_WEATHER_OK, true, "");
-            return;
-        }
-        cachePatchStatus(TT_WEATHER_FAILED, false, "获取天气失败");
+        publishStatus(TT_WEATHER_FAILED, "获取天气失败");
         return;
     }
     fetchAqi(lat, lon, draft);
-    cacheCommitOk(draft);
+    draft.state = TT_WEATHER_OK;
+    draft.refreshFailed = false;
+    draft.message[0] = '\0';
+    draft.fetchedAtMs = millis();
+    if (draft.fetchedAtMs == 0) {
+        draft.fetchedAtMs = 1;
+    }
+    publish(draft);
 }
 
-void TTWeatherService::requestFetch(bool force) {
-    holdWifi();
+void TTWeatherService::requestFetch() {
     if (!tryBeginFetch()) {
         LOG_I("Weather: fetch ignored (busy)");
         return;
     }
-    if (!TTInstanceOf<TTAsyncQueue>().post([this, force]() {
-            fetchWeather(force);
+    holdWifi();
+    if (!TTInstanceOf<TTAsyncQueue>().post([this]() {
+            fetchWeather();
             endFetch();
             releaseWifi();
         })) {

@@ -152,7 +152,7 @@ private:
     void bindDetails(const TTWeatherPayload& payload);
     void bindGraph(const TTWeatherPayload& payload);
     void forceRefresh();
-    void requestFetch(bool force);
+    void requestFetch(bool allowWake = false);
     void onWifiStatus(const TTWiFiStatusPayload& status);
     void setMessage(const char* text);
     void showContent(bool show);
