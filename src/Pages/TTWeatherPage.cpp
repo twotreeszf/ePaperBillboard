@@ -432,6 +432,13 @@ void TTWeatherPage::setup() {
     });
 }
 
+TTRefreshLevel TTWeatherPage::enterRefreshLevel() const {
+    if (_content != nullptr && !lv_obj_has_flag(_content, LV_OBJ_FLAG_HIDDEN)) {
+        return TT_REFRESH_DEEP;
+    }
+    return TT_REFRESH_FULL;
+}
+
 void TTWeatherPage::willAppear() {
     TTScreenPage::willAppear();
     _visible = true;

@@ -18,7 +18,7 @@ void TTNavigationController::setRoot(std::unique_ptr<ITTScreenPage> page) {
     _stack.back()->willAppear();
     loadScreen(_stack.back().get());
     syncNavigationBar();
-    requestRefresh(_stack.back().get(), TT_REFRESH_FULL);
+    requestRefresh(_stack.back().get(), _stack.back()->enterRefreshLevel());
 }
 
 void TTNavigationController::push(std::unique_ptr<ITTScreenPage> page) {
@@ -32,12 +32,12 @@ void TTNavigationController::push(std::unique_ptr<ITTScreenPage> page) {
     if (!_stack.empty()) {
         _stack.back()->willDisappear();
     }
+    _stack.push_back(std::move(page));
+    raw->setNavigationController(this);
     raw->willAppear();
     loadScreen(raw);
-    _stack.push_back(std::move(page));
-    _stack.back()->setNavigationController(this);
     syncNavigationBar();
-    requestRefresh(_stack.back().get(), TT_REFRESH_FULL);
+    requestRefresh(raw, raw->enterRefreshLevel());
 }
 
 void TTNavigationController::pop() {
@@ -53,7 +53,7 @@ void TTNavigationController::pop() {
     leaving->willDestroy();
     _stack.pop_back();
     syncNavigationBar();
-    requestRefresh(_stack.back().get(), TT_REFRESH_FULL);
+    requestRefresh(_stack.back().get(), _stack.back()->enterRefreshLevel());
 }
 
 ITTScreenPage* TTNavigationController::getCurrentPage() {
@@ -108,6 +108,7 @@ void TTNavigationController::syncNavigationBar() {
 
 void TTNavigationController::requestRefresh(ITTScreenPage* page, TTRefreshLevel level) {
     if (getCurrentPage() == page) {
+        LOG_I("Nav: refresh page=%s level=%d", page != nullptr ? page->getName() : "?", (int)level);
         TTInstanceOf<TTLvglEpdDriver>().requestRefresh(level);
     }
 }

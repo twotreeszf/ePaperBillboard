@@ -173,6 +173,17 @@ void TTLvglEpdDriver::_flushCallback(lv_display_t* disp, const lv_area_t* area, 
     }
 }
 
+void TTLvglEpdDriver::requestOverlayRefresh() {
+    if (_lvDisplay == nullptr) {
+        return;
+    }
+    LOG_I("Flush: overlay refresh");
+    _flushingOverlay = true;
+    invalidateTopLayerWidgets(_lvDisplay);
+    lv_refr_now(_lvDisplay);
+    _flushingOverlay = false;
+}
+
 void TTLvglEpdDriver::requestRefresh(TTRefreshLevel level) {
     switch (level) {
         case TT_REFRESH_PARTIAL:

@@ -9,6 +9,7 @@ public:
 
     bool begin(EPaperDisplay& display);
     void requestRefresh(TTRefreshLevel level = TT_REFRESH_PARTIAL);
+    void requestOverlayRefresh();
     lv_display_t* getDisplay() { return _lvDisplay; }
 
 private:

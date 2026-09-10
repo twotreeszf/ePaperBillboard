@@ -36,4 +36,5 @@ public:
     virtual void willDestroy() {}
     virtual void willAppear() {}
     virtual void willDisappear() {}
+    virtual TTRefreshLevel enterRefreshLevel() const { return TT_REFRESH_FULL; }
 };

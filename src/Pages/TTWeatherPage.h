@@ -140,6 +140,7 @@ public:
     void setup() override;
     void willAppear() override;
     void willDisappear() override;
+    TTRefreshLevel enterRefreshLevel() const override;
 
 protected:
     void buildContent(lv_obj_t* screen) override;

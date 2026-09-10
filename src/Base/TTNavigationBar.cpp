@@ -236,6 +236,7 @@ void TTNavigationBar::show(const char* title, bool showBack) {
     layoutTitle(showBack);
     lv_obj_remove_flag(_bar, LV_OBJ_FLAG_HIDDEN);
     _visible = true;
+    updateTime(false);
     LOG_I("NavBar: show title=%s back=%d", title != nullptr ? title : "", showBack ? 1 : 0);
 }
 
@@ -420,5 +421,5 @@ void TTNavigationBar::updateTime(bool refreshIfChanged) {
 
 void TTNavigationBar::requestRedraw() {
     if (!_visible) return;
-    TTInstanceOf<TTLvglEpdDriver>().requestRefresh(TT_REFRESH_PARTIAL);
+    TTInstanceOf<TTLvglEpdDriver>().requestOverlayRefresh();
 }
