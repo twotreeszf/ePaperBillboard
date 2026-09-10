@@ -16,6 +16,8 @@ public:
     void requestStatusAsync();
     void requestConnectAsync();
     void requestNtpSyncAsync();
+    void requestAcquireAsync(const char* tag);
+    void requestReleaseAsync(const char* tag);
 
 protected:
     void setup() override;
@@ -28,14 +30,20 @@ private:
     void syncNtp();
     void beginWake();
     void endWake();
-    void scheduleHold();
-    void cancelHold();
+    void acquireRadio(const char* tag);
+    void releaseRadio(const char* tag);
+    void armIdleCheck();
+    void cancelIdleCheck();
+    void trySleepIfIdle();
     void schedulePeriod();
     void cancelPeriod();
 
     TTWiFiManager _wifiManager;
     TTWiFiLinkState _publishedState = TT_WIFI_LINK_IDLE;
-    uint32_t _wakeHoldHandle = 0;
+    uint32_t _useCount = 0;
+    uint32_t _idleCheckHandle = 0;
     uint32_t _wakePeriodHandle = 0;
+    bool _idleCheckReady = false;
     bool _ntpOnConnect = false;
+    bool _ntpAutoDone = false;
 };

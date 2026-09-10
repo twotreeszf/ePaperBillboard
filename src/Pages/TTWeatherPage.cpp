@@ -7,6 +7,9 @@
 #include "../Base/TTRtc.h"
 #include "../Base/TTTextButton.h"
 #include "../Base/TTNavigationBar.h"
+#include "../Base/TTWeatherService.h"
+#include "../Tasks/TTWiFiTask.h"
+#include <WiFi.h>
 #include <Arduino.h>
 #include <EPDConfig.h>
 #include <cstdio>
@@ -470,6 +473,10 @@ void TTWeatherPage::willDisappear() {
     _visible = false;
     _forceRefreshing = false;
     _waitingWifi = false;
+    auto& weather = TTInstanceOf<TTWeatherService>();
+    if (!weather.isBusy()) {
+        weather.releaseWifi();
+    }
     if (_refreshHandle != 0) {
         cancelRepeat(_refreshHandle);
         _refreshHandle = 0;
@@ -1126,6 +1133,7 @@ void TTWeatherPage::onWifiStatus(const TTWiFiStatusPayload& status) {
     }
     _waitingWifi = false;
     _forceRefreshing = false;
+    TTInstanceOf<TTWeatherService>().releaseWifi();
     const bool contentHidden = _content == nullptr
         || lv_obj_has_flag(_content, LV_OBJ_FLAG_HIDDEN);
     if (!contentHidden) {
@@ -1139,8 +1147,35 @@ void TTWeatherPage::onWifiStatus(const TTWiFiStatusPayload& status) {
     LOG_I("Weather page: Wi-Fi unavailable ssid=%s", status.ssid);
 }
 
+void TTWeatherPage::requestFetch(bool force) {
+    auto& weather = TTInstanceOf<TTWeatherService>();
+    TTWeatherPayload snapshot = {};
+    bool hasOk = false;
+    uint32_t lastOkMs = 0;
+    weather.peek(snapshot, hasOk, lastOkMs);
+    if (!force && hasOk) {
+        if (_visible) {
+            applyWeather(snapshot);
+        }
+        if ((int32_t)(millis() - lastOkMs) < (int32_t)TT_WEATHER_STALE_MS) {
+            LOG_I("Weather page: use cached data age=%u ms", (unsigned)(millis() - lastOkMs));
+            return;
+        }
+    }
+
+    if (WiFi.status() != WL_CONNECTED) {
+        _waitingWifi = true;
+        LOG_I("Weather page: wait for Wi-Fi force=%d", force ? 1 : 0);
+        weather.holdWifi();
+        TTInstanceOf<TTWiFiTask>().requestConnectAsync();
+        return;
+    }
+    _waitingWifi = false;
+    weather.requestFetch(force);
+}
+
 void TTWeatherPage::forceRefresh() {
-    if (_forceRefreshing || fetchBusy()) {
+    if (_forceRefreshing || TTInstanceOf<TTWeatherService>().isBusy()) {
         LOG_I("Weather page: force refresh ignored (busy)");
         return;
     }

@@ -154,7 +154,6 @@ private:
     void forceRefresh();
     void requestFetch(bool force);
     void onWifiStatus(const TTWiFiStatusPayload& status);
-    static bool fetchBusy();
     void setMessage(const char* text);
     void showContent(bool show);
     void showEmpty(bool show);

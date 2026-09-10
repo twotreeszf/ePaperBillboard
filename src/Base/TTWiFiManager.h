@@ -11,7 +11,7 @@
 #define TT_WIFI_AP_SSID_PREFIX  "Billboard"
 #define TT_WIFI_CONNECT_TIMEOUT_MS  15000
 #define TT_WIFI_WAKE_PERIOD_MS      (10 * 60 * 1000)
-#define TT_WIFI_WAKE_HOLD_MS        (60 * 1000)
+#define TT_WIFI_IDLE_CHECK_MS       1000
 #define TT_WIFI_APPLY_DELAY_MS      800
 #define TT_WIFI_DNS_PORT  53
 
