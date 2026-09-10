@@ -153,6 +153,7 @@ private:
     void bindGraph(const TTWeatherPayload& payload);
     void forceRefresh();
     void requestFetch(bool force);
+    void onWifiStatus(const TTWiFiStatusPayload& status);
     static bool fetchBusy();
     void setMessage(const char* text);
     void showContent(bool show);
@@ -207,6 +208,7 @@ private:
     TTWeatherDetailCell _details[TT_WEATHER_DETAIL_N];
     bool _visible = false;
     bool _forceRefreshing = false;
+    bool _waitingWifi = false;
     bool _ageOk = true;
     uint32_t _fetchedAtMs = 0;
     uint32_t _refreshHandle = 0;

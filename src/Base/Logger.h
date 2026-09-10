@@ -12,6 +12,8 @@
 #define __FILENAME__ (strrchr(__FILE__, '/') ? strrchr(__FILE__, '/') + 1 : __FILE__)
 #endif
 
+#define TT_LOG_TIME_MIN_YEAR  2020
+
 enum LogLevel {
     LOG_LEVEL_NONE,       /*!< No log output */
     LOG_LEVEL_ERROR,      /*!< Critical errors, software module can not recover on its own */

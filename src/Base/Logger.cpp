@@ -5,6 +5,8 @@
 #include <iostream>
 #include <map>
 #include <cstdarg>
+#include <ctime>
+#include <sys/time.h>
 #include "Util.h"
 #include <Arduino.h>
 
@@ -39,24 +41,25 @@ void Logger::logLevel(const char* file, int line, LogLevel level, const char* fm
             { LOG_LEVEL_VERBOSE, "" },
     };
 
-    // Division constants
-    const unsigned long MSECS_PER_SEC       = 1000;
-    const unsigned long SECS_PER_MIN        = 60;
-    const unsigned long SECS_PER_HOUR       = 3600;
-    const unsigned long SECS_PER_DAY        = 86400;
-
-    // Total time
-    const unsigned long msecs               =  millis() ;
-    const unsigned long secs                =  msecs / MSECS_PER_SEC;
-
-    // Time in components
-    const unsigned long MiliSeconds         =  msecs % MSECS_PER_SEC;
-    const unsigned long Seconds             =  secs  % SECS_PER_MIN ;
-    const unsigned long Minutes             = (secs  / SECS_PER_MIN) % SECS_PER_MIN;
-    const unsigned long Hours               = (secs  % SECS_PER_DAY) / SECS_PER_HOUR;
-
-    // Time as string
-    std::string timestamp = Util::format("%02d:%02d:%02d.%03d", Hours, Minutes, Seconds, MiliSeconds);
+    std::string timestamp;
+    struct timeval tv = {};
+    gettimeofday(&tv, nullptr);
+    struct tm local = {};
+    if (localtime_r(&tv.tv_sec, &local) != nullptr
+        && (local.tm_year + 1900) >= TT_LOG_TIME_MIN_YEAR) {
+        timestamp = Util::format("%04d-%02d-%02d %02d:%02d:%02d.%03d",
+                                 local.tm_year + 1900, local.tm_mon + 1, local.tm_mday,
+                                 local.tm_hour, local.tm_min, local.tm_sec,
+                                 (int)(tv.tv_usec / 1000));
+    } else {
+        const unsigned long msecs = millis();
+        const unsigned long secs = msecs / 1000UL;
+        timestamp = Util::format("%02d:%02d:%02d.%03d",
+                                 (int)((secs % 86400UL) / 3600UL),
+                                 (int)((secs / 60UL) % 60UL),
+                                 (int)(secs % 60UL),
+                                 (int)(msecs % 1000UL));
+    }
     std::string output = Util::format(
             "%s[%s]%s[%s:%d]: %s\033[0m",
             colorMap[level].c_str(), timestamp.c_str(), levelMap[level].c_str(), file, line, msg.c_str());

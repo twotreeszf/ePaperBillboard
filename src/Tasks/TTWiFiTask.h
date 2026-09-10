@@ -14,7 +14,7 @@ public:
     void requestStartProvisioningAsync();
     void requestStopProvisioningAsync();
     void requestStatusAsync();
-    void requestReconnectAsync();
+    void requestConnectAsync();
     void requestNtpSyncAsync();
 
 protected:
@@ -26,10 +26,16 @@ private:
     void publishTimeSync(TTTimeSyncState state, const char* message = nullptr);
     void startNtpSync();
     void syncNtp();
-    void scheduleReconnect();
-    void cancelReconnect();
+    void beginWake();
+    void endWake();
+    void scheduleHold();
+    void cancelHold();
+    void schedulePeriod();
+    void cancelPeriod();
 
     TTWiFiManager _wifiManager;
     TTWiFiLinkState _publishedState = TT_WIFI_LINK_IDLE;
-    uint32_t _reconnectHandle = 0;
+    uint32_t _wakeHoldHandle = 0;
+    uint32_t _wakePeriodHandle = 0;
+    bool _ntpOnConnect = false;
 };

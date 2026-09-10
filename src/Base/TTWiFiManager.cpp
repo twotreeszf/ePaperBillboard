@@ -26,6 +26,32 @@ static bool tt_parse_coord(const String& text, float& out, float minV, float max
     return true;
 }
 
+bool TTWiFiManager::refreshSavedNetwork() {
+    String ssid;
+    auto& pref = TTInstanceOf<TTPreference>();
+    ERR_CHECK_RET(pref.get(PREF_WIFI_SSID, ssid, String("")));
+    if (ssid.isEmpty()) {
+        _savedSsid[0] = '\0';
+        return false;
+    }
+    strncpy(_savedSsid, ssid.c_str(), TT_WIFI_SSID_MAX);
+    _savedSsid[TT_WIFI_SSID_MAX] = '\0';
+    return true;
+}
+
+bool TTWiFiManager::sleepRadio() {
+    if (_state == TT_WIFI_LINK_PROVISIONING) {
+        LOG_W("WiFi: sleep ignored, provisioning");
+        return false;
+    }
+    LOG_I("WiFi: radio off");
+    WiFi.disconnect(true, false);
+    WiFi.mode(WIFI_OFF);
+    _state = TT_WIFI_LINK_IDLE;
+    _connectStartedAt = 0;
+    return true;
+}
+
 bool TTWiFiManager::tryConnectSaved() {
     String ssid;
     String password;
@@ -35,15 +61,18 @@ bool TTWiFiManager::tryConnectSaved() {
     if (ssid.isEmpty()) {
         LOG_I("WiFi: no saved SSID");
         _savedSsid[0] = '\0';
-        _state = TT_WIFI_LINK_IDLE;
+        if (_state != TT_WIFI_LINK_PROVISIONING) {
+            sleepRadio();
+        } else {
+            _state = TT_WIFI_LINK_IDLE;
+        }
         return false;
     }
     strncpy(_savedSsid, ssid.c_str(), TT_WIFI_SSID_MAX);
     _savedSsid[TT_WIFI_SSID_MAX] = '\0';
     if (!_startConnect(ssid, password)) {
         LOG_W("WiFi: saved network connect start failed ssid=%s", ssid.c_str());
-        _state = TT_WIFI_LINK_IDLE;
-        _connectStartedAt = 0;
+        sleepRadio();
         return false;
     }
     return true;
@@ -104,8 +133,7 @@ void TTWiFiManager::process() {
     }
     if (_state == TT_WIFI_LINK_CONNECTED && WiFi.status() != WL_CONNECTED) {
         LOG_W("WiFi: STA lost");
-        _state = TT_WIFI_LINK_IDLE;
-        _connectStartedAt = 0;
+        sleepRadio();
     }
 }
 
@@ -156,9 +184,7 @@ void TTWiFiManager::_pollConnect() {
     }
     if ((int32_t)(millis() - _connectStartedAt) >= (int32_t)TT_WIFI_CONNECT_TIMEOUT_MS) {
         LOG_E("WiFi: connect timeout ssid=%s", _savedSsid);
-        WiFi.disconnect(true, false);
-        _state = TT_WIFI_LINK_IDLE;
-        _connectStartedAt = 0;
+        sleepRadio();
     }
 }
 

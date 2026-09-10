@@ -4,6 +4,7 @@
 #include "../Base/TTAsyncQueue.h"
 #include "../Base/TTInstance.h"
 #include "../Base/TTPreference.h"
+#include "../Tasks/TTWiFiTask.h"
 #include <ArduinoJson.h>
 #include <HTTPClient.h>
 #include <WiFi.h>
@@ -427,6 +428,14 @@ void TTWeatherPage::requestFetch(bool force) {
             return;
         }
     }
+
+    if (WiFi.status() != WL_CONNECTED) {
+        _waitingWifi = true;
+        LOG_I("Weather page: wait for Wi-Fi force=%d", force ? 1 : 0);
+        TTInstanceOf<TTWiFiTask>().requestConnectAsync();
+        return;
+    }
+    _waitingWifi = false;
 
     if (!cacheTryBeginFetch()) {
         LOG_I("Weather page: fetch ignored (busy)");

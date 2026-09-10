@@ -10,11 +10,14 @@
 
 void TTWiFiTask::setup() {
     LOG_I("WiFi task starting");
-    _wifiManager.tryConnectSaved();
-    publishStatus();
-    if (!_wifiManager.isConnecting() && !_wifiManager.isConnected()) {
-        scheduleReconnect();
+    _wifiManager.refreshSavedNetwork();
+    if (!_wifiManager.hasConfiguredNetwork()) {
+        LOG_I("WiFi: no SSID, radio stays off");
+        _wifiManager.sleepRadio();
+        publishStatus();
+        return;
     }
+    beginWake();
 }
 
 void TTWiFiTask::loop() {
@@ -28,25 +31,36 @@ void TTWiFiTask::loop() {
     const bool connectFailed = (_publishedState == TT_WIFI_LINK_CONNECTING && now == TT_WIFI_LINK_IDLE);
     const bool linkLost = (_publishedState == TT_WIFI_LINK_CONNECTED && now == TT_WIFI_LINK_IDLE);
     publishStatus();
+    if (now == TT_WIFI_LINK_PROVISIONING) {
+        cancelHold();
+        LOG_I("WiFi: provisioning, duty cycle paused");
+        return;
+    }
     if (becameConnected) {
-        cancelReconnect();
+        LOG_I("WiFi: connected, hold %u ms", (unsigned)TT_WIFI_WAKE_HOLD_MS);
+        _ntpOnConnect = false;
+        scheduleHold();
+        schedulePeriod();
         LOG_I("NTP: auto start after Wi-Fi connected");
         startNtpSync();
         return;
     }
-    if (now == TT_WIFI_LINK_CONNECTED || now == TT_WIFI_LINK_PROVISIONING
-        || now == TT_WIFI_LINK_CONNECTING) {
-        cancelReconnect();
+    if (connectFailed || linkLost) {
+        LOG_I("WiFi: %s, wait next period", connectFailed ? "connect failed" : "link lost");
+        _ntpOnConnect = false;
+        endWake();
+        schedulePeriod();
         return;
     }
-    if (connectFailed || linkLost) {
-        scheduleReconnect();
+    if (now == TT_WIFI_LINK_CONNECTING) {
+        schedulePeriod();
     }
 }
 
 void TTWiFiTask::requestStartProvisioningAsync() {
     auto* f = new std::function<void()>([this]() {
-        cancelReconnect();
+        cancelHold();
+        _ntpOnConnect = false;
         _wifiManager.startProvisioning();
         publishStatus();
     });
@@ -55,12 +69,25 @@ void TTWiFiTask::requestStartProvisioningAsync() {
 
 void TTWiFiTask::requestStopProvisioningAsync() {
     auto* f = new std::function<void()>([this]() {
-        cancelReconnect();
+        cancelHold();
         _wifiManager.stopProvisioning();
         publishStatus();
-        if (!_wifiManager.isConnected() && !_wifiManager.isConnecting()) {
-            scheduleReconnect();
+        if (_wifiManager.isConnected()) {
+            scheduleHold();
+            schedulePeriod();
+            return;
         }
+        if (_wifiManager.isConnecting()) {
+            schedulePeriod();
+            return;
+        }
+        if (_wifiManager.hasConfiguredNetwork()) {
+            schedulePeriod();
+            return;
+        }
+        _wifiManager.sleepRadio();
+        publishStatus();
+        cancelPeriod();
     });
     enqueue(f);
 }
@@ -72,22 +99,31 @@ void TTWiFiTask::requestStatusAsync() {
     enqueue(f);
 }
 
-void TTWiFiTask::requestReconnectAsync() {
+void TTWiFiTask::requestConnectAsync() {
     auto* f = new std::function<void()>([this]() {
-        LOG_I("WiFi: reconnect saved network");
-        cancelReconnect();
-        _wifiManager.tryConnectSaved();
-        publishStatus();
-        if (!_wifiManager.isConnected() && !_wifiManager.isConnecting()) {
-            scheduleReconnect();
-        }
+        LOG_I("WiFi: page requested connect");
+        cancelPeriod();
+        beginWake();
     });
     enqueue(f);
 }
 
 void TTWiFiTask::requestNtpSyncAsync() {
     auto* f = new std::function<void()>([this]() {
-        startNtpSync();
+        if (_wifiManager.isConnected()) {
+            startNtpSync();
+            return;
+        }
+        if (!_wifiManager.hasConfiguredNetwork() && !_wifiManager.refreshSavedNetwork()) {
+            LOG_I("NTP: Wi-Fi not configured");
+            publishStatus();
+            publishTimeSync(TT_TIME_SYNC_NEED_WIFI, "未连接 Wi-Fi");
+            return;
+        }
+        LOG_I("NTP: wake Wi-Fi then sync");
+        _ntpOnConnect = true;
+        cancelPeriod();
+        beginWake();
     });
     enqueue(f);
 }
@@ -126,42 +162,101 @@ void TTWiFiTask::syncNtp() {
     publishStatus();
 }
 
-void TTWiFiTask::scheduleReconnect() {
-    if (_reconnectHandle != 0) {
-        return;
-    }
-    if (!_wifiManager.hasConfiguredNetwork() || _wifiManager.isProvisioning()
-        || _wifiManager.isConnected() || _wifiManager.isConnecting()) {
-        return;
-    }
-    LOG_I("WiFi: reconnect in %u ms", (unsigned)TT_WIFI_RECONNECT_MS);
-    _reconnectHandle = runOnce(TT_WIFI_RECONNECT_MS, [this]() {
-        _reconnectHandle = 0;
-        if (_wifiManager.isProvisioning() || _wifiManager.isConnected()
-            || _wifiManager.isConnecting()) {
-            LOG_I("WiFi: skip auto reconnect state=%d", (int)_wifiManager.linkState());
-            return;
-        }
-        if (!_wifiManager.hasConfiguredNetwork()) {
-            LOG_I("WiFi: skip auto reconnect, no saved network");
-            return;
-        }
-        LOG_I("WiFi: auto reconnect start");
-        _wifiManager.tryConnectSaved();
+void TTWiFiTask::beginWake() {
+    if (_wifiManager.isProvisioning()) {
+        LOG_I("WiFi: wake skipped, provisioning");
         publishStatus();
-        if (!_wifiManager.isConnected() && !_wifiManager.isConnecting()) {
-            scheduleReconnect();
+        return;
+    }
+    if (!_wifiManager.refreshSavedNetwork()) {
+        LOG_I("WiFi: wake skipped, no SSID");
+        _wifiManager.sleepRadio();
+        publishStatus();
+        cancelPeriod();
+        return;
+    }
+    if (_wifiManager.isConnected()) {
+        LOG_I("WiFi: already connected");
+        publishStatus();
+        scheduleHold();
+        schedulePeriod();
+        if (_ntpOnConnect) {
+            _ntpOnConnect = false;
+            startNtpSync();
         }
+        return;
+    }
+    if (_wifiManager.isConnecting()) {
+        LOG_I("WiFi: already connecting");
+        publishStatus();
+        schedulePeriod();
+        return;
+    }
+    LOG_I("WiFi: wake connect ssid=%s", _wifiManager.hasConfiguredNetwork() ? "saved" : "?");
+    schedulePeriod();
+    if (_wifiManager.tryConnectSaved()) {
+        publishStatus();
+        return;
+    }
+    LOG_W("WiFi: wake connect failed to start");
+    publishStatus();
+    schedulePeriod();
+}
+
+void TTWiFiTask::endWake() {
+    cancelHold();
+    if (_wifiManager.isProvisioning()) {
+        return;
+    }
+    _wifiManager.sleepRadio();
+    publishStatus();
+}
+
+void TTWiFiTask::scheduleHold() {
+    cancelHold();
+    LOG_I("WiFi: hold radio %u ms", (unsigned)TT_WIFI_WAKE_HOLD_MS);
+    _wakeHoldHandle = runOnce(TT_WIFI_WAKE_HOLD_MS, [this]() {
+        _wakeHoldHandle = 0;
+        if (_wifiManager.isProvisioning()) {
+            LOG_I("WiFi: hold skipped, provisioning");
+            return;
+        }
+        LOG_I("WiFi: hold done, sleep");
+        endWake();
     });
 }
 
-void TTWiFiTask::cancelReconnect() {
-    if (_reconnectHandle == 0) {
+void TTWiFiTask::cancelHold() {
+    if (_wakeHoldHandle == 0) {
         return;
     }
-    LOG_I("WiFi: cancel scheduled reconnect");
-    cancelRepeat(_reconnectHandle);
-    _reconnectHandle = 0;
+    LOG_I("WiFi: cancel hold");
+    cancelRepeat(_wakeHoldHandle);
+    _wakeHoldHandle = 0;
+}
+
+void TTWiFiTask::schedulePeriod() {
+    if (_wakePeriodHandle != 0) {
+        return;
+    }
+    if (!_wifiManager.hasConfiguredNetwork()) {
+        return;
+    }
+    LOG_I("WiFi: next wake in %u ms", (unsigned)TT_WIFI_WAKE_PERIOD_MS);
+    _wakePeriodHandle = runOnce(TT_WIFI_WAKE_PERIOD_MS, [this]() {
+        _wakePeriodHandle = 0;
+        LOG_I("WiFi: period wake");
+        beginWake();
+    });
+}
+
+void TTWiFiTask::cancelPeriod() {
+    if (_wakePeriodHandle == 0) {
+        return;
+    }
+    LOG_I("WiFi: cancel period");
+    cancelRepeat(_wakePeriodHandle);
+    _wakePeriodHandle = 0;
 }
 
 void TTWiFiTask::publishStatus() {

@@ -61,7 +61,7 @@ void TTVTask::_registerPeriodicTask(std::function<void()> callback, uint32_t int
         task.callback();
         task.lastExecuteTimeMs = millis();
     } else {
-        task.lastExecuteTimeMs = millis() - intervalMs;
+        task.lastExecuteTimeMs = millis();
     }
 
     _periodicTasks.push_back(std::move(task));
@@ -95,21 +95,28 @@ void TTVTask::cancelRepeat(uint32_t handle)
 void TTVTask::_checkPeriodicTasks()
 {
     uint32_t nowMs = millis();
-    std::vector<size_t> toRemove;
+    std::vector<uint32_t> onceIds;
+    std::vector<std::function<void()>> due;
 
-    for (size_t i = 0; i < _periodicTasks.size(); ++i)
-    {
-        auto& task = _periodicTasks[i];
-        if ((nowMs - task.lastExecuteTimeMs) >= task.intervalMs) {
-            task.callback();
-            if (task.runOnce)
-                toRemove.push_back(i);
-            else
-                task.lastExecuteTimeMs = nowMs;
+    for (auto& task : _periodicTasks) {
+        if ((nowMs - task.lastExecuteTimeMs) < task.intervalMs) {
+            continue;
+        }
+        due.push_back(task.callback);
+        if (task.runOnce) {
+            onceIds.push_back(task.id);
+        } else {
+            task.lastExecuteTimeMs = nowMs;
         }
     }
-    for (auto it = toRemove.rbegin(); it != toRemove.rend(); ++it)
-        _periodicTasks.erase(_periodicTasks.begin() + static_cast<std::ptrdiff_t>(*it));
+    for (uint32_t id : onceIds) {
+        cancelRepeat(id);
+    }
+    for (auto& callback : due) {
+        if (callback) {
+            callback();
+        }
+    }
 }
 
 void TTVTask::_task()

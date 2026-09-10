@@ -8,6 +8,31 @@
 #include <freertos/FreeRTOS.h>
 #include <freertos/task.h>
 
+static uint8_t batteryPercentFromMv(int16_t voltageMv) {
+    const int16_t kMap[] = { TT_BATTERY_SOC_MAP };
+    if (voltageMv <= kMap[0]) {
+        return (uint8_t)kMap[1];
+    }
+    const int last = (TT_BATTERY_SOC_PAIRS - 1) * 2;
+    if (voltageMv >= kMap[last]) {
+        return (uint8_t)kMap[last + 1];
+    }
+    for (int i = 0; i < TT_BATTERY_SOC_PAIRS - 1; i++) {
+        const int16_t mv0 = kMap[i * 2];
+        const int16_t pct0 = kMap[i * 2 + 1];
+        const int16_t mv1 = kMap[(i + 1) * 2];
+        const int16_t pct1 = kMap[(i + 1) * 2 + 1];
+        if (voltageMv <= mv1) {
+            const int32_t span = mv1 - mv0;
+            if (span <= 0) {
+                return (uint8_t)pct1;
+            }
+            return (uint8_t)(pct0 + (int32_t)(voltageMv - mv0) * (pct1 - pct0) / span);
+        }
+    }
+    return 100;
+}
+
 void TTSensorTask::setup() {
     LOG_I("Initializing I2C (SDA=%d, SCL=%d)...", TT_SENSOR_I2C_SDA, TT_SENSOR_I2C_SCL);
     Wire.begin(TT_SENSOR_I2C_SDA, TT_SENSOR_I2C_SCL);
@@ -61,17 +86,7 @@ void TTSensorTask::performSensorRead() {
     const bool usbPlugged = voltageMv > TT_BATTERY_USB_MV;
     const bool charging = digitalRead(TT_BATTERY_CHARGE_PIN) == 0;
 
-    uint8_t percent = 100;
-    if (!usbPlugged) {
-        if (voltageMv <= TT_BATTERY_EMPTY_MV) {
-            percent = 0;
-        } else if (voltageMv >= TT_BATTERY_FULL_MV) {
-            percent = 100;
-        } else {
-            percent = (uint8_t)((voltageMv - TT_BATTERY_EMPTY_MV) * 100
-                                / (TT_BATTERY_FULL_MV - TT_BATTERY_EMPTY_MV));
-        }
-    }
+    const uint8_t percent = usbPlugged ? 100 : batteryPercentFromMv(voltageMv);
 
     LOG_I("Battery: %dmV percent=%u usb=%d charging=%d",
           voltageMv, (unsigned)percent, usbPlugged ? 1 : 0, charging ? 1 : 0);

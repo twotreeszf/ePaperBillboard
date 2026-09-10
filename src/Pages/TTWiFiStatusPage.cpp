@@ -192,7 +192,7 @@ void TTWiFiStatusPage::reconnect() {
     }
     LOG_I("WiFi status page: reconnect");
     showReadLoading("正在连接...");
-    TTInstanceOf<TTWiFiTask>().requestReconnectAsync();
+    TTInstanceOf<TTWiFiTask>().requestConnectAsync();
 }
 
 void TTWiFiStatusPage::goWebSettings() {

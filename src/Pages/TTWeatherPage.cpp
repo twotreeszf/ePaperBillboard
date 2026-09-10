@@ -427,6 +427,11 @@ void TTWeatherPage::setup() {
                 requestRefresh(TT_REFRESH_PARTIAL);
             }
         });
+    subscribe<TTWiFiStatusPayload>(
+        TT_NOTIFICATION_WIFI_STATUS,
+        [this](const TTWiFiStatusPayload& status) {
+            onWifiStatus(status);
+        });
     registerKeyAction(TT_KEY_CENTER, TT_KEY_LONG_PRESS, [this]() {
         forceRefresh();
     });
@@ -464,6 +469,7 @@ void TTWeatherPage::willDisappear() {
     TTScreenPage::willDisappear();
     _visible = false;
     _forceRefreshing = false;
+    _waitingWifi = false;
     if (_refreshHandle != 0) {
         cancelRepeat(_refreshHandle);
         _refreshHandle = 0;
@@ -1099,6 +1105,38 @@ void TTWeatherPage::bindOk(const TTWeatherPayload& payload) {
 
     bindDetails(payload);
     bindGraph(payload);
+}
+
+void TTWeatherPage::onWifiStatus(const TTWiFiStatusPayload& status) {
+    if (!_visible) {
+        return;
+    }
+    if (status.state == TT_WIFI_LINK_CONNECTED) {
+        const bool force = _forceRefreshing;
+        _waitingWifi = false;
+        LOG_I("Weather page: Wi-Fi up, fetch force=%d", force ? 1 : 0);
+        requestFetch(force);
+        return;
+    }
+    if (status.state == TT_WIFI_LINK_CONNECTING || status.state == TT_WIFI_LINK_PROVISIONING) {
+        return;
+    }
+    if (!_waitingWifi) {
+        return;
+    }
+    _waitingWifi = false;
+    _forceRefreshing = false;
+    const bool contentHidden = _content == nullptr
+        || lv_obj_has_flag(_content, LV_OBJ_FLAG_HIDDEN);
+    if (!contentHidden) {
+        LOG_I("Weather page: Wi-Fi down, keep cached content");
+        return;
+    }
+    setMessage(status.ssid[0] != '\0' ? "Wi-Fi 连接失败" : "未连接 Wi-Fi");
+    showEmpty(true);
+    showEmptyActions(true, status.ssid[0] != '\0');
+    requestRefresh(TT_REFRESH_PARTIAL);
+    LOG_I("Weather page: Wi-Fi unavailable ssid=%s", status.ssid);
 }
 
 void TTWeatherPage::forceRefresh() {
