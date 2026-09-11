@@ -6,12 +6,15 @@
 
 #define TT_HOME_ICON_SIZE  48
 #define TT_HOME_ICON_PAD   4
+#define TT_HOME_ITEM_PAD_X  8
+#define TT_HOME_ITEM_PAD_Y  6
 #define TT_HOME_ITEM_W    84
 #define TT_HOME_ITEM_H    86
 #define TT_HOME_ITEMS_GAP 8
 #define TT_HOME_ITEM_RADIUS 8
 #define TT_HOME_INDICATOR_W 16
 #define TT_HOME_INDICATOR_H 6
+#define TT_HOME_INDICATOR_GAP  4
 #define TT_HOME_INDICATOR_RADIUS  3
 
 struct MenuItem {

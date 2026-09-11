@@ -79,11 +79,11 @@ void TTNtpSyncPage::buildContent(lv_obj_t* screen) {
     lv_obj_align(_btnRow, LV_ALIGN_BOTTOM_MID, 0, -10);
     lv_obj_add_flag(_btnRow, LV_OBJ_FLAG_HIDDEN);
 
-    _retryBtn = TTTextButton::create(_btnRow, "重新校时", font16, TT_NTP_BTN_W);
+    _retryBtn = TTTextButton::create(_btnRow, "重新校时", font16);
     lv_obj_add_event_cb(_retryBtn, onRetryEvent, LV_EVENT_CLICKED, this);
     addToFocusGroup(_retryBtn);
 
-    _backBtn = TTTextButton::create(_btnRow, "返回", font16, TT_NTP_BTN_W);
+    _backBtn = TTTextButton::create(_btnRow, "返回", font16);
     lv_obj_add_event_cb(_backBtn, onBackEvent, LV_EVENT_CLICKED, this);
     addToFocusGroup(_backBtn);
 }

@@ -209,7 +209,11 @@ void TTPopupLayer::showDialog(const char* msg, DialogCallback onOk, DialogCallba
     _dialogGroup = lv_group_create();
 
     lv_obj_t* cancelBtn = lv_btn_create(btnRow);
-    lv_obj_set_size(cancelBtn, 56, 24);
+    lv_obj_set_size(cancelBtn, LV_SIZE_CONTENT, LV_SIZE_CONTENT);
+    lv_obj_set_style_pad_left(cancelBtn, TT_POPUP_DIALOG_BTN_PAD_X, 0);
+    lv_obj_set_style_pad_right(cancelBtn, TT_POPUP_DIALOG_BTN_PAD_X, 0);
+    lv_obj_set_style_pad_top(cancelBtn, TT_POPUP_DIALOG_BTN_PAD_Y, 0);
+    lv_obj_set_style_pad_bottom(cancelBtn, TT_POPUP_DIALOG_BTN_PAD_Y, 0);
     lv_obj_set_style_radius(cancelBtn, 1, 0);
     lv_obj_set_style_bg_color(cancelBtn, lv_color_white(), 0);
     lv_obj_set_style_border_color(cancelBtn, lv_color_black(), 0);
@@ -236,7 +240,11 @@ void TTPopupLayer::showDialog(const char* msg, DialogCallback onOk, DialogCallba
     lv_obj_add_event_cb(cancelBtn, dialogBtnFocusChanged, LV_EVENT_DEFOCUSED, cancelUnderline);
 
     lv_obj_t* okBtn = lv_btn_create(btnRow);
-    lv_obj_set_size(okBtn, 48, 24);
+    lv_obj_set_size(okBtn, LV_SIZE_CONTENT, LV_SIZE_CONTENT);
+    lv_obj_set_style_pad_left(okBtn, TT_POPUP_DIALOG_BTN_PAD_X, 0);
+    lv_obj_set_style_pad_right(okBtn, TT_POPUP_DIALOG_BTN_PAD_X, 0);
+    lv_obj_set_style_pad_top(okBtn, TT_POPUP_DIALOG_BTN_PAD_Y, 0);
+    lv_obj_set_style_pad_bottom(okBtn, TT_POPUP_DIALOG_BTN_PAD_Y, 0);
     lv_obj_set_style_radius(okBtn, 1, 0);
     lv_obj_set_style_bg_color(okBtn, lv_color_white(), 0);
     lv_obj_set_style_border_color(okBtn, lv_color_black(), 0);

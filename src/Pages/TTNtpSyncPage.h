@@ -4,7 +4,6 @@
 #include "../Base/TTScreenPage.h"
 #include "../Base/TTNotificationPayloads.h"
 
-#define TT_NTP_BTN_W         120
 #define TT_NTP_BTN_GAP       12
 #define TT_NTP_STATUS_TOP    16
 #define TT_NTP_STATUS_LEFT   16

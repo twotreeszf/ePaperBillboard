@@ -4,7 +4,6 @@
 #include "../Base/TTScreenPage.h"
 #include "../Base/TTNotificationPayloads.h"
 
-#define TT_WIFI_STATUS_BTN_W      90
 #define TT_WIFI_STATUS_BTN_GAP    8
 #define TT_WIFI_STATUS_TOP        16
 #define TT_WIFI_STATUS_LEFT       16

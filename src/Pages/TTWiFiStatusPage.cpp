@@ -79,17 +79,17 @@ void TTWiFiStatusPage::buildContent(lv_obj_t* screen) {
     lv_obj_set_style_pad_column(_btnRow, TT_WIFI_STATUS_BTN_GAP, 0);
     lv_obj_align(_btnRow, LV_ALIGN_BOTTOM_MID, 0, -10);
 
-    _reconnectBtn = TTTextButton::create(_btnRow, "重连", font16, TT_WIFI_STATUS_BTN_W);
+    _reconnectBtn = TTTextButton::create(_btnRow, "重连", font16);
     lv_obj_add_event_cb(_reconnectBtn, onReconnectEvent, LV_EVENT_CLICKED, this);
     addToFocusGroup(_reconnectBtn);
     lv_obj_add_flag(_reconnectBtn, LV_OBJ_FLAG_HIDDEN);
 
-    _actionBtn = TTTextButton::create(_btnRow, "去 Web 设置", font16, TT_WIFI_STATUS_BTN_W);
+    _actionBtn = TTTextButton::create(_btnRow, "去 Web 设置", font16);
     lv_obj_add_event_cb(_actionBtn, onActionEvent, LV_EVENT_CLICKED, this);
     addToFocusGroup(_actionBtn);
     lv_obj_add_flag(_actionBtn, LV_OBJ_FLAG_HIDDEN);
 
-    _backBtn = TTTextButton::create(_btnRow, "返回", font16, TT_WIFI_STATUS_BTN_W);
+    _backBtn = TTTextButton::create(_btnRow, "返回", font16);
     lv_obj_add_event_cb(_backBtn, onBackEvent, LV_EVENT_CLICKED, this);
     addToFocusGroup(_backBtn);
 }

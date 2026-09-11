@@ -5,9 +5,15 @@ static void applyPlainBg(lv_obj_t* btn, lv_style_selector_t sel) {
     lv_obj_set_style_bg_opa(btn, LV_OPA_COVER, sel);
 }
 
-lv_obj_t* TTTextButton::create(lv_obj_t* parent, const char* text, lv_font_t* font, int32_t w, int32_t h) {
+lv_obj_t* TTTextButton::create(lv_obj_t* parent, const char* text, lv_font_t* font, int32_t minW, int32_t minH) {
     lv_obj_t* btn = lv_btn_create(parent);
-    lv_obj_set_size(btn, w, h);
+    lv_obj_set_size(btn, LV_SIZE_CONTENT, LV_SIZE_CONTENT);
+    if (minW > 0) {
+        lv_obj_set_style_min_width(btn, minW, 0);
+    }
+    if (minH > 0) {
+        lv_obj_set_style_min_height(btn, minH, 0);
+    }
     applyPlainBg(btn, 0);
     applyPlainBg(btn, LV_STATE_FOCUSED);
     applyPlainBg(btn, LV_STATE_FOCUS_KEY);
@@ -17,7 +23,10 @@ lv_obj_t* TTTextButton::create(lv_obj_t* parent, const char* text, lv_font_t* fo
     lv_obj_set_style_radius(btn, 0, 0);
     lv_obj_set_style_shadow_width(btn, 0, 0);
     lv_obj_set_style_outline_width(btn, 0, 0);
-    lv_obj_set_style_pad_all(btn, 0, 0);
+    lv_obj_set_style_pad_left(btn, TT_TEXT_BUTTON_PAD_X, 0);
+    lv_obj_set_style_pad_right(btn, TT_TEXT_BUTTON_PAD_X, 0);
+    lv_obj_set_style_pad_top(btn, TT_TEXT_BUTTON_PAD_Y, 0);
+    lv_obj_set_style_pad_bottom(btn, TT_TEXT_BUTTON_PAD_Y, 0);
     lv_obj_set_flex_flow(btn, LV_FLEX_FLOW_ROW);
     lv_obj_set_flex_align(btn, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
     lv_obj_set_style_pad_column(btn, TT_TEXT_BUTTON_DOT_GAP, 0);
@@ -34,6 +43,7 @@ lv_obj_t* TTTextButton::create(lv_obj_t* parent, const char* text, lv_font_t* fo
     lv_obj_remove_flag(dot, LV_OBJ_FLAG_CLICKABLE);
 
     lv_obj_t* label = lv_label_create(btn);
+    lv_obj_set_width(label, LV_SIZE_CONTENT);
     lv_label_set_text(label, text != nullptr ? text : "");
     lv_obj_set_style_text_color(label, lv_color_black(), 0);
     if (font != nullptr) {

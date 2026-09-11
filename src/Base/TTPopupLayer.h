@@ -3,6 +3,8 @@
 #include <lvgl.h>
 #include <functional>
 
+#define TT_POPUP_DIALOG_BTN_PAD_X  10
+#define TT_POPUP_DIALOG_BTN_PAD_Y  4
 #define TT_POPUP_DIALOG_BTN_UNDERLINE_H  1
 #define TT_POPUP_DIALOG_BTN_UNDERLINE_W_CANCEL  24
 #define TT_POPUP_DIALOG_BTN_UNDERLINE_W_OK  24

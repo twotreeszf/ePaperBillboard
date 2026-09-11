@@ -213,16 +213,16 @@ void TTWeatherPage::buildContent(lv_obj_t* screen) {
     lv_obj_remove_flag(_btnRow, LV_OBJ_FLAG_SCROLLABLE);
     lv_obj_add_flag(_btnRow, LV_OBJ_FLAG_HIDDEN);
 
-    _retryBtn = TTTextButton::create(_btnRow, "重试", font16, TT_WEATHER_BTN_W);
+    _retryBtn = TTTextButton::create(_btnRow, "重试", font16);
     lv_obj_add_event_cb(_retryBtn, onRetryEvent, LV_EVENT_CLICKED, this);
     addToFocusGroup(_retryBtn);
     lv_obj_add_flag(_retryBtn, LV_OBJ_FLAG_HIDDEN);
 
-    _webBtn = TTTextButton::create(_btnRow, "Web 设置", font16, TT_WEATHER_BTN_W);
+    _webBtn = TTTextButton::create(_btnRow, "Web 设置", font16);
     lv_obj_add_event_cb(_webBtn, onWebSettingsEvent, LV_EVENT_CLICKED, this);
     addToFocusGroup(_webBtn);
 
-    _backBtn = TTTextButton::create(_btnRow, "返回", font16, TT_WEATHER_BTN_W);
+    _backBtn = TTTextButton::create(_btnRow, "返回", font16);
     lv_obj_add_event_cb(_backBtn, onBackEvent, LV_EVENT_CLICKED, this);
     addToFocusGroup(_backBtn);
 
