@@ -353,11 +353,11 @@ void TTNavigationBar::applySensor(const TTSensorDataPayload& data) {
     }
     if (_batteryCharging || _batteryUsb) {
         lv_label_set_text(_batteryLabel, "");
-        lv_obj_add_flag(_batteryLabel, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_set_width(_batteryLabel, 0);
     } else {
         snprintf(text, sizeof(text), "%u%%", (unsigned)_batteryPercent);
         lv_label_set_text(_batteryLabel, text);
-        lv_obj_remove_flag(_batteryLabel, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_set_width(_batteryLabel, LV_SIZE_CONTENT);
     }
     LOG_I("NavBar: sensor T=%.1f H=%.1f P=%.0f bat=%dmV %u%% usb=%d charging=%d",
           _temperature, _humidity, _pressure,

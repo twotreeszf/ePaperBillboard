@@ -58,9 +58,21 @@ void TTSensorTask::setup() {
     LOG_I("Battery ADC GPIO%d, charge GPIO%d (low=charging)",
           TT_BATTERY_ADC_PIN, TT_BATTERY_CHARGE_PIN);
 
-    LOG_I("Sensor read interval %d s", TT_SENSOR_UPDATE_INTERVAL);
-    runRepeatWall(TT_SENSOR_UPDATE_INTERVAL * 1000, [this]() {
+    performSensorRead();
+    arm();
+}
+
+void TTSensorTask::arm() {
+    if (_tickHandle != 0) {
+        cancelRepeat(_tickHandle);
+        _tickHandle = 0;
+    }
+    const uint32_t delayMs = TTInstanceOf<TTRtc>().msUntilNextTimeTick();
+    LOG_I("Sensor: next read in %.1f s (every %d s)", delayMs / 1000.0, TT_SENSOR_UPDATE_INTERVAL);
+    _tickHandle = runOnceWall(delayMs, [this]() {
+        _tickHandle = 0;
         performSensorRead();
+        arm();
     });
 }
 

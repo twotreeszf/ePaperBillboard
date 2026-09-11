@@ -1108,10 +1108,8 @@ void TTWeatherPage::onWifiStatus(const TTWiFiStatusPayload& status) {
         return;
     }
     if (status.state == TT_WIFI_LINK_CONNECTED) {
-        _waitingWifi = false;
         LOG_I("Weather page: Wi-Fi up, fetch");
-        TTInstanceOf<TTWeatherService>().holdWifi();
-        requestFetch();
+        beginFetch();
         return;
     }
     if (status.state == TT_WIFI_LINK_CONNECTING || status.state == TT_WIFI_LINK_PROVISIONING) {
@@ -1144,24 +1142,27 @@ void TTWeatherPage::requestFetch(bool allowWake) {
     }
     cancelLightSleep();
     _sleepAfterTimeTick = false;
-    auto& weather = TTInstanceOf<TTWeatherService>();
-    if (WiFi.status() != WL_CONNECTED) {
-        if (allowWake) {
-            _waitingWifi = true;
-            LOG_I("Weather page: wake Wi-Fi");
-            weather.holdWifi();
-            TTInstanceOf<TTWiFiTask>().requestConnectAsync();
-            return;
-        }
-        LOG_I("Weather page: skip fetch, Wi-Fi off");
-        _waitingWifi = false;
-        weather.releaseWifi();
+    if (allowWake) {
+        _waitingWifi = true;
+        LOG_I("Weather page: wake Wi-Fi");
+        TTInstanceOf<TTWeatherService>().holdWifi();
+        TTInstanceOf<TTWiFiTask>().requestConnectAsync();
         return;
     }
+    beginFetch();
+}
+
+void TTWeatherPage::beginFetch() {
+    if (_fetching) {
+        LOG_I("Weather page: fetch ignored (busy)");
+        return;
+    }
+    cancelLightSleep();
+    _sleepAfterTimeTick = false;
     _waitingWifi = false;
     _fetching = true;
     LOG_I("Weather page: fetch");
-    weather.requestFetch();
+    TTInstanceOf<TTWeatherService>().requestFetch();
 }
 
 void TTWeatherPage::onSleepWake(const TTSleepWakePayload& wake) {
@@ -1172,6 +1173,7 @@ void TTWeatherPage::onSleepWake(const TTSleepWakePayload& wake) {
     switch (wake.reason) {
         case TT_SLEEP_WAKE_WIFI:
             _sleepAfterTimeTick = false;
+            requestFetch(true);
             break;
         case TT_SLEEP_WAKE_INPUT:
             _sleepAfterTimeTick = false;

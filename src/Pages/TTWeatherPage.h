@@ -150,6 +150,7 @@ private:
     void bindGraph(const TTWeatherPayload& payload);
     void forceRefresh();
     void requestFetch(bool allowWake = false);
+    void beginFetch();
     void onWifiStatus(const TTWiFiStatusPayload& status);
     void onSleepWake(const TTSleepWakePayload& wake);
     void onTimeTick();
