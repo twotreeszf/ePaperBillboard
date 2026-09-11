@@ -9,7 +9,6 @@
 #include "../Base/TTNavigationBar.h"
 #include "../Base/TTWeatherService.h"
 #include "../Base/TTSleepService.h"
-#include "../Tasks/TTWiFiTask.h"
 #include <WiFi.h>
 #include <Arduino.h>
 #include <EPDConfig.h>
@@ -430,11 +429,6 @@ void TTWeatherPage::setup() {
             }
             tryRequestLightSleep();
         });
-    subscribe<TTWiFiStatusPayload>(
-        TT_NOTIFICATION_WIFI_STATUS,
-        [this](const TTWiFiStatusPayload& status) {
-            onWifiStatus(status);
-        });
     subscribe<TTSleepWakePayload>(
         TT_NOTIFICATION_SLEEP_WAKE,
         [this](const TTSleepWakePayload& wake) {
@@ -460,19 +454,15 @@ TTRefreshLevel TTWeatherPage::enterRefreshLevel() const {
 void TTWeatherPage::willAppear() {
     TTScreenPage::willAppear();
     _visible = true;
-    requestFetch(true);
+    requestFetch();
 }
 
 void TTWeatherPage::willDisappear() {
     TTScreenPage::willDisappear();
     _visible = false;
     _forceRefreshing = false;
-    _waitingWifi = false;
     _sleepAfterTimeTick = false;
     cancelInputIdleSleep();
-    if (!_fetching) {
-        TTInstanceOf<TTWeatherService>().releaseWifi();
-    }
 }
 
 void TTWeatherPage::setMessage(const char* text) {
@@ -560,7 +550,7 @@ void TTWeatherPage::onRetryEvent(lv_event_t* e) {
     TTWeatherPage* self = (TTWeatherPage*)lv_event_get_user_data(e);
     if (self != nullptr) {
         LOG_I("Weather page: retry");
-        self->forceRefresh();
+        self->requestFetch();
     }
 }
 
@@ -1103,63 +1093,13 @@ void TTWeatherPage::bindOk(const TTWeatherPayload& payload) {
     bindGraph(payload);
 }
 
-void TTWeatherPage::onWifiStatus(const TTWiFiStatusPayload& status) {
-    if (!_visible) {
-        return;
-    }
-    if (status.state == TT_WIFI_LINK_CONNECTED) {
-        LOG_I("Weather page: Wi-Fi up, fetch");
-        beginFetch();
-        return;
-    }
-    if (status.state == TT_WIFI_LINK_CONNECTING || status.state == TT_WIFI_LINK_PROVISIONING) {
-        return;
-    }
-    if (!_waitingWifi) {
-        return;
-    }
-    _waitingWifi = false;
-    _forceRefreshing = false;
-    TTInstanceOf<TTWeatherService>().releaseWifi();
-    const bool contentHidden = _content == nullptr
-        || lv_obj_has_flag(_content, LV_OBJ_FLAG_HIDDEN);
-    if (!contentHidden) {
-        LOG_I("Weather page: Wi-Fi down, keep cached content");
-        tryRequestLightSleep();
-        return;
-    }
-    setMessage(status.ssid[0] != '\0' ? "Wi-Fi 连接失败" : "未连接 Wi-Fi");
-    showEmpty(true);
-    showEmptyActions(true, status.ssid[0] != '\0');
-    requestRefresh(TT_REFRESH_PARTIAL);
-    LOG_I("Weather page: Wi-Fi unavailable ssid=%s", status.ssid);
-}
-
-void TTWeatherPage::requestFetch(bool allowWake) {
+void TTWeatherPage::requestFetch() {
     if (_fetching) {
         LOG_I("Weather page: fetch ignored (busy)");
         return;
     }
     cancelLightSleep();
     _sleepAfterTimeTick = false;
-    if (allowWake) {
-        _waitingWifi = true;
-        LOG_I("Weather page: wake Wi-Fi");
-        TTInstanceOf<TTWeatherService>().holdWifi();
-        TTInstanceOf<TTWiFiTask>().requestConnectAsync();
-        return;
-    }
-    beginFetch();
-}
-
-void TTWeatherPage::beginFetch() {
-    if (_fetching) {
-        LOG_I("Weather page: fetch ignored (busy)");
-        return;
-    }
-    cancelLightSleep();
-    _sleepAfterTimeTick = false;
-    _waitingWifi = false;
     _fetching = true;
     LOG_I("Weather page: fetch");
     TTInstanceOf<TTWeatherService>().requestFetch();
@@ -1171,14 +1111,14 @@ void TTWeatherPage::onSleepWake(const TTSleepWakePayload& wake) {
     }
     LOG_I("Weather page: sleep wake reason=%d", (int)wake.reason);
     switch (wake.reason) {
-        case TT_SLEEP_WAKE_WIFI:
-            _sleepAfterTimeTick = false;
-            requestFetch(true);
+        case TT_SLEEP_WAKE_FETCH:
+            LOG_I("Weather page: fetch period");
+            requestFetch();
             break;
         case TT_SLEEP_WAKE_INPUT:
             _sleepAfterTimeTick = false;
             cancelInputIdleSleep();
-            if (_fetching || _waitingWifi || _forceRefreshing) {
+            if (_fetching || _forceRefreshing) {
                 break;
             }
             _inputIdleSleepHandle = runOnce(TT_SLEEP_INPUT_IDLE_MS, [this]() {
@@ -1187,8 +1127,8 @@ void TTWeatherPage::onSleepWake(const TTSleepWakePayload& wake) {
             });
             LOG_I("Weather page: sleep in %d s if idle", TT_SLEEP_INPUT_IDLE_MS / 1000);
             break;
-        case TT_SLEEP_WAKE_MINUTE:
-            if (_fetching || _waitingWifi || _forceRefreshing) {
+        case TT_SLEEP_WAKE_TIME:
+            if (_fetching || _forceRefreshing) {
                 break;
             }
             _sleepAfterTimeTick = true;
@@ -1208,7 +1148,7 @@ void TTWeatherPage::onTimeTick() {
         updateClock(true);
         updateAge(true);
         if (WiFi.status() == WL_CONNECTED) {
-            requestFetch(false);
+            requestFetch();
         }
     } else {
         updateClock(true);
@@ -1230,7 +1170,7 @@ void TTWeatherPage::cancelInputIdleSleep() {
 }
 
 void TTWeatherPage::tryRequestLightSleep() {
-    if (!_visible || _fetching || _waitingWifi || _forceRefreshing) {
+    if (!_visible || _fetching || _forceRefreshing) {
         return;
     }
     const bool contentHidden = _content == nullptr
@@ -1255,7 +1195,7 @@ void TTWeatherPage::forceRefresh() {
     setMessage("正在刷新天气");
     requestRefresh(TT_REFRESH_PARTIAL);
     LOG_I("Weather page: force refresh");
-    requestFetch(true);
+    requestFetch();
 }
 
 bool TTWeatherPage::applyWeather(const TTWeatherPayload& payload) {
@@ -1301,7 +1241,8 @@ bool TTWeatherPage::applyWeather(const TTWeatherPayload& payload) {
     }
     const bool needSetup = payload.state == TT_WEATHER_NEED_WIFI
         || payload.state == TT_WEATHER_NEED_LOCATION;
-    const bool needRetry = payload.state == TT_WEATHER_FAILED;
+    const bool needRetry = payload.state == TT_WEATHER_FAILED
+        || payload.state == TT_WEATHER_NEED_WIFI;
     showEmptyActions(needSetup, needRetry);
     return true;
 }

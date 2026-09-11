@@ -5,8 +5,6 @@
 class TTWeatherService {
 public:
     void requestFetch();
-    void holdWifi();
-    void releaseWifi();
 
 private:
     void publish(const TTWeatherPayload& payload);
@@ -15,6 +13,4 @@ private:
     bool fetchForecast(float lat, float lon, TTWeatherPayload& out);
     bool fetchAqi(float lat, float lon, TTWeatherPayload& out);
     void fetchWeather();
-
-    bool _wifiHeld = false;
 };

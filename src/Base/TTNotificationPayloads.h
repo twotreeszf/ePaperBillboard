@@ -35,8 +35,8 @@ enum TTTimeSyncState {
 };
 
 enum TTSleepWakeReason {
-    TT_SLEEP_WAKE_MINUTE = 0,
-    TT_SLEEP_WAKE_WIFI,
+    TT_SLEEP_WAKE_TIME = 0,
+    TT_SLEEP_WAKE_FETCH,
     TT_SLEEP_WAKE_INPUT,
 };
 

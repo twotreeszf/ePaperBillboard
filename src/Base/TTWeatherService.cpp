@@ -1,6 +1,5 @@
 #include "TTWeatherService.h"
 #include "Logger.h"
-#include "TTAsyncQueue.h"
 #include "TTInstance.h"
 #include "TTNotificationPayloads.h"
 #include "TTPreference.h"
@@ -83,24 +82,6 @@ bool httpGetJson(const char* url, JsonDocument& doc, JsonDocument* filter) {
 }
 
 }  // namespace
-
-void TTWeatherService::holdWifi() {
-    if (_wifiHeld) {
-        return;
-    }
-    _wifiHeld = true;
-    LOG_I("Weather: hold Wi-Fi");
-    TTInstanceOf<TTWiFiTask>().requestAcquireAsync("weather");
-}
-
-void TTWeatherService::releaseWifi() {
-    if (!_wifiHeld) {
-        return;
-    }
-    _wifiHeld = false;
-    LOG_I("Weather: release Wi-Fi");
-    TTInstanceOf<TTWiFiTask>().requestReleaseAsync("weather");
-}
 
 void TTWeatherService::publish(const TTWeatherPayload& payload) {
     TTInstanceOf<TTUITask>().postNotification(TT_NOTIFICATION_WEATHER, payload);
@@ -326,13 +307,13 @@ void TTWeatherService::fetchWeather() {
 }
 
 void TTWeatherService::requestFetch() {
-    holdWifi();
-    if (!TTInstanceOf<TTAsyncQueue>().post([this]() {
+    TTInstanceOf<TTWiFiTask>().runWithRadio(
+        "weather",
+        [this]() {
             fetchWeather();
-            releaseWifi();
-        })) {
-        LOG_E("Weather: fetch post failed");
-        releaseWifi();
-        publishStatus(TT_WEATHER_FAILED, "获取天气失败");
-    }
+        },
+        [this]() {
+            LOG_W("Weather: radio failed");
+            publishStatus(TT_WEATHER_NEED_WIFI, "未连接 Wi-Fi");
+        });
 }

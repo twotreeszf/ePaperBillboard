@@ -12,10 +12,10 @@
 
 static const char* tt_sleep_reason_text(TTSleepWakeReason reason) {
     switch (reason) {
-        case TT_SLEEP_WAKE_MINUTE:
-            return "minute";
-        case TT_SLEEP_WAKE_WIFI:
-            return "wifi";
+        case TT_SLEEP_WAKE_TIME:
+            return "time";
+        case TT_SLEEP_WAKE_FETCH:
+            return "fetch";
         case TT_SLEEP_WAKE_INPUT:
             return "input";
     }
@@ -45,6 +45,9 @@ void TTSleepService::requestLightSleep(void* owner) {
     _owner = owner;
     _requested = true;
     _loggedWait = false;
+    if (_nextFetchUnix <= 0) {
+        refreshFetchDeadline();
+    }
     LOG_I("Sleep: requested owner=%p", owner);
 }
 
@@ -56,6 +59,10 @@ void TTSleepService::cancelLightSleep(void* owner) {
         return;
     }
     LOG_I("Sleep: cancelled owner=%p", owner);
+    consumeRequest();
+}
+
+void TTSleepService::consumeRequest() {
     _requested = false;
     _owner = nullptr;
     _loggedWait = false;
@@ -70,9 +77,10 @@ void TTSleepService::tryEnter() {
         return;
     }
     auto& wifi = TTInstanceOf<TTWiFiTask>();
-    if (wifi.isPeriodDue() && !wifi.isRadioActive()) {
-        LOG_I("Sleep: period due, connect");
-        wifi.requestConnectAsync();
+    if (isFetchPeriodDue() && !wifi.isRadioActive()) {
+        LOG_I("Sleep: fetch period due");
+        consumeRequest();
+        publishWake(TT_SLEEP_WAKE_FETCH);
         return;
     }
     if (!canEnter()) {
@@ -109,8 +117,7 @@ bool TTSleepService::canEnter() const {
     if (TTInstanceOf<TTPopupLayer>().isBusy()) {
         return false;
     }
-    auto& wifi = TTInstanceOf<TTWiFiTask>();
-    if (wifi.isRadioActive() || wifi.isPeriodDue()) {
+    if (TTInstanceOf<TTWiFiTask>().isRadioActive() || isFetchPeriodDue()) {
         return false;
     }
     if (WiFi.getMode() != WIFI_OFF) {
@@ -159,9 +166,7 @@ bool TTSleepService::enterSleep(uint64_t sleepUs) {
 }
 
 void TTSleepService::afterWake() {
-    _requested = false;
-    _owner = nullptr;
-    _loggedWait = false;
+    consumeRequest();
 
     if (TTInstanceOf<TTRtc>().hasHardwareRtc()) {
         TTInstanceOf<TTRtc>().loadFromHardware();
@@ -176,10 +181,6 @@ void TTSleepService::afterWake() {
     if (reason == TT_SLEEP_WAKE_INPUT) {
         _holdoffAfterInput = true;
     }
-    if (reason == TT_SLEEP_WAKE_WIFI) {
-        LOG_I("Sleep: Wi-Fi period, connect");
-        TTInstanceOf<TTWiFiTask>().requestConnectAsync();
-    }
     publishWake(reason);
 }
 
@@ -187,13 +188,38 @@ TTSleepWakeReason TTSleepService::classifyWake() const {
     if (esp_sleep_get_wakeup_cause() == ESP_SLEEP_WAKEUP_EXT1) {
         return TT_SLEEP_WAKE_INPUT;
     }
-    if (TTInstanceOf<TTWiFiTask>().isPeriodDue()) {
-        return TT_SLEEP_WAKE_WIFI;
+    if (isFetchPeriodDue()) {
+        return TT_SLEEP_WAKE_FETCH;
     }
-    return TT_SLEEP_WAKE_MINUTE;
+    return TT_SLEEP_WAKE_TIME;
+}
+
+bool TTSleepService::isFetchPeriodDue() const {
+    if (_nextFetchUnix <= 0 || !TTInstanceOf<TTRtc>().isTimeValid()) {
+        return false;
+    }
+    const time_t now = time(nullptr);
+    return now > 0 && now >= _nextFetchUnix;
+}
+
+void TTSleepService::refreshFetchDeadline() {
+    if (!TTInstanceOf<TTRtc>().isTimeValid()) {
+        _nextFetchUnix = 0;
+        return;
+    }
+    const time_t now = time(nullptr);
+    if (now <= 0) {
+        _nextFetchUnix = 0;
+        return;
+    }
+    _nextFetchUnix = now + (time_t)(TT_SLEEP_FETCH_PERIOD_MS / 1000u);
+    LOG_I("Sleep: next fetch unix=%ld", (long)_nextFetchUnix);
 }
 
 void TTSleepService::publishWake(TTSleepWakeReason reason) {
+    if (reason == TT_SLEEP_WAKE_FETCH) {
+        refreshFetchDeadline();
+    }
     TTSleepWakePayload payload;
     payload.reason = reason;
     TTInstanceOf<TTNotificationCenter>().sendNotification(TT_NOTIFICATION_SLEEP_WAKE, payload);

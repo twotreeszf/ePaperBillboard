@@ -149,9 +149,7 @@ private:
     void bindDetails(const TTWeatherPayload& payload);
     void bindGraph(const TTWeatherPayload& payload);
     void forceRefresh();
-    void requestFetch(bool allowWake = false);
-    void beginFetch();
-    void onWifiStatus(const TTWiFiStatusPayload& status);
+    void requestFetch();
     void onSleepWake(const TTSleepWakePayload& wake);
     void onTimeTick();
     void tryRequestLightSleep();
@@ -209,7 +207,6 @@ private:
     TTWeatherDetailCell _details[TT_WEATHER_DETAIL_N];
     bool _visible = false;
     bool _forceRefreshing = false;
-    bool _waitingWifi = false;
     bool _fetching = false;
     bool _sleepAfterTimeTick = false;
     uint32_t _inputIdleSleepHandle = 0;

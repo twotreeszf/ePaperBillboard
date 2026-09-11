@@ -7,6 +7,19 @@
 #include "../Base/TTRtc.h"
 #include <ctime>
 #include <cstring>
+#include <string>
+
+static void tt_wifi_copy_tag(char* out, size_t outMax, const char* tag) {
+    if (out == nullptr || outMax == 0) {
+        return;
+    }
+    if (tag == nullptr || tag[0] == '\0') {
+        strncpy(out, "-", outMax - 1);
+    } else {
+        strncpy(out, tag, outMax - 1);
+    }
+    out[outMax - 1] = '\0';
+}
 
 void TTWiFiTask::setup() {
     LOG_I("WiFi task starting");
@@ -17,11 +30,18 @@ void TTWiFiTask::setup() {
         publishStatus();
         return;
     }
-    beginWake();
+    runWithRadio("ntp", [this]() {
+        startNtpSync();
+    });
 }
 
 void TTWiFiTask::loop() {
     _wifiManager.process();
+    handleLinkChange();
+    processRadioJobs();
+}
+
+void TTWiFiTask::handleLinkChange() {
     const TTWiFiLinkState now = _wifiManager.linkState();
     if (now == _publishedState) {
         return;
@@ -32,44 +52,27 @@ void TTWiFiTask::loop() {
     const bool linkLost = (_publishedState == TT_WIFI_LINK_CONNECTED && now == TT_WIFI_LINK_IDLE);
     publishStatus();
     if (now == TT_WIFI_LINK_PROVISIONING) {
-        cancelIdleCheck();
         LOG_I("WiFi: provisioning, duty cycle paused");
         return;
     }
     if (becameConnected) {
-        LOG_I("WiFi: connected, refs=%u", (unsigned)_useCount);
-        refreshPeriodDeadline();
-        cancelIdleCheck();
-        _idleCheckReady = false;
-        armIdleCheck();
-        if (!_ntpAutoDone) {
-            _ntpAutoDone = true;
-            LOG_I("NTP: first link after boot");
-            startNtpSync();
-        } else if (_ntpOnConnect) {
-            _ntpOnConnect = false;
-            startNtpSync();
-        }
-        _ntpOnConnect = false;
+        LOG_I("WiFi: connected jobs=%u", (unsigned)_jobs.size());
+        _wakeFailed = false;
         return;
     }
     if (connectFailed || linkLost) {
-        LOG_I("WiFi: %s, wait next period", connectFailed ? "connect failed" : "link lost");
-        _ntpOnConnect = false;
+        LOG_I("WiFi: %s", connectFailed ? "connect failed" : "link lost");
+        _wakeFailed = true;
         endWake();
-        refreshPeriodDeadline();
         return;
     }
     if (now == TT_WIFI_LINK_CONNECTING) {
-        refreshPeriodDeadline();
-        armIdleCheck();
+        _wakeFailed = false;
     }
 }
 
 void TTWiFiTask::requestStartProvisioningAsync() {
     auto* f = new std::function<void()>([this]() {
-        cancelIdleCheck();
-        _ntpOnConnect = false;
         _wifiManager.startProvisioning();
         publishStatus();
     });
@@ -78,26 +81,16 @@ void TTWiFiTask::requestStartProvisioningAsync() {
 
 void TTWiFiTask::requestStopProvisioningAsync() {
     auto* f = new std::function<void()>([this]() {
-        cancelIdleCheck();
         _wifiManager.stopProvisioning();
         publishStatus();
-        if (_wifiManager.isConnected()) {
-            armIdleCheck();
-            refreshPeriodDeadline();
-            return;
-        }
-        if (_wifiManager.isConnecting()) {
-            armIdleCheck();
-            refreshPeriodDeadline();
+        if (_wifiManager.isConnected() || _wifiManager.isConnecting()) {
             return;
         }
         if (_wifiManager.hasConfiguredNetwork()) {
-            refreshPeriodDeadline();
             return;
         }
         _wifiManager.sleepRadio();
         publishStatus();
-        cancelPeriod();
     });
     enqueue(f);
 }
@@ -110,46 +103,92 @@ void TTWiFiTask::requestStatusAsync() {
 }
 
 void TTWiFiTask::requestConnectAsync() {
-    auto* f = new std::function<void()>([this]() {
-        LOG_I("WiFi: page requested connect");
-        cancelPeriod();
-        beginWake();
+    LOG_I("WiFi: page requested connect");
+    runWithRadio("status", [this]() {
+        publishStatus();
     });
-    enqueue(f);
 }
 
-void TTWiFiTask::requestAcquireAsync(const char* tag) {
-    auto* f = new std::function<void()>([this, tag]() {
-        acquireRadio(tag);
-    });
-    enqueue(f);
-}
-
-void TTWiFiTask::requestReleaseAsync(const char* tag) {
-    auto* f = new std::function<void()>([this, tag]() {
-        releaseRadio(tag);
+void TTWiFiTask::runWithRadio(const char* tag, std::function<void()> work,
+                              std::function<void()> onFailed) {
+    char tagBuf[TT_WIFI_RADIO_TAG_MAX];
+    tt_wifi_copy_tag(tagBuf, sizeof(tagBuf), tag);
+    const std::string tagStr(tagBuf);
+    LOG_I("WiFi: runWithRadio tag=%s", tagStr.c_str());
+    auto* f = new std::function<void()>([this, tagStr, work, onFailed]() {
+        postWorkJob(tagStr.c_str(), work, onFailed);
     });
     enqueue(f);
 }
 
 void TTWiFiTask::requestNtpSyncAsync() {
-    auto* f = new std::function<void()>([this]() {
-        if (_wifiManager.isConnected()) {
-            startNtpSync();
-            return;
-        }
-        if (!_wifiManager.hasConfiguredNetwork() && !_wifiManager.refreshSavedNetwork()) {
-            LOG_I("NTP: Wi-Fi not configured");
-            publishStatus();
-            publishTimeSync(TT_TIME_SYNC_NEED_WIFI, "未连接 Wi-Fi");
-            return;
-        }
-        LOG_I("NTP: wake Wi-Fi then sync");
-        _ntpOnConnect = true;
-        cancelPeriod();
-        beginWake();
+    runWithRadio("ntp", [this]() {
+        startNtpSync();
     });
-    enqueue(f);
+}
+
+void TTWiFiTask::postWorkJob(const char* tag, std::function<void()> work,
+                             std::function<void()> onFailed) {
+    _wakeFailed = false;
+    TTWifiJob job;
+    tt_wifi_copy_tag(job.tag, sizeof(job.tag), tag);
+    job.work = work;
+    job.onFailed = onFailed;
+    _jobs.push_back(job);
+    LOG_I("WiFi: queue work tag=%s pending=%u", job.tag, (unsigned)_jobs.size());
+}
+
+void TTWiFiTask::dropFailedJobs() {
+    if (_jobs.empty()) {
+        return;
+    }
+    LOG_W("WiFi: wake failed, drop %u job(s)", (unsigned)_jobs.size());
+    const std::vector<TTWifiJob> failed = std::move(_jobs);
+    _jobs.clear();
+    for (const TTWifiJob& job : failed) {
+        if (!job.onFailed) {
+            continue;
+        }
+        LOG_W("WiFi: fail callback tag=%s", job.tag);
+        job.onFailed();
+    }
+}
+
+void TTWiFiTask::runAllWorkJobs() {
+    while (!_jobs.empty()) {
+        TTWifiJob job = _jobs.front();
+        _jobs.erase(_jobs.begin());
+        LOG_I("WiFi: run work tag=%s", job.tag);
+        if (job.work) {
+            job.work();
+        }
+    }
+}
+
+void TTWiFiTask::processRadioJobs() {
+    if (_wifiManager.isProvisioning()) {
+        return;
+    }
+
+    const bool connected = _wifiManager.isConnected();
+    const bool connecting = _wifiManager.isConnecting();
+    bool ranWork = false;
+
+    if (!_jobs.empty() && !connected && !connecting) {
+        if (_wakeFailed) {
+            dropFailedJobs();
+        } else {
+            beginWake();
+        }
+    } else if (connected && !_jobs.empty()) {
+        runAllWorkJobs();
+        ranWork = true;
+    }
+
+    if (connected && !ranWork && _jobs.empty() && !connecting) {
+        LOG_I("WiFi: idle, radio off");
+        endWake();
+    }
 }
 
 void TTWiFiTask::startNtpSync() {
@@ -159,10 +198,8 @@ void TTWiFiTask::startNtpSync() {
         publishTimeSync(TT_TIME_SYNC_NEED_WIFI, "未连接 Wi-Fi");
         return;
     }
-    acquireRadio("ntp");
     publishTimeSync(TT_TIME_SYNC_SYNCING, "正在校时...");
     syncNtp();
-    releaseRadio("ntp");
 }
 
 void TTWiFiTask::syncNtp() {
@@ -183,7 +220,6 @@ void TTWiFiTask::syncNtp() {
         time_t now = 0;
         time(&now);
         TTInstanceOf<TTSensorTask>().requestRtcWriteAsync(now);
-        refreshPeriodDeadline();
     }
     publishTimeSync(ok ? TT_TIME_SYNC_OK : TT_TIME_SYNC_FAILED, ok ? "校时完成" : "校时失败");
     publishStatus();
@@ -197,45 +233,34 @@ void TTWiFiTask::beginWake() {
     }
     if (!_wifiManager.refreshSavedNetwork()) {
         LOG_I("WiFi: wake skipped, no SSID");
+        _wakeFailed = true;
         _wifiManager.sleepRadio();
         publishStatus();
-        cancelPeriod();
         return;
     }
     if (_wifiManager.isConnected()) {
         LOG_I("WiFi: already connected");
+        _wakeFailed = false;
         publishStatus();
-        refreshPeriodDeadline();
-        armIdleCheck();
-        if (_ntpOnConnect) {
-            _ntpOnConnect = false;
-            startNtpSync();
-        }
-        trySleepIfIdle();
         return;
     }
     if (_wifiManager.isConnecting()) {
         LOG_I("WiFi: already connecting");
         publishStatus();
-        refreshPeriodDeadline();
-        armIdleCheck();
         return;
     }
     LOG_I("WiFi: wake connect ssid=%s", _wifiManager.hasConfiguredNetwork() ? "saved" : "?");
-    refreshPeriodDeadline();
     if (_wifiManager.tryConnectSaved()) {
+        _wakeFailed = false;
         publishStatus();
-        armIdleCheck();
         return;
     }
     LOG_W("WiFi: wake connect failed to start");
+    _wakeFailed = true;
     publishStatus();
-    refreshPeriodDeadline();
 }
 
 void TTWiFiTask::endWake() {
-    cancelIdleCheck();
-    _idleCheckReady = false;
     if (_wifiManager.isProvisioning()) {
         return;
     }
@@ -243,123 +268,11 @@ void TTWiFiTask::endWake() {
     publishStatus();
 }
 
-void TTWiFiTask::acquireRadio(const char* tag) {
-    if (_useCount < 0xFFFFFFFFu) {
-        _useCount++;
-    }
-    LOG_I("WiFi: acquire tag=%s count=%u", tag != nullptr ? tag : "-", (unsigned)_useCount);
-    if (_wifiManager.isProvisioning()) {
-        return;
-    }
-    if (_wifiManager.isConnected() || _wifiManager.isConnecting()) {
-        return;
-    }
-    beginWake();
-}
-
-void TTWiFiTask::releaseRadio(const char* tag) {
-    if (_useCount == 0) {
-        LOG_W("WiFi: release underflow tag=%s", tag != nullptr ? tag : "-");
-        return;
-    }
-    _useCount--;
-    LOG_I("WiFi: release tag=%s count=%u", tag != nullptr ? tag : "-", (unsigned)_useCount);
-    trySleepIfIdle();
-}
-
-void TTWiFiTask::armIdleCheck() {
-    if (_wifiManager.isProvisioning()) {
-        return;
-    }
-    if (_idleCheckReady) {
-        trySleepIfIdle();
-        return;
-    }
-    if (_idleCheckHandle != 0) {
-        return;
-    }
-    LOG_I("WiFi: idle check in %u ms count=%u",
-          (unsigned)TT_WIFI_IDLE_CHECK_MS, (unsigned)_useCount);
-    _idleCheckHandle = runOnce(TT_WIFI_IDLE_CHECK_MS, [this]() {
-        _idleCheckHandle = 0;
-        _idleCheckReady = true;
-        LOG_I("WiFi: idle check on count=%u", (unsigned)_useCount);
-        trySleepIfIdle();
-    });
-}
-
-void TTWiFiTask::cancelIdleCheck() {
-    if (_idleCheckHandle == 0) {
-        return;
-    }
-    LOG_I("WiFi: cancel idle check");
-    cancelRepeat(_idleCheckHandle);
-    _idleCheckHandle = 0;
-}
-
-void TTWiFiTask::trySleepIfIdle() {
-    if (_wifiManager.isProvisioning()) {
-        return;
-    }
-    if (!_idleCheckReady) {
-        return;
-    }
-    if (_useCount > 0) {
-        LOG_I("WiFi: idle stay count=%u", (unsigned)_useCount);
-        return;
-    }
-    if (_wifiManager.isConnecting()) {
-        LOG_I("WiFi: idle wait, connecting");
-        return;
-    }
-    if (!_wifiManager.isConnected()) {
-        LOG_I("WiFi: idle already off count=0");
-        cancelIdleCheck();
-        _idleCheckReady = false;
-        return;
-    }
-    LOG_I("WiFi: idle count=0, sleep");
-    endWake();
-    refreshPeriodDeadline();
-}
-
-void TTWiFiTask::refreshPeriodDeadline() {
-    if (!_wifiManager.hasConfiguredNetwork() || !TTInstanceOf<TTRtc>().isTimeValid()) {
-        _nextPeriodUnix = 0;
-        return;
-    }
-    const time_t now = time(nullptr);
-    if (now <= 0) {
-        _nextPeriodUnix = 0;
-        return;
-    }
-    if (_nextPeriodUnix <= now) {
-        _nextPeriodUnix = now + (time_t)(TT_WIFI_WAKE_PERIOD_MS / 1000u);
-        LOG_I("WiFi: period deadline unix=%ld", (long)_nextPeriodUnix);
-    }
-}
-
-bool TTWiFiTask::isPeriodDue() const {
-    if (_nextPeriodUnix <= 0 || !TTInstanceOf<TTRtc>().isTimeValid()) {
-        return false;
-    }
-    const time_t now = time(nullptr);
-    return now > 0 && now >= _nextPeriodUnix;
-}
-
 bool TTWiFiTask::isRadioActive() const {
-    return _useCount > 0
+    return !_jobs.empty()
         || _wifiManager.isProvisioning()
         || _wifiManager.isConnecting()
         || _wifiManager.isConnected();
-}
-
-void TTWiFiTask::cancelPeriod() {
-    if (_nextPeriodUnix == 0) {
-        return;
-    }
-    LOG_I("WiFi: cancel period");
-    _nextPeriodUnix = 0;
 }
 
 void TTWiFiTask::publishStatus() {

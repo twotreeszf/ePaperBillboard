@@ -2,11 +2,19 @@
 
 #include "../Base/TTVTask.h"
 #include "../Base/TTWiFiManager.h"
-#include <ctime>
+#include <functional>
+#include <vector>
 
-#define TT_WIFI_TASK_STACK  12288
+#define TT_WIFI_TASK_STACK  20480
 #define TT_WIFI_LOOP_DELAY_MS  10
 #define TT_WIFI_TASK_CORE      1
+#define TT_WIFI_RADIO_TAG_MAX  16
+
+struct TTWifiJob {
+    char tag[TT_WIFI_RADIO_TAG_MAX];
+    std::function<void()> work;
+    std::function<void()> onFailed;
+};
 
 class TTWiFiTask : public TTVTask {
 public:
@@ -17,9 +25,8 @@ public:
     void requestStatusAsync();
     void requestConnectAsync();
     void requestNtpSyncAsync();
-    void requestAcquireAsync(const char* tag);
-    void requestReleaseAsync(const char* tag);
-    bool isPeriodDue() const;
+    void runWithRadio(const char* tag, std::function<void()> work,
+                      std::function<void()> onFailed = {});
     bool isRadioActive() const;
 
 protected:
@@ -33,20 +40,14 @@ private:
     void syncNtp();
     void beginWake();
     void endWake();
-    void acquireRadio(const char* tag);
-    void releaseRadio(const char* tag);
-    void armIdleCheck();
-    void cancelIdleCheck();
-    void trySleepIfIdle();
-    void refreshPeriodDeadline();
-    void cancelPeriod();
+    void handleLinkChange();
+    void processRadioJobs();
+    void postWorkJob(const char* tag, std::function<void()> work, std::function<void()> onFailed);
+    void dropFailedJobs();
+    void runAllWorkJobs();
 
     TTWiFiManager _wifiManager;
     TTWiFiLinkState _publishedState = TT_WIFI_LINK_IDLE;
-    uint32_t _useCount = 0;
-    uint32_t _idleCheckHandle = 0;
-    time_t _nextPeriodUnix = 0;
-    bool _idleCheckReady = false;
-    bool _ntpOnConnect = false;
-    bool _ntpAutoDone = false;
+    bool _wakeFailed = false;
+    std::vector<TTWifiJob> _jobs;
 };
