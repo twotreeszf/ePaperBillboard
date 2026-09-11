@@ -8,6 +8,7 @@
 #include "../Base/TTTextButton.h"
 #include "../Base/TTNavigationBar.h"
 #include "../Base/TTWeatherService.h"
+#include "../Base/TTSleepService.h"
 #include "../Tasks/TTWiFiTask.h"
 #include <WiFi.h>
 #include <Arduino.h>
@@ -427,11 +428,22 @@ void TTWeatherPage::setup() {
             } else {
                 requestRefresh(TT_REFRESH_PARTIAL);
             }
+            tryRequestLightSleep();
         });
     subscribe<TTWiFiStatusPayload>(
         TT_NOTIFICATION_WIFI_STATUS,
         [this](const TTWiFiStatusPayload& status) {
             onWifiStatus(status);
+        });
+    subscribe<TTSleepWakePayload>(
+        TT_NOTIFICATION_SLEEP_WAKE,
+        [this](const TTSleepWakePayload& wake) {
+            onSleepWake(wake);
+        });
+    subscribe<TTTimeTickPayload>(
+        TT_NOTIFICATION_TIME_TICK,
+        [this](const TTTimeTickPayload&) {
+            onTimeTick();
         });
     registerKeyAction(TT_KEY_CENTER, TT_KEY_LONG_PRESS, [this]() {
         forceRefresh();
@@ -449,21 +461,6 @@ void TTWeatherPage::willAppear() {
     TTScreenPage::willAppear();
     _visible = true;
     requestFetch(true);
-    if (_refreshHandle == 0) {
-        _refreshHandle = runRepeat(TT_WEATHER_PAGE_REFRESH_MS, [this]() {
-            requestFetch(false);
-        }, false);
-    }
-    if (_ageHandle == 0) {
-        _ageHandle = runRepeat(TT_WEATHER_AGE_TICK_MS, [this]() {
-            updateAge(true);
-        }, false);
-    }
-    if (_clockHandle == 0) {
-        _clockHandle = runRepeat(TT_WEATHER_CLOCK_TICK_MS, [this]() {
-            updateClock(true);
-        }, false);
-    }
 }
 
 void TTWeatherPage::willDisappear() {
@@ -471,20 +468,10 @@ void TTWeatherPage::willDisappear() {
     _visible = false;
     _forceRefreshing = false;
     _waitingWifi = false;
+    _sleepAfterTimeTick = false;
+    cancelInputIdleSleep();
     if (!_fetching) {
         TTInstanceOf<TTWeatherService>().releaseWifi();
-    }
-    if (_refreshHandle != 0) {
-        cancelRepeat(_refreshHandle);
-        _refreshHandle = 0;
-    }
-    if (_ageHandle != 0) {
-        cancelRepeat(_ageHandle);
-        _ageHandle = 0;
-    }
-    if (_clockHandle != 0) {
-        cancelRepeat(_clockHandle);
-        _clockHandle = 0;
     }
 }
 
@@ -986,10 +973,12 @@ void TTWeatherPage::onGraphDraw(lv_event_t* e) {
     }
 }
 
-void TTWeatherPage::bindAge(uint32_t fetchedAtMs) {
-    _fetchedAtMs = fetchedAtMs != 0 ? fetchedAtMs : millis();
-    if (_fetchedAtMs == 0) {
-        _fetchedAtMs = 1;
+void TTWeatherPage::bindAge(uint32_t fetchedAt) {
+    if (fetchedAt != 0) {
+        _fetchedAt = fetchedAt;
+    } else {
+        const time_t now = time(nullptr);
+        _fetchedAt = (now > 0) ? (uint32_t)now : 1;
     }
     updateAge(false);
 }
@@ -1007,11 +996,14 @@ void TTWeatherPage::updateAge(bool refreshIfChanged) {
         tt_stream_image_set_src(_ageIcon, _ageOk ? TT_WEATHER_AGE_OK_SRC : TT_WEATHER_AGE_FAIL_SRC);
     }
     char buf[24];
-    if (_fetchedAtMs == 0) {
+    if (_fetchedAt == 0) {
         strncpy(buf, "--", sizeof(buf) - 1);
         buf[sizeof(buf) - 1] = '\0';
     } else {
-        const int minutes = (int)((millis() - _fetchedAtMs) / 60000u);
+        const time_t now = time(nullptr);
+        const int minutes = (now > 0 && (uint32_t)now >= _fetchedAt)
+            ? (int)(((uint32_t)now - _fetchedAt) / 60u)
+            : 0;
         if (minutes <= 0) {
             strncpy(buf, "刚刚", sizeof(buf) - 1);
             buf[sizeof(buf) - 1] = '\0';
@@ -1077,7 +1069,7 @@ void TTWeatherPage::bindOk(const TTWeatherPayload& payload) {
     _cityName[sizeof(_cityName) - 1] = '\0';
     _lastClockMinute = -1;
     updateClock(false);
-    bindAge(payload.fetchedAtMs);
+    bindAge(payload.fetchedAt);
 
     char iconPath[TT_WEATHER_ICON_PATH_MAX];
     tt_weather_condition_path(iconPath, sizeof(iconPath), payload.current.weatherCode,
@@ -1135,6 +1127,7 @@ void TTWeatherPage::onWifiStatus(const TTWiFiStatusPayload& status) {
         || lv_obj_has_flag(_content, LV_OBJ_FLAG_HIDDEN);
     if (!contentHidden) {
         LOG_I("Weather page: Wi-Fi down, keep cached content");
+        tryRequestLightSleep();
         return;
     }
     setMessage(status.ssid[0] != '\0' ? "Wi-Fi 连接失败" : "未连接 Wi-Fi");
@@ -1149,6 +1142,8 @@ void TTWeatherPage::requestFetch(bool allowWake) {
         LOG_I("Weather page: fetch ignored (busy)");
         return;
     }
+    cancelLightSleep();
+    _sleepAfterTimeTick = false;
     auto& weather = TTInstanceOf<TTWeatherService>();
     if (WiFi.status() != WL_CONNECTED) {
         if (allowWake) {
@@ -1169,11 +1164,88 @@ void TTWeatherPage::requestFetch(bool allowWake) {
     weather.requestFetch();
 }
 
+void TTWeatherPage::onSleepWake(const TTSleepWakePayload& wake) {
+    if (!_visible) {
+        return;
+    }
+    LOG_I("Weather page: sleep wake reason=%d", (int)wake.reason);
+    switch (wake.reason) {
+        case TT_SLEEP_WAKE_WIFI:
+            _sleepAfterTimeTick = false;
+            break;
+        case TT_SLEEP_WAKE_INPUT:
+            _sleepAfterTimeTick = false;
+            cancelInputIdleSleep();
+            if (_fetching || _waitingWifi || _forceRefreshing) {
+                break;
+            }
+            _inputIdleSleepHandle = runOnce(TT_SLEEP_INPUT_IDLE_MS, [this]() {
+                _inputIdleSleepHandle = 0;
+                tryRequestLightSleep();
+            });
+            LOG_I("Weather page: sleep in %d s if idle", TT_SLEEP_INPUT_IDLE_MS / 1000);
+            break;
+        case TT_SLEEP_WAKE_MINUTE:
+            if (_fetching || _waitingWifi || _forceRefreshing) {
+                break;
+            }
+            _sleepAfterTimeTick = true;
+            LOG_I("Weather page: wait time tick then sleep");
+            break;
+    }
+}
+
+void TTWeatherPage::onTimeTick() {
+    if (!_visible) {
+        return;
+    }
+    LOG_I("Weather page: time tick");
+    if (_fetchedAt != 0 && _fetchedAt < (uint32_t)TT_RTC_MIN_UNIX) {
+        LOG_W("Weather page: drop fetchedAt=%u after clock fix", (unsigned)_fetchedAt);
+        _fetchedAt = 0;
+        updateClock(true);
+        updateAge(true);
+        if (WiFi.status() == WL_CONNECTED) {
+            requestFetch(false);
+        }
+    } else {
+        updateClock(true);
+        updateAge(true);
+    }
+    if (_sleepAfterTimeTick) {
+        _sleepAfterTimeTick = false;
+        tryRequestLightSleep();
+    }
+}
+
+void TTWeatherPage::cancelInputIdleSleep() {
+    if (_inputIdleSleepHandle == 0) {
+        return;
+    }
+    cancelRepeat(_inputIdleSleepHandle);
+    _inputIdleSleepHandle = 0;
+    LOG_I("Weather page: cancel idle sleep timer");
+}
+
+void TTWeatherPage::tryRequestLightSleep() {
+    if (!_visible || _fetching || _waitingWifi || _forceRefreshing) {
+        return;
+    }
+    const bool contentHidden = _content == nullptr
+        || lv_obj_has_flag(_content, LV_OBJ_FLAG_HIDDEN);
+    if (contentHidden) {
+        LOG_I("Weather page: skip sleep, no weather content");
+        return;
+    }
+    requestLightSleep();
+}
+
 void TTWeatherPage::forceRefresh() {
     if (_fetching || _forceRefreshing) {
         LOG_I("Weather page: force refresh ignored (busy)");
         return;
     }
+    cancelInputIdleSleep();
     _forceRefreshing = true;
     showContent(false);
     showEmpty(true);

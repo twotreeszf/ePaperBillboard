@@ -82,8 +82,6 @@
 #define TT_WEATHER_AGE_ICON_Y     (TT_WEATHER_AGE_Y + 3)
 #define TT_WEATHER_AGE_OK_SRC     "/icons/weather/check_8.i1"
 #define TT_WEATHER_AGE_FAIL_SRC   "/icons/weather/cross_8.i1"
-#define TT_WEATHER_AGE_TICK_MS    (60 * 1000)
-#define TT_WEATHER_CLOCK_TICK_MS  1000
 #define TT_WEATHER_FORECAST_X     TT_WEATHER_GRAPH_X
 #define TT_WEATHER_FORECAST_COL_X(i) \
     (TT_WEATHER_FORECAST_X + (i) * TT_WEATHER_GRAPH_W / TT_WEATHER_FORECAST_N)
@@ -114,7 +112,6 @@
 #define TT_WEATHER_AQI_GOOD_MAX   50
 #define TT_WEATHER_AQI_FAIR_MAX   100
 #define TT_WEATHER_AQI_MID_MAX    150
-#define TT_WEATHER_PAGE_REFRESH_MS  (30 * 60 * 1000)
 #define TT_WEATHER_GRAPH_TEMP_PAD 2.0f
 #define TT_WEATHER_GRAPH_TEMP_LABEL_H 12
 #define TT_WEATHER_GRAPH_X_TICKS  8
@@ -154,6 +151,10 @@ private:
     void forceRefresh();
     void requestFetch(bool allowWake = false);
     void onWifiStatus(const TTWiFiStatusPayload& status);
+    void onSleepWake(const TTSleepWakePayload& wake);
+    void onTimeTick();
+    void tryRequestLightSleep();
+    void cancelInputIdleSleep();
     void setMessage(const char* text);
     void showContent(bool show);
     void showEmpty(bool show);
@@ -167,7 +168,7 @@ private:
     void formatLocalHm(int64_t unixTime, char* out, size_t outMax);
     void formatWeekday(int64_t unixTime, char* out, size_t outMax);
     void formatDate(char* out, size_t outMax);
-    void bindAge(uint32_t fetchedAtMs);
+    void bindAge(uint32_t fetchedAt);
     void updateAge(bool refreshIfChanged);
     void updateClock(bool refreshIfChanged);
 
@@ -209,11 +210,10 @@ private:
     bool _forceRefreshing = false;
     bool _waitingWifi = false;
     bool _fetching = false;
+    bool _sleepAfterTimeTick = false;
+    uint32_t _inputIdleSleepHandle = 0;
     bool _ageOk = true;
-    uint32_t _fetchedAtMs = 0;
-    uint32_t _refreshHandle = 0;
-    uint32_t _ageHandle = 0;
-    uint32_t _clockHandle = 0;
+    uint32_t _fetchedAt = 0;
     int _lastClockMinute = -1;
     char _cityName[TT_WEATHER_CITY_MAX + 1] = {};
 };

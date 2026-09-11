@@ -5,6 +5,10 @@
 #include "TTFontManager.h"
 #include "TTLvglEpdDriver.h"
 
+bool TTPopupLayer::isBusy() const {
+    return _toastPanel != nullptr || _loadingPanel != nullptr || _dialogPanel != nullptr;
+}
+
 void TTPopupLayer::begin(lv_display_t* display) {
     _display = display;
     if (_display == nullptr) return;

@@ -38,7 +38,7 @@ void TTWiFiTask::loop() {
     }
     if (becameConnected) {
         LOG_I("WiFi: connected, refs=%u", (unsigned)_useCount);
-        schedulePeriod();
+        refreshPeriodDeadline();
         cancelIdleCheck();
         _idleCheckReady = false;
         armIdleCheck();
@@ -57,11 +57,11 @@ void TTWiFiTask::loop() {
         LOG_I("WiFi: %s, wait next period", connectFailed ? "connect failed" : "link lost");
         _ntpOnConnect = false;
         endWake();
-        schedulePeriod();
+        refreshPeriodDeadline();
         return;
     }
     if (now == TT_WIFI_LINK_CONNECTING) {
-        schedulePeriod();
+        refreshPeriodDeadline();
         armIdleCheck();
     }
 }
@@ -83,16 +83,16 @@ void TTWiFiTask::requestStopProvisioningAsync() {
         publishStatus();
         if (_wifiManager.isConnected()) {
             armIdleCheck();
-            schedulePeriod();
+            refreshPeriodDeadline();
             return;
         }
         if (_wifiManager.isConnecting()) {
             armIdleCheck();
-            schedulePeriod();
+            refreshPeriodDeadline();
             return;
         }
         if (_wifiManager.hasConfiguredNetwork()) {
-            schedulePeriod();
+            refreshPeriodDeadline();
             return;
         }
         _wifiManager.sleepRadio();
@@ -183,6 +183,7 @@ void TTWiFiTask::syncNtp() {
         time_t now = 0;
         time(&now);
         TTInstanceOf<TTSensorTask>().requestRtcWriteAsync(now);
+        refreshPeriodDeadline();
     }
     publishTimeSync(ok ? TT_TIME_SYNC_OK : TT_TIME_SYNC_FAILED, ok ? "校时完成" : "校时失败");
     publishStatus();
@@ -204,7 +205,7 @@ void TTWiFiTask::beginWake() {
     if (_wifiManager.isConnected()) {
         LOG_I("WiFi: already connected");
         publishStatus();
-        schedulePeriod();
+        refreshPeriodDeadline();
         armIdleCheck();
         if (_ntpOnConnect) {
             _ntpOnConnect = false;
@@ -216,12 +217,12 @@ void TTWiFiTask::beginWake() {
     if (_wifiManager.isConnecting()) {
         LOG_I("WiFi: already connecting");
         publishStatus();
-        schedulePeriod();
+        refreshPeriodDeadline();
         armIdleCheck();
         return;
     }
     LOG_I("WiFi: wake connect ssid=%s", _wifiManager.hasConfiguredNetwork() ? "saved" : "?");
-    schedulePeriod();
+    refreshPeriodDeadline();
     if (_wifiManager.tryConnectSaved()) {
         publishStatus();
         armIdleCheck();
@@ -229,7 +230,7 @@ void TTWiFiTask::beginWake() {
     }
     LOG_W("WiFi: wake connect failed to start");
     publishStatus();
-    schedulePeriod();
+    refreshPeriodDeadline();
 }
 
 void TTWiFiTask::endWake() {
@@ -319,31 +320,46 @@ void TTWiFiTask::trySleepIfIdle() {
     }
     LOG_I("WiFi: idle count=0, sleep");
     endWake();
-    schedulePeriod();
+    refreshPeriodDeadline();
 }
 
-void TTWiFiTask::schedulePeriod() {
-    if (_wakePeriodHandle != 0) {
+void TTWiFiTask::refreshPeriodDeadline() {
+    if (!_wifiManager.hasConfiguredNetwork() || !TTInstanceOf<TTRtc>().isTimeValid()) {
+        _nextPeriodUnix = 0;
         return;
     }
-    if (!_wifiManager.hasConfiguredNetwork()) {
+    const time_t now = time(nullptr);
+    if (now <= 0) {
+        _nextPeriodUnix = 0;
         return;
     }
-    LOG_I("WiFi: next wake in %u ms", (unsigned)TT_WIFI_WAKE_PERIOD_MS);
-    _wakePeriodHandle = runOnce(TT_WIFI_WAKE_PERIOD_MS, [this]() {
-        _wakePeriodHandle = 0;
-        LOG_I("WiFi: period wake");
-        beginWake();
-    });
+    if (_nextPeriodUnix <= now) {
+        _nextPeriodUnix = now + (time_t)(TT_WIFI_WAKE_PERIOD_MS / 1000u);
+        LOG_I("WiFi: period deadline unix=%ld", (long)_nextPeriodUnix);
+    }
+}
+
+bool TTWiFiTask::isPeriodDue() const {
+    if (_nextPeriodUnix <= 0 || !TTInstanceOf<TTRtc>().isTimeValid()) {
+        return false;
+    }
+    const time_t now = time(nullptr);
+    return now > 0 && now >= _nextPeriodUnix;
+}
+
+bool TTWiFiTask::isRadioActive() const {
+    return _useCount > 0
+        || _wifiManager.isProvisioning()
+        || _wifiManager.isConnecting()
+        || _wifiManager.isConnected();
 }
 
 void TTWiFiTask::cancelPeriod() {
-    if (_wakePeriodHandle == 0) {
+    if (_nextPeriodUnix == 0) {
         return;
     }
     LOG_I("WiFi: cancel period");
-    cancelRepeat(_wakePeriodHandle);
-    _wakePeriodHandle = 0;
+    _nextPeriodUnix = 0;
 }
 
 void TTWiFiTask::publishStatus() {

@@ -171,6 +171,68 @@ bool TTRtc::isTimeValid() const {
     return getLocalTime(t);
 }
 
+time_t TTRtc::nextMinuteTick() const {
+    time_t now = time(nullptr);
+    if (now < 0) {
+        now = 0;
+    }
+    struct tm t;
+    memset(&t, 0, sizeof(t));
+    localtime_r(&now, &t);
+    t.tm_sec = TT_RTC_MINUTE_TICK_SEC;
+    t.tm_min += 1;
+    time_t next = mktime(&t);
+    if (next <= now) {
+        next += 60;
+    }
+    return next;
+}
+
+uint32_t TTRtc::msUntilNextMinuteTick() const {
+    if (!isTimeValid()) {
+        return TT_RTC_MINUTE_TICK_FALLBACK_MS;
+    }
+    time_t now = 0;
+    time(&now);
+    if (now <= 0) {
+        return TT_RTC_MINUTE_TICK_FALLBACK_MS;
+    }
+    const time_t next = nextMinuteTick();
+    if (next <= now) {
+        return TT_RTC_MINUTE_TICK_FALLBACK_MS;
+    }
+    const int64_t ms = (int64_t)(next - now) * 1000;
+    if (ms < (int64_t)TT_RTC_MINUTE_TICK_MIN_MS || ms > (int64_t)TT_RTC_MINUTE_TICK_MAX_MS) {
+        return TT_RTC_MINUTE_TICK_FALLBACK_MS;
+    }
+    return (uint32_t)ms;
+}
+
+uint32_t TTRtc::msUntilNextTimeTick() const {
+    if (!isTimeValid()) {
+        return TT_RTC_MINUTE_TICK_FALLBACK_MS;
+    }
+    struct timeval tv;
+    memset(&tv, 0, sizeof(tv));
+    if (gettimeofday(&tv, nullptr) != 0 || tv.tv_sec <= 0) {
+        return TT_RTC_MINUTE_TICK_FALLBACK_MS;
+    }
+    const int64_t nowMs = (int64_t)tv.tv_sec * 1000 + tv.tv_usec / 1000;
+    const int64_t minuteMs = (int64_t)(tv.tv_sec - (tv.tv_sec % 60)) * 1000;
+    int64_t deadlineMs = minuteMs + (int64_t)TT_RTC_TIME_TICK_MS;
+    if (nowMs > deadlineMs) {
+        deadlineMs += 60 * 1000;
+    }
+    const int64_t ms = deadlineMs - nowMs;
+    if (ms > (int64_t)TT_RTC_MINUTE_TICK_MAX_MS) {
+        return TT_RTC_MINUTE_TICK_FALLBACK_MS;
+    }
+    if (ms < 1) {
+        return 1;
+    }
+    return (uint32_t)ms;
+}
+
 bool TTRtc::formatLocal(char* out, size_t outMax) const {
     if (out == nullptr || outMax == 0) {
         return false;

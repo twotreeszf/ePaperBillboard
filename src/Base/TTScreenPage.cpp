@@ -3,6 +3,7 @@
 #include "TTNavigationBar.h"
 #include "Logger.h"
 #include "TTInstance.h"
+#include "TTSleepService.h"
 #include "../Tasks/TTUITask.h"
 #include <EPDConfig.h>
 
@@ -61,6 +62,7 @@ void TTScreenPage::willAppear() {
 
 void TTScreenPage::willDisappear() {
     LOG_I("Page[%s]: willDisappear()", _name);
+    cancelLightSleep();
 }
 
 lv_group_t* TTScreenPage::createGroup() {
@@ -100,11 +102,12 @@ bool TTScreenPage::handleKeyAction(TTKeyId key, TTKeyGesture gesture) {
     return handled;
 }
 
-void TTScreenPage::runOnce(uint32_t delayMs, std::function<void()> callback) {
+uint32_t TTScreenPage::runOnce(uint32_t delayMs, std::function<void()> callback) {
     uint32_t handle = TTInstanceOf<TTUITask>().runOnce(delayMs, std::move(callback));
     if (handle != 0) {
         _timerHandles.push_back(handle);
     }
+    return handle;
 }
 
 uint32_t TTScreenPage::runRepeat(uint32_t intervalMs, std::function<void()> callback, bool executeImmediately) {
@@ -113,6 +116,29 @@ uint32_t TTScreenPage::runRepeat(uint32_t intervalMs, std::function<void()> call
         _timerHandles.push_back(handle);
     }
     return handle;
+}
+
+void TTScreenPage::runOnceWall(uint32_t delayMs, std::function<void()> callback) {
+    uint32_t handle = TTInstanceOf<TTUITask>().runOnceWall(delayMs, std::move(callback));
+    if (handle != 0) {
+        _timerHandles.push_back(handle);
+    }
+}
+
+uint32_t TTScreenPage::runRepeatWall(uint32_t intervalMs, std::function<void()> callback, bool executeImmediately) {
+    uint32_t handle = TTInstanceOf<TTUITask>().runRepeatWall(intervalMs, std::move(callback), executeImmediately);
+    if (handle != 0) {
+        _timerHandles.push_back(handle);
+    }
+    return handle;
+}
+
+void TTScreenPage::requestLightSleep() {
+    TTInstanceOf<TTSleepService>().requestLightSleep(this);
+}
+
+void TTScreenPage::cancelLightSleep() {
+    TTInstanceOf<TTSleepService>().cancelLightSleep(this);
 }
 
 void TTScreenPage::cancelRepeat(uint32_t handle) {

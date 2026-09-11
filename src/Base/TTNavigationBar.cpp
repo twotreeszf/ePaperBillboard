@@ -99,7 +99,6 @@ void TTNavigationBar::begin(lv_obj_t* parent, ITTNavigationController* nav) {
 
     updateTime();
     subscribeStatus();
-    TTInstanceOf<TTUITask>().runRepeat(TT_NAV_STATUS_CLOCK_MS, [this]() { onClockTick(); }, false);
     TTInstanceOf<TTWiFiTask>().requestStatusAsync();
     TTInstanceOf<TTSensorTask>().requestSensorUpdateAsync();
     LOG_I("NavBar: created");
@@ -223,6 +222,14 @@ void TTNavigationBar::subscribeStatus() {
         [this](const TTSensorDataPayload& data) {
             applySensor(data);
         });
+    nc.subscribe<TTTimeTickPayload>(
+        TT_NOTIFICATION_TIME_TICK,
+        this,
+        [this](const TTTimeTickPayload&) {
+            if (updateTime()) {
+                requestRedraw();
+            }
+        });
 }
 
 void TTNavigationBar::show(const char* title, bool showBack) {
@@ -286,12 +293,6 @@ void TTNavigationBar::onBackClicked(lv_event_t* e) {
     self->_nav->pop();
 }
 
-void TTNavigationBar::onClockTick() {
-    if (updateTime()) {
-        requestRedraw();
-    }
-}
-
 void TTNavigationBar::applyWiFi(const TTWiFiStatusPayload& status) {
     if (_wifiIcon == nullptr) return;
     if (_wifiState == status.state) {
@@ -350,8 +351,14 @@ void TTNavigationBar::applySensor(const TTSensorDataPayload& data) {
     } else {
         lv_obj_set_size(_batteryIcon, TT_NAV_BATTERY_ICON_W, TT_NAV_BATTERY_ICON_H);
     }
-    snprintf(text, sizeof(text), "%u%%", (unsigned)_batteryPercent);
-    lv_label_set_text(_batteryLabel, text);
+    if (_batteryCharging || _batteryUsb) {
+        lv_label_set_text(_batteryLabel, "");
+        lv_obj_add_flag(_batteryLabel, LV_OBJ_FLAG_HIDDEN);
+    } else {
+        snprintf(text, sizeof(text), "%u%%", (unsigned)_batteryPercent);
+        lv_label_set_text(_batteryLabel, text);
+        lv_obj_remove_flag(_batteryLabel, LV_OBJ_FLAG_HIDDEN);
+    }
     LOG_I("NavBar: sensor T=%.1f H=%.1f P=%.0f bat=%dmV %u%% usb=%d charging=%d",
           _temperature, _humidity, _pressure,
           _batteryMv, (unsigned)_batteryPercent, _batteryUsb ? 1 : 0, _batteryCharging ? 1 : 0);

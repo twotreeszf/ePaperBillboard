@@ -32,6 +32,7 @@ public:
 
     void showDialog(const char* msg, DialogCallback onOk, DialogCallback onCancel);
     void dismissDialog();
+    bool isBusy() const;
 
 private:
     static void toastTimerCallback(lv_timer_t* timer);

@@ -3,6 +3,21 @@
 #include "ErrorCheck.h"
 #include <freertos/task.h>
 #include <Arduino.h>
+#include <cstring>
+#include <sys/time.h>
+
+static bool tt_wall_time_ok(time_t now) {
+    return now >= TT_PERIODIC_WALL_MIN_UNIX;
+}
+
+static int64_t tt_wall_now_ms() {
+    struct timeval tv;
+    memset(&tv, 0, sizeof(tv));
+    if (gettimeofday(&tv, nullptr) != 0 || tv.tv_sec <= 0) {
+        return 0;
+    }
+    return (int64_t)tv.tv_sec * 1000 + tv.tv_usec / 1000;
+}
 
 void TTVTask::start(int coreId, uint32_t loopDelayMs)
 {
@@ -46,23 +61,25 @@ void TTVTask::enqueue(std::function<void()> *func)
     }
 }
 
-void TTVTask::_registerPeriodicTask(std::function<void()> callback, uint32_t intervalMs, bool executeImmediately, bool runOnce, uint32_t* outId)
+void TTVTask::_registerPeriodicTask(std::function<void()> callback, uint32_t intervalMs, bool executeImmediately,
+                                    bool runOnce, TTPeriodicClock clock, uint32_t* outId)
 {
     TTPeriodicTask task;
     task.callback = std::move(callback);
     task.intervalMs = intervalMs;
     task.runOnce = runOnce;
+    task.clock = clock;
     if (outId != nullptr) {
         task.id = ++_nextPeriodicId;
         *outId = task.id;
     }
 
+    const uint32_t nowMs = millis();
+    const time_t nowUnix = time(nullptr);
     if (executeImmediately) {
         task.callback();
-        task.lastExecuteTimeMs = millis();
-    } else {
-        task.lastExecuteTimeMs = millis();
     }
+    _markPeriodicRan(task, nowMs, nowUnix);
 
     _periodicTasks.push_back(std::move(task));
 }
@@ -70,15 +87,59 @@ void TTVTask::_registerPeriodicTask(std::function<void()> callback, uint32_t int
 uint32_t TTVTask::runOnce(uint32_t delayMs, std::function<void()> callback)
 {
     uint32_t id = 0;
-    _registerPeriodicTask(std::move(callback), delayMs, false, true, &id);
+    _registerPeriodicTask(std::move(callback), delayMs, false, true, TT_PERIODIC_MILLIS, &id);
     return id;
 }
 
 uint32_t TTVTask::runRepeat(uint32_t intervalMs, std::function<void()> callback, bool executeImmediately)
 {
     uint32_t id = 0;
-    _registerPeriodicTask(std::move(callback), intervalMs, executeImmediately, false, &id);
+    _registerPeriodicTask(std::move(callback), intervalMs, executeImmediately, false, TT_PERIODIC_MILLIS, &id);
     return id;
+}
+
+uint32_t TTVTask::runOnceWall(uint32_t delayMs, std::function<void()> callback)
+{
+    uint32_t id = 0;
+    _registerPeriodicTask(std::move(callback), delayMs, false, true, TT_PERIODIC_WALL, &id);
+    return id;
+}
+
+uint32_t TTVTask::runRepeatWall(uint32_t intervalMs, std::function<void()> callback, bool executeImmediately)
+{
+    uint32_t id = 0;
+    _registerPeriodicTask(std::move(callback), intervalMs, executeImmediately, false, TT_PERIODIC_WALL, &id);
+    return id;
+}
+
+bool TTVTask::_isPeriodicDue(const TTPeriodicTask& task, uint32_t nowMs, time_t nowUnix) const
+{
+    if (task.clock == TT_PERIODIC_MILLIS) {
+        return (nowMs - task.lastExecuteTimeMs) >= task.intervalMs;
+    }
+    if (!tt_wall_time_ok(nowUnix)) {
+        return false;
+    }
+    if (!tt_wall_time_ok(task.lastExecuteUnix) || nowUnix < task.lastExecuteUnix) {
+        return false;
+    }
+    const int64_t nowUnixMs = tt_wall_now_ms();
+    if (nowUnixMs <= 0 || task.lastExecuteUnixMs <= 0) {
+        return false;
+    }
+    return (nowUnixMs - task.lastExecuteUnixMs) >= (int64_t)task.intervalMs;
+}
+
+void TTVTask::_markPeriodicRan(TTPeriodicTask& task, uint32_t nowMs, time_t nowUnix)
+{
+    task.lastExecuteTimeMs = nowMs;
+    if (tt_wall_time_ok(nowUnix)) {
+        task.lastExecuteUnix = nowUnix;
+        task.lastExecuteUnixMs = tt_wall_now_ms();
+    } else {
+        task.lastExecuteUnix = 0;
+        task.lastExecuteUnixMs = 0;
+    }
 }
 
 void TTVTask::cancelRepeat(uint32_t handle)
@@ -94,19 +155,26 @@ void TTVTask::cancelRepeat(uint32_t handle)
 
 void TTVTask::_checkPeriodicTasks()
 {
-    uint32_t nowMs = millis();
+    const uint32_t nowMs = millis();
+    const time_t nowUnix = time(nullptr);
     std::vector<uint32_t> onceIds;
     std::vector<std::function<void()>> due;
 
     for (auto& task : _periodicTasks) {
-        if ((nowMs - task.lastExecuteTimeMs) < task.intervalMs) {
+        if (task.clock == TT_PERIODIC_WALL && tt_wall_time_ok(nowUnix)
+            && (!tt_wall_time_ok(task.lastExecuteUnix) || nowUnix < task.lastExecuteUnix)) {
+            task.lastExecuteUnix = nowUnix;
+            task.lastExecuteUnixMs = tt_wall_now_ms();
+            continue;
+        }
+        if (!_isPeriodicDue(task, nowMs, nowUnix)) {
             continue;
         }
         due.push_back(task.callback);
         if (task.runOnce) {
             onceIds.push_back(task.id);
         } else {
-            task.lastExecuteTimeMs = nowMs;
+            _markPeriodicRan(task, nowMs, nowUnix);
         }
     }
     for (uint32_t id : onceIds) {

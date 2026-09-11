@@ -6,15 +6,27 @@
 #include <freertos/FreeRTOS.h>
 #include <freertos/task.h>
 #include <freertos/queue.h>
+#include <ctime>
+#include <cstdint>
 #include <functional>
 #include <vector>
 #include "TTNotificationCenter.h"
 #include "TTInstance.h"
 
+#define TT_PERIODIC_WALL_MIN_UNIX  1577836800L
+
+enum TTPeriodicClock {
+    TT_PERIODIC_MILLIS = 0,
+    TT_PERIODIC_WALL,
+};
+
 struct TTPeriodicTask {
     std::function<void()> callback;
     uint32_t intervalMs;
     uint32_t lastExecuteTimeMs;
+    time_t lastExecuteUnix = 0;
+    int64_t lastExecuteUnixMs = 0;
+    TTPeriodicClock clock = TT_PERIODIC_MILLIS;
     bool runOnce = false;
     uint32_t id = 0;
 };
@@ -33,6 +45,8 @@ public:
 
     uint32_t runOnce(uint32_t delayMs, std::function<void()> callback);
     uint32_t runRepeat(uint32_t intervalMs, std::function<void()> callback, bool executeImmediately = true);
+    uint32_t runOnceWall(uint32_t delayMs, std::function<void()> callback);
+    uint32_t runRepeatWall(uint32_t intervalMs, std::function<void()> callback, bool executeImmediately = true);
     void cancelRepeat(uint32_t handle);
 
 protected:
@@ -41,7 +55,10 @@ protected:
     void enqueue(std::function<void()>* func);
 
 private:
-    void _registerPeriodicTask(std::function<void()> callback, uint32_t intervalMs, bool executeImmediately, bool runOnce, uint32_t* outId);
+    void _registerPeriodicTask(std::function<void()> callback, uint32_t intervalMs, bool executeImmediately,
+                               bool runOnce, TTPeriodicClock clock, uint32_t* outId);
+    bool _isPeriodicDue(const TTPeriodicTask& task, uint32_t nowMs, time_t nowUnix) const;
+    void _markPeriodicRan(TTPeriodicTask& task, uint32_t nowMs, time_t nowUnix);
     void _task();
     void _checkPeriodicTasks();
     QueueHandle_t _queue = nullptr;

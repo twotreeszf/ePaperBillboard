@@ -59,7 +59,7 @@ void TTSensorTask::setup() {
           TT_BATTERY_ADC_PIN, TT_BATTERY_CHARGE_PIN);
 
     LOG_I("Sensor read interval %d s", TT_SENSOR_UPDATE_INTERVAL);
-    runRepeat(TT_SENSOR_UPDATE_INTERVAL * 1000, [this]() {
+    runRepeatWall(TT_SENSOR_UPDATE_INTERVAL * 1000, [this]() {
         performSensorRead();
     });
 }

@@ -2,6 +2,7 @@
 
 #include "../Base/TTVTask.h"
 #include "../Base/TTWiFiManager.h"
+#include <ctime>
 
 #define TT_WIFI_TASK_STACK  12288
 #define TT_WIFI_LOOP_DELAY_MS  10
@@ -18,6 +19,8 @@ public:
     void requestNtpSyncAsync();
     void requestAcquireAsync(const char* tag);
     void requestReleaseAsync(const char* tag);
+    bool isPeriodDue() const;
+    bool isRadioActive() const;
 
 protected:
     void setup() override;
@@ -35,14 +38,14 @@ private:
     void armIdleCheck();
     void cancelIdleCheck();
     void trySleepIfIdle();
-    void schedulePeriod();
+    void refreshPeriodDeadline();
     void cancelPeriod();
 
     TTWiFiManager _wifiManager;
     TTWiFiLinkState _publishedState = TT_WIFI_LINK_IDLE;
     uint32_t _useCount = 0;
     uint32_t _idleCheckHandle = 0;
-    uint32_t _wakePeriodHandle = 0;
+    time_t _nextPeriodUnix = 0;
     bool _idleCheckReady = false;
     bool _ntpOnConnect = false;
     bool _ntpAutoDone = false;

@@ -31,7 +31,6 @@
 #define TT_NAV_WIFI_ICON_Y     -1
 #define TT_NAV_SENSOR_ICON_Y   -2
 #define TT_NAV_BAR_CONTENT_Y   5
-#define TT_NAV_STATUS_CLOCK_MS 1000
 #define TT_NAV_ICON_WIFI_OFF         "/icons/wifi_off_sm.i1"
 #define TT_NAV_ICON_WIFI_WAIT        "/icons/wifi_wait_sm.i1"
 #define TT_NAV_ICON_WIFI_ON          "/icons/wifi_sm.i1"
@@ -68,7 +67,6 @@ private:
 
     void beginStatus(lv_font_t* font);
     void subscribeStatus();
-    void onClockTick();
     void applyWiFi(const TTWiFiStatusPayload& status);
     void applySensor(const TTSensorDataPayload& data);
     bool updateTime();

@@ -173,6 +173,14 @@ void TTLvglEpdDriver::_flushCallback(lv_display_t* disp, const lv_area_t* area, 
     }
 }
 
+void TTLvglEpdDriver::hibernate() {
+    if (_epd == nullptr) {
+        return;
+    }
+    _epd->hibernate();
+    LOG_I("E-Paper hibernate");
+}
+
 void TTLvglEpdDriver::requestOverlayRefresh() {
     if (_lvDisplay == nullptr) {
         return;

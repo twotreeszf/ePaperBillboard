@@ -9,6 +9,8 @@
 #include "../Base/Logger.h"
 #include "../Base/ErrorCheck.h"
 #include "../Base/TTFontManager.h"
+#include "../Base/TTSleepService.h"
+#include "../Base/TTTimeService.h"
 #include <freertos/FreeRTOS.h>
 #include <freertos/task.h>
 
@@ -36,6 +38,7 @@ void TTUITask::setup() {
     TTInstanceOf<TTPopupLayer>().setKeypadInput(&_keypad);
 
     _nav.setRootPage(std::unique_ptr<TTScreenPage>(new TTHomePage()));
+    TTInstanceOf<TTTimeService>().begin();
 
     LOG_I("UI task started, heap=%u", (unsigned)ESP.getFreeHeap());
 }
@@ -50,4 +53,5 @@ void TTUITask::requestDeepRefreshAsync() {
 void TTUITask::loop() {
     _keypad.tick();
     lv_timer_handler();
+    TTInstanceOf<TTSleepService>().tryEnter();
 }

@@ -320,10 +320,8 @@ void TTWeatherService::fetchWeather() {
     draft.state = TT_WEATHER_OK;
     draft.refreshFailed = false;
     draft.message[0] = '\0';
-    draft.fetchedAtMs = millis();
-    if (draft.fetchedAtMs == 0) {
-        draft.fetchedAtMs = 1;
-    }
+    const time_t now = time(nullptr);
+    draft.fetchedAt = (now > 0) ? (uint32_t)now : 1;
     publish(draft);
 }
 

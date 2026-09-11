@@ -24,9 +24,13 @@ public:
     void registerKeyAction(TTKeyId key, TTKeyGesture gesture, std::function<void()> action);
     bool handleKeyAction(TTKeyId key, TTKeyGesture gesture) override;
 
-    void runOnce(uint32_t delayMs, std::function<void()> callback);
+    uint32_t runOnce(uint32_t delayMs, std::function<void()> callback);
     uint32_t runRepeat(uint32_t intervalMs, std::function<void()> callback, bool executeImmediately = true);
+    void runOnceWall(uint32_t delayMs, std::function<void()> callback);
+    uint32_t runRepeatWall(uint32_t intervalMs, std::function<void()> callback, bool executeImmediately = true);
     void cancelRepeat(uint32_t handle);
+    void requestLightSleep();
+    void cancelLightSleep();
 
     template<typename PayloadType>
     void subscribe(const char* name, std::function<void(const PayloadType&)> callback);

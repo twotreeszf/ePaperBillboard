@@ -8,6 +8,7 @@
 #define TT_TZ_MAX               32
 #define TT_RTC_DS3231_ADDR      0x68
 #define TT_RTC_MIN_YEAR         2020
+#define TT_RTC_MIN_UNIX         1577836800L
 #define TT_NTP_HOST_PRIMARY     "ntp.aliyun.com"
 #define TT_NTP_HOST_FALLBACK    "pool.ntp.org"
 #define TT_NTP_PORT             123
@@ -17,6 +18,11 @@
 #define TT_NTP_RETRY            5
 #define TT_NTP_UNIX_OFFSET      2208988800UL
 #define TT_RTC_TIME_TEXT_MAX    20
+#define TT_RTC_MINUTE_TICK_SEC  1
+#define TT_RTC_TIME_TICK_MS     0
+#define TT_RTC_MINUTE_TICK_FALLBACK_MS  (60 * 1000)
+#define TT_RTC_MINUTE_TICK_MIN_MS       200
+#define TT_RTC_MINUTE_TICK_MAX_MS       (70 * 1000)
 
 class TTRtc {
 public:
@@ -33,6 +39,9 @@ public:
     bool setUnixTime(time_t utc);
     bool getLocalTime(struct tm& out) const;
     bool isTimeValid() const;
+    time_t nextMinuteTick() const;
+    uint32_t msUntilNextMinuteTick() const;
+    uint32_t msUntilNextTimeTick() const;
     bool formatLocal(char* out, size_t outMax) const;
     bool syncFromNtp(void (*onProgress)(void* ctx, const char* text) = nullptr, void* ctx = nullptr);
 
