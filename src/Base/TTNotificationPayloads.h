@@ -38,6 +38,7 @@ enum TTSleepWakeReason {
     TT_SLEEP_WAKE_TIME = 0,
     TT_SLEEP_WAKE_FETCH,
     TT_SLEEP_WAKE_INPUT,
+    TT_SLEEP_WAKE_POWER,
 };
 
 struct TTSleepWakePayload {

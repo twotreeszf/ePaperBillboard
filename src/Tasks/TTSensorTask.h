@@ -11,9 +11,12 @@
 #define TT_SENSOR_UPDATE_INTERVAL  60
 #define TT_BATTERY_ADC_PIN          33
 #define TT_BATTERY_CHARGE_PIN       26
+#define TT_BATTERY_CHARGE_DEBOUNCE_MS  200
+#define TT_BATTERY_USB_POLL_MS      200
 #define TT_BATTERY_ADC_SCALE        7230
 #define TT_BATTERY_ADC_MAX          4096
 #define TT_BATTERY_USB_MV           4400
+#define TT_BATTERY_USB_OFF_MV       4300
 #define TT_BATTERY_EMPTY_MV         3500
 #define TT_BATTERY_LOW_MV           3700
 #define TT_BATTERY_MEDIUM_MV        3900
@@ -46,10 +49,15 @@ protected:
 
 private:
     void performSensorRead();
+    void pollUsbPlug();
     void arm();
 
     Adafruit_AHTX0 _aht20;
     Adafruit_BMP280 _bmp280;
     bool _bmp280Ok = false;
     uint32_t _tickHandle = 0;
+    uint32_t _chargeIrqMs = 0;
+    uint32_t _usbPollMs = 0;
+    bool _usbKnown = false;
+    bool _lastUsbPlugged = false;
 };

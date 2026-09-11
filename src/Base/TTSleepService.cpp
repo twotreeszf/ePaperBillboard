@@ -6,8 +6,10 @@
 #include "TTPopupLayer.h"
 #include "TTRtc.h"
 #include "../Tasks/TTWiFiTask.h"
+#include "../Tasks/TTSensorTask.h"
 #include <WiFi.h>
 #include <cstring>
+#include <driver/gpio.h>
 #include <esp_sleep.h>
 
 static const char* tt_sleep_reason_text(TTSleepWakeReason reason) {
@@ -18,6 +20,8 @@ static const char* tt_sleep_reason_text(TTSleepWakeReason reason) {
             return "fetch";
         case TT_SLEEP_WAKE_INPUT:
             return "input";
+        case TT_SLEEP_WAKE_POWER:
+            return "power";
     }
     return "?";
 }
@@ -155,6 +159,15 @@ bool TTSleepService::enterSleep(uint64_t sleepUs) {
         LOG_E("Sleep: gpio wakeup err=%d", (int)gpioErr);
         return false;
     }
+    const int chargeLevel = digitalRead(TT_BATTERY_CHARGE_PIN) == HIGH ? 1 : 0;
+    const int ext0Level = chargeLevel ? 0 : 1;
+    const esp_err_t ext0Err = esp_sleep_enable_ext0_wakeup(
+        (gpio_num_t)TT_BATTERY_CHARGE_PIN, ext0Level);
+    if (ext0Err != ESP_OK) {
+        LOG_E("Sleep: ext0 wakeup err=%d", (int)ext0Err);
+        return false;
+    }
+    LOG_I("Sleep: ext0 GPIO%d wake on %d", TT_BATTERY_CHARGE_PIN, ext0Level);
 
     Serial.flush();
     const esp_err_t err = esp_light_sleep_start();
@@ -181,12 +194,19 @@ void TTSleepService::afterWake() {
     if (reason == TT_SLEEP_WAKE_INPUT) {
         _holdoffAfterInput = true;
     }
+    if (reason == TT_SLEEP_WAKE_POWER) {
+        TTInstanceOf<TTSensorTask>().requestSensorUpdateAsync();
+    }
     publishWake(reason);
 }
 
 TTSleepWakeReason TTSleepService::classifyWake() const {
-    if (esp_sleep_get_wakeup_cause() == ESP_SLEEP_WAKEUP_EXT1) {
+    const esp_sleep_wakeup_cause_t cause = esp_sleep_get_wakeup_cause();
+    if (cause == ESP_SLEEP_WAKEUP_EXT1) {
         return TT_SLEEP_WAKE_INPUT;
+    }
+    if (cause == ESP_SLEEP_WAKEUP_EXT0) {
+        return TT_SLEEP_WAKE_POWER;
     }
     if (isFetchPeriodDue()) {
         return TT_SLEEP_WAKE_FETCH;

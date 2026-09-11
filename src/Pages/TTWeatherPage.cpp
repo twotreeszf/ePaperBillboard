@@ -1115,6 +1115,7 @@ void TTWeatherPage::onSleepWake(const TTSleepWakePayload& wake) {
             LOG_I("Weather page: fetch period");
             requestFetch();
             break;
+        case TT_SLEEP_WAKE_POWER:
         case TT_SLEEP_WAKE_INPUT:
             _sleepAfterTimeTick = false;
             cancelInputIdleSleep();

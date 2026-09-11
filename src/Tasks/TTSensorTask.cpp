@@ -8,6 +8,12 @@
 #include <freertos/FreeRTOS.h>
 #include <freertos/task.h>
 
+static volatile bool s_chargeChanged = false;
+
+static void IRAM_ATTR tt_battery_charge_isr() {
+    s_chargeChanged = true;
+}
+
 static uint8_t batteryPercentFromMv(int16_t voltageMv) {
     const int16_t kMap[] = { TT_BATTERY_SOC_MAP };
     if (voltageMv <= kMap[0]) {
@@ -55,6 +61,8 @@ void TTSensorTask::setup() {
 
     pinMode(TT_BATTERY_ADC_PIN, INPUT);
     pinMode(TT_BATTERY_CHARGE_PIN, INPUT);
+    attachInterrupt(digitalPinToInterrupt(TT_BATTERY_CHARGE_PIN),
+                    tt_battery_charge_isr, CHANGE);
     LOG_I("Battery ADC GPIO%d, charge GPIO%d (low=charging)",
           TT_BATTERY_ADC_PIN, TT_BATTERY_CHARGE_PIN);
 
@@ -102,6 +110,8 @@ void TTSensorTask::performSensorRead() {
 
     LOG_I("Battery: %dmV percent=%u usb=%d charging=%d",
           voltageMv, (unsigned)percent, usbPlugged ? 1 : 0, charging ? 1 : 0);
+    _lastUsbPlugged = usbPlugged;
+    _usbKnown = true;
 
     TTSensorDataPayload payload = {
         temperature, humidity, pressure, voltageMv, percent, charging, usbPlugged
@@ -123,6 +133,39 @@ void TTSensorTask::requestRtcWriteAsync(time_t utc) {
     enqueue(f);
 }
 
+void TTSensorTask::pollUsbPlug() {
+    if (!_usbKnown) {
+        return;
+    }
+    const uint32_t nowMs = millis();
+    if (_usbPollMs != 0
+        && (nowMs - _usbPollMs) < TT_BATTERY_USB_POLL_MS) {
+        return;
+    }
+    _usbPollMs = nowMs;
+    const long adc = analogRead(TT_BATTERY_ADC_PIN);
+    const int16_t voltageMv = (int16_t)(adc * TT_BATTERY_ADC_SCALE / TT_BATTERY_ADC_MAX);
+    const bool usbPlugged = _lastUsbPlugged
+        ? voltageMv > TT_BATTERY_USB_OFF_MV
+        : voltageMv > TT_BATTERY_USB_MV;
+    if (usbPlugged == _lastUsbPlugged) {
+        return;
+    }
+    LOG_I("Sensor: usb %s (%dmV)", usbPlugged ? "in" : "out", voltageMv);
+    performSensorRead();
+}
+
 void TTSensorTask::loop() {
-    // Empty loop to keep the task running
+    if (s_chargeChanged) {
+        const uint32_t nowMs = millis();
+        if (_chargeIrqMs == 0
+            || (nowMs - _chargeIrqMs) >= TT_BATTERY_CHARGE_DEBOUNCE_MS) {
+            s_chargeChanged = false;
+            _chargeIrqMs = nowMs;
+            LOG_I("Sensor: charge pin irq");
+            performSensorRead();
+            return;
+        }
+    }
+    pollUsbPlug();
 }
