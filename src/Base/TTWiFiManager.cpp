@@ -9,8 +9,17 @@
 #include <cmath>
 #include <cstring>
 #include <cstdlib>
+#include <esp_random.h>
 
-static bool tt_parse_coord(const String& text, float& out, float minV, float maxV) {
+namespace {
+
+bool networkKeys(std::vector<String>& keys) {
+    auto& pref = TTInstanceOf<TTPreference>();
+    ERR_CHECK_RET(pref.kvKeys(PREF_WIFI_NETWORKS, keys));
+    return true;
+}
+
+bool parseCoord(const String& text, float& out, float minV, float maxV) {
     if (text.isEmpty()) {
         return false;
     }
@@ -26,16 +35,27 @@ static bool tt_parse_coord(const String& text, float& out, float minV, float max
     return true;
 }
 
-bool TTWiFiManager::refreshSavedNetwork() {
-    String ssid;
-    auto& pref = TTInstanceOf<TTPreference>();
-    ERR_CHECK_RET(pref.get(PREF_WIFI_SSID, ssid, String("")));
-    if (ssid.isEmpty()) {
-        _savedSsid[0] = '\0';
-        return false;
-    }
+}
+
+void TTWiFiManager::_rememberSsid(const String& ssid) {
     strncpy(_savedSsid, ssid.c_str(), TT_WIFI_SSID_MAX);
     _savedSsid[TT_WIFI_SSID_MAX] = '\0';
+}
+
+bool TTWiFiManager::refreshSavedNetwork() {
+    std::vector<String> keys;
+    ERR_CHECK_RET(networkKeys(keys));
+    _hasNetworks = !keys.empty();
+    if (!_hasNetworks) {
+        _savedSsid[0] = '\0';
+        LOG_I("WiFi: no saved networks");
+        return false;
+    }
+    auto& pref = TTInstanceOf<TTPreference>();
+    if (_savedSsid[0] == '\0' || !pref.hasKv(PREF_WIFI_NETWORKS, _savedSsid)) {
+        _rememberSsid(keys[0]);
+    }
+    LOG_I("WiFi: saved networks=%u last=%s", (unsigned)keys.size(), _savedSsid);
     return true;
 }
 
@@ -53,12 +73,10 @@ bool TTWiFiManager::sleepRadio() {
 }
 
 bool TTWiFiManager::tryConnectSaved() {
-    String ssid;
-    String password;
-    auto& pref = TTInstanceOf<TTPreference>();
-    ERR_CHECK_RET(pref.get(PREF_WIFI_SSID, ssid, String("")));
-    ERR_CHECK_RET(pref.get(PREF_WIFI_PASSWORD, password, String("")));
-    if (ssid.isEmpty()) {
+    std::vector<String> keys;
+    ERR_CHECK_RET(networkKeys(keys));
+    _hasNetworks = !keys.empty();
+    if (!_hasNetworks) {
         LOG_I("WiFi: no saved SSID");
         _savedSsid[0] = '\0';
         if (_state != TT_WIFI_LINK_PROVISIONING) {
@@ -68,8 +86,23 @@ bool TTWiFiManager::tryConnectSaved() {
         }
         return false;
     }
-    strncpy(_savedSsid, ssid.c_str(), TT_WIFI_SSID_MAX);
-    _savedSsid[TT_WIFI_SSID_MAX] = '\0';
+
+    std::vector<String> nearby;
+    if (!_scanNearby(nearby)) {
+        LOG_W("WiFi: scan failed, cannot pick saved SSID");
+        sleepRadio();
+        return false;
+    }
+
+    String ssid;
+    String password;
+    if (!_chooseSavedFromScan(nearby, ssid, password)) {
+        LOG_W("WiFi: no saved SSID in scan nearby=%u saved=%u",
+              (unsigned)nearby.size(), (unsigned)keys.size());
+        sleepRadio();
+        return false;
+    }
+    _rememberSsid(ssid);
     if (!_startConnect(ssid, password)) {
         LOG_W("WiFi: saved network connect start failed ssid=%s", ssid.c_str());
         sleepRadio();
@@ -213,10 +246,9 @@ void TTWiFiManager::_stopAP() {
     delay(100);
 }
 
-bool TTWiFiManager::_scanWiFi() {
-    LOG_I("WiFi: scanning before AP");
+bool TTWiFiManager::_scanNearby(std::vector<String>& out) {
+    out.clear();
     WiFi.scanDelete();
-    _ssidList.clear();
 
     ERR_CHECK_RET(WiFi.mode(WIFI_STA));
     WiFi.disconnect(false, false);
@@ -230,10 +262,15 @@ bool TTWiFiManager::_scanWiFi() {
         delay(200);
         n = WiFi.scanNetworks(false, true);
     }
-    if (n <= 0) {
-        LOG_W("WiFi: no networks found result=%d", n);
+    if (n < 0) {
+        LOG_W("WiFi: scan failed result=%d", n);
         WiFi.scanDelete();
-        return n == 0;
+        return false;
+    }
+    if (n == 0) {
+        LOG_W("WiFi: no networks found");
+        WiFi.scanDelete();
+        return true;
     }
 
     LOG_I("WiFi: found %d networks", n);
@@ -243,12 +280,44 @@ bool TTWiFiManager::_scanWiFi() {
             continue;
         }
         LOG_I("WiFi: ssid[%d]=%s rssi=%d", i, ssid.c_str(), WiFi.RSSI(i));
-        _ssidList.push_back(ssid);
+        out.push_back(ssid);
     }
-    std::sort(_ssidList.begin(), _ssidList.end());
-    _ssidList.erase(std::unique(_ssidList.begin(), _ssidList.end()), _ssidList.end());
+    std::sort(out.begin(), out.end());
+    out.erase(std::unique(out.begin(), out.end()), out.end());
     WiFi.scanDelete();
     return true;
+}
+
+bool TTWiFiManager::_chooseSavedFromScan(const std::vector<String>& nearby,
+                                         String& ssid, String& password) {
+    std::vector<String> keys;
+    if (!networkKeys(keys)) {
+        return false;
+    }
+    std::vector<String> matches;
+    for (const String& saved : keys) {
+        if (std::find(nearby.begin(), nearby.end(), saved) == nearby.end()) {
+            continue;
+        }
+        matches.push_back(saved);
+    }
+    if (matches.empty()) {
+        return false;
+    }
+    const size_t idx = (size_t)(esp_random() % (uint32_t)matches.size());
+    ssid = matches[idx];
+    auto& pref = TTInstanceOf<TTPreference>();
+    if (!pref.getKv(PREF_WIFI_NETWORKS, ssid.c_str(), password, String(""))) {
+        return false;
+    }
+    LOG_I("WiFi: pick ssid=%s matches=%u nearby=%u",
+          ssid.c_str(), (unsigned)matches.size(), (unsigned)nearby.size());
+    return true;
+}
+
+bool TTWiFiManager::_scanWiFi() {
+    LOG_I("WiFi: scanning before AP");
+    return _scanNearby(_ssidList);
 }
 
 bool TTWiFiManager::_startWebServer() {
@@ -317,25 +386,30 @@ void TTWiFiManager::_handleSave() {
     float weatherLonVal = 0;
     const bool weatherHasCoord = !weatherLat.isEmpty() || !weatherLon.isEmpty();
     if (weatherHasCoord
-        && (!tt_parse_coord(weatherLat, weatherLatVal, -90.0f, 90.0f)
-            || !tt_parse_coord(weatherLon, weatherLonVal, -180.0f, 180.0f))) {
+        && (!parseCoord(weatherLat, weatherLatVal, -90.0f, 90.0f)
+            || !parseCoord(weatherLon, weatherLonVal, -180.0f, 180.0f))) {
         _sendSaveResult(400, "保存失败", "请填写有效的纬度和经度");
         return;
     }
 
     auto& pref = TTInstanceOf<TTPreference>();
-    if (password.isEmpty() && ssid == String(_savedSsid)) {
-        pref.get(PREF_WIFI_PASSWORD, password, String(""));
-        LOG_I("WiFi: keep existing password ssid=%s", ssid.c_str());
+    if (password.isEmpty()) {
+        pref.getKv(PREF_WIFI_NETWORKS, ssid.c_str(), password, String(""));
+        if (!password.isEmpty()) {
+            LOG_I("WiFi: keep existing password ssid=%s", ssid.c_str());
+        }
     }
-
-    LOG_I("WiFi: save ssid=%s password_len=%u tz=%s label=%s",
-          ssid.c_str(), (unsigned)password.length(), timezone.c_str(), label.c_str());
-    pref.set(PREF_WIFI_SSID, ssid);
-    pref.set(PREF_WIFI_PASSWORD, password);
-    pref.sync();
-    strncpy(_savedSsid, ssid.c_str(), TT_WIFI_SSID_MAX);
-    _savedSsid[TT_WIFI_SSID_MAX] = '\0';
+    if (!pref.setKv(PREF_WIFI_NETWORKS, ssid.c_str(), password)
+        || !pref.sync()) {
+        _sendSaveResult(500, "保存失败", "Wi-Fi 保存失败");
+        return;
+    }
+    _hasNetworks = true;
+    _rememberSsid(ssid);
+    LOG_I("WiFi: save ssid=%s password_len=%u networks=%u tz=%s label=%s",
+          ssid.c_str(), (unsigned)password.length(),
+          (unsigned)pref.kvSize(PREF_WIFI_NETWORKS),
+          timezone.c_str(), label.c_str());
 
     if (!TTRtc::saveTimezone(timezone.c_str(), label.c_str())) {
         _sendSaveResult(500, "保存失败", "时区保存失败");
@@ -362,13 +436,14 @@ void TTWiFiManager::_handleSave() {
 void TTWiFiManager::_handleStatus() {
     JsonDocument doc;
     auto& pref = TTInstanceOf<TTPreference>();
-    String ssid;
-    String password;
-    pref.get(PREF_WIFI_SSID, ssid, String(""));
-    pref.get(PREF_WIFI_PASSWORD, password, String(""));
-    if (ssid.isEmpty() && _savedSsid[0] != '\0') {
-        ssid = _savedSsid;
+    std::vector<String> keys;
+    networkKeys(keys);
+    String ssid = _savedSsid;
+    if (ssid.isEmpty() || !pref.hasKv(PREF_WIFI_NETWORKS, ssid.c_str())) {
+        ssid = keys.empty() ? String("") : keys[0];
     }
+    String password;
+    pref.getKv(PREF_WIFI_NETWORKS, ssid.c_str(), password, String(""));
     doc["ssid"] = ssid;
     doc["password"] = password;
 
