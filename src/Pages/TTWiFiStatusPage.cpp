@@ -108,13 +108,14 @@ void TTWiFiStatusPage::willAppear() {
     TTScreenPage::willAppear();
     _visible = true;
     showReadLoading("正在读取 Wi-Fi 状态...");
-    TTInstanceOf<TTWiFiTask>().requestStatusAsync();
+    TTInstanceOf<TTWiFiTask>().requestKeepRadio(true);
 }
 
 void TTWiFiStatusPage::willDisappear() {
     TTScreenPage::willDisappear();
     _visible = false;
     dismissReadLoading();
+    TTInstanceOf<TTWiFiTask>().requestKeepRadio(false);
 }
 
 void TTWiFiStatusPage::showReadLoading(const char* text) {

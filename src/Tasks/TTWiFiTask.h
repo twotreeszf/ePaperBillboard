@@ -23,6 +23,7 @@ public:
     void requestStartProvisioningAsync();
     void requestStopProvisioningAsync();
     void requestStatusAsync();
+    void requestKeepRadio(bool keep);
     void requestConnectAsync();
     void requestNtpSyncAsync();
     void runWithRadio(const char* tag, std::function<void()> work,
@@ -49,5 +50,6 @@ private:
     TTWiFiManager _wifiManager;
     TTWiFiLinkState _publishedState = TT_WIFI_LINK_IDLE;
     bool _wakeFailed = false;
+    bool _keepRadio = false;
     std::vector<TTWifiJob> _jobs;
 };

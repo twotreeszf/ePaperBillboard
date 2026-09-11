@@ -102,6 +102,33 @@ void TTWiFiTask::requestStatusAsync() {
     enqueue(f);
 }
 
+void TTWiFiTask::requestKeepRadio(bool keep) {
+    auto* f = new std::function<void()>([this, keep]() {
+        _keepRadio = keep;
+        LOG_I("WiFi: keep radio=%d", keep ? 1 : 0);
+        if (keep) {
+            if (_wifiManager.isConnected() || _wifiManager.isConnecting()
+                || _wifiManager.isProvisioning()) {
+                publishStatus();
+                return;
+            }
+            beginWake();
+            return;
+        }
+        if (!_jobs.empty() || _wifiManager.isProvisioning()) {
+            publishStatus();
+            return;
+        }
+        if (_wifiManager.isConnected() || _wifiManager.isConnecting()) {
+            LOG_I("WiFi: keep released, radio off");
+            endWake();
+            return;
+        }
+        publishStatus();
+    });
+    enqueue(f);
+}
+
 void TTWiFiTask::requestConnectAsync() {
     LOG_I("WiFi: page requested connect");
     runWithRadio("status", [this]() {
@@ -185,7 +212,7 @@ void TTWiFiTask::processRadioJobs() {
         ranWork = true;
     }
 
-    if (connected && !ranWork && _jobs.empty() && !connecting) {
+    if (connected && !ranWork && _jobs.empty() && !connecting && !_keepRadio) {
         LOG_I("WiFi: idle, radio off");
         endWake();
     }
@@ -269,7 +296,8 @@ void TTWiFiTask::endWake() {
 }
 
 bool TTWiFiTask::isRadioActive() const {
-    return !_jobs.empty()
+    return _keepRadio
+        || !_jobs.empty()
         || _wifiManager.isProvisioning()
         || _wifiManager.isConnecting()
         || _wifiManager.isConnected();
