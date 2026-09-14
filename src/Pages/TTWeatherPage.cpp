@@ -1143,7 +1143,9 @@ void TTWeatherPage::onTimeTick() {
         return;
     }
     LOG_I("Weather page: time tick");
-    if (_fetchedAt != 0 && _fetchedAt < (uint32_t)TT_RTC_MIN_UNIX) {
+    const bool fetchedBeforeClock =
+        _fetchedAt != 0 && _fetchedAt < (uint32_t)TT_RTC_MIN_UNIX;
+    if (fetchedBeforeClock && TTInstanceOf<TTRtc>().isTimeValid()) {
         LOG_W("Weather page: drop fetchedAt=%u after clock fix", (unsigned)_fetchedAt);
         _fetchedAt = 0;
         updateClock(true);

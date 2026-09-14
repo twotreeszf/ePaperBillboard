@@ -38,9 +38,13 @@
 #define TT_NAV_ICON_BATTERY_EMPTY    "/icons/battery_sm.i1"
 #define TT_NAV_ICON_BATTERY_LOW      "/icons/battery_low_sm.i1"
 #define TT_NAV_ICON_BATTERY_MEDIUM   "/icons/battery_medium_sm.i1"
+#define TT_NAV_ICON_BATTERY_HIGH     "/icons/battery_high_sm.i1"
 #define TT_NAV_ICON_BATTERY_FULL     "/icons/battery_full_sm.i1"
 #define TT_NAV_ICON_BATTERY_CHARGE   "/icons/battery_charging_sm.i1"
 #define TT_NAV_ICON_BATTERY_USB      "/icons/plug_sm.i1"
+#define TT_NAV_BATTERY_BAR1_PCT      25
+#define TT_NAV_BATTERY_BAR2_PCT      50
+#define TT_NAV_BATTERY_BAR3_PCT      75
 #define TT_NAV_ICON_TEMP             "/icons/temp_sm.i1"
 #define TT_NAV_ICON_HUM              "/icons/humidity_sm.i1"
 #define TT_NAV_ICON_PRESS            "/icons/pressure_sm.i1"

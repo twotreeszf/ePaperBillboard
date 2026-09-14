@@ -388,14 +388,17 @@ const char* TTNavigationBar::batteryIconPath(const TTSensorDataPayload& data) co
     if (data.usbPlugged) {
         return TT_NAV_ICON_BATTERY_USB;
     }
-    if (data.voltageMv < TT_BATTERY_EMPTY_MV) {
+    if (data.voltageMv < TT_BATTERY_EMPTY_MV || data.percent == 0) {
         return TT_NAV_ICON_BATTERY_EMPTY;
     }
-    if (data.voltageMv < TT_BATTERY_LOW_MV) {
+    if (data.percent <= TT_NAV_BATTERY_BAR1_PCT) {
         return TT_NAV_ICON_BATTERY_LOW;
     }
-    if (data.voltageMv < TT_BATTERY_MEDIUM_MV) {
+    if (data.percent <= TT_NAV_BATTERY_BAR2_PCT) {
         return TT_NAV_ICON_BATTERY_MEDIUM;
+    }
+    if (data.percent <= TT_NAV_BATTERY_BAR3_PCT) {
+        return TT_NAV_ICON_BATTERY_HIGH;
     }
     return TT_NAV_ICON_BATTERY_FULL;
 }
