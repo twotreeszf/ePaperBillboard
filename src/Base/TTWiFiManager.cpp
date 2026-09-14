@@ -52,10 +52,15 @@ bool TTWiFiManager::refreshSavedNetwork() {
         return false;
     }
     auto& pref = TTInstanceOf<TTPreference>();
-    if (_savedSsid[0] == '\0' || !pref.hasKv(PREF_WIFI_NETWORKS, _savedSsid)) {
-        _rememberSsid(keys[0]);
+    String last;
+    pref.get(PREF_WIFI_LAST_SSID, last, String(""));
+    if (!last.isEmpty() && pref.hasKv(PREF_WIFI_NETWORKS, last.c_str())) {
+        _rememberSsid(last);
+    } else if (_savedSsid[0] != '\0' && !pref.hasKv(PREF_WIFI_NETWORKS, _savedSsid)) {
+        _savedSsid[0] = '\0';
     }
-    LOG_I("WiFi: saved networks=%u last=%s", (unsigned)keys.size(), _savedSsid);
+    LOG_I("WiFi: saved networks=%u last=%s", (unsigned)keys.size(),
+          _savedSsid[0] != '\0' ? _savedSsid : "-");
     return true;
 }
 
@@ -69,6 +74,7 @@ bool TTWiFiManager::sleepRadio() {
     WiFi.mode(WIFI_OFF);
     _state = TT_WIFI_LINK_IDLE;
     _connectStartedAt = 0;
+    _fallbackScan = false;
     return true;
 }
 
@@ -87,28 +93,17 @@ bool TTWiFiManager::tryConnectSaved() {
         return false;
     }
 
-    std::vector<String> nearby;
-    if (!_scanNearby(nearby)) {
-        LOG_W("WiFi: scan failed, cannot pick saved SSID");
-        sleepRadio();
-        return false;
+    if (_startPreferredConnect()) {
+        _fallbackScan = true;
+        return true;
     }
-
-    String ssid;
-    String password;
-    if (!_chooseSavedFromScan(nearby, ssid, password)) {
-        LOG_W("WiFi: no saved SSID in scan nearby=%u saved=%u",
-              (unsigned)nearby.size(), (unsigned)keys.size());
-        sleepRadio();
-        return false;
+    LOG_I("WiFi: no last SSID, scan nearby");
+    if (_connectFromScan(nullptr)) {
+        _fallbackScan = false;
+        return true;
     }
-    _rememberSsid(ssid);
-    if (!_startConnect(ssid, password)) {
-        LOG_W("WiFi: saved network connect start failed ssid=%s", ssid.c_str());
-        sleepRadio();
-        return false;
-    }
-    return true;
+    sleepRadio();
+    return false;
 }
 
 bool TTWiFiManager::startProvisioning() {
@@ -199,7 +194,7 @@ bool TTWiFiManager::_startConnect(const String& ssid, const String& password) {
     ERR_CHECK_RET(WiFi.mode(WIFI_STA));
     WiFi.disconnect();
     delay(100);
-    WiFi.setTxPower(WIFI_POWER_19dBm);
+    _applyTxPower();
     if (password.isEmpty()) {
         WiFi.begin(ssid.c_str());
     } else {
@@ -210,15 +205,92 @@ bool TTWiFiManager::_startConnect(const String& ssid, const String& password) {
 
 void TTWiFiManager::_pollConnect() {
     if (WiFi.status() == WL_CONNECTED) {
-        LOG_I("WiFi: connected ip=%s", WiFi.localIP().toString().c_str());
+        const String ssid = WiFi.SSID();
+        LOG_I("WiFi: connected ssid=%s ip=%s", ssid.c_str(), WiFi.localIP().toString().c_str());
         _state = TT_WIFI_LINK_CONNECTED;
         _connectStartedAt = 0;
+        _fallbackScan = false;
+        _persistLastSsid(ssid);
         return;
     }
     if ((int32_t)(millis() - _connectStartedAt) >= (int32_t)TT_WIFI_CONNECT_TIMEOUT_MS) {
         LOG_E("WiFi: connect timeout ssid=%s", _savedSsid);
+        if (_fallbackScan) {
+            _fallbackScan = false;
+            const String skip = _savedSsid;
+            LOG_W("WiFi: last SSID failed, scan nearby skip=%s", skip.c_str());
+            if (_connectFromScan(skip.c_str())) {
+                return;
+            }
+        }
         sleepRadio();
     }
+}
+
+bool TTWiFiManager::_startPreferredConnect() {
+    auto& pref = TTInstanceOf<TTPreference>();
+    if (_savedSsid[0] == '\0' || !pref.hasKv(PREF_WIFI_NETWORKS, _savedSsid)) {
+        String last;
+        pref.get(PREF_WIFI_LAST_SSID, last, String(""));
+        if (last.isEmpty() || !pref.hasKv(PREF_WIFI_NETWORKS, last.c_str())) {
+            return false;
+        }
+        _rememberSsid(last);
+    }
+    String password;
+    if (!pref.getKv(PREF_WIFI_NETWORKS, _savedSsid, password, String(""))) {
+        return false;
+    }
+    LOG_I("WiFi: try last ssid=%s", _savedSsid);
+    return _startConnect(String(_savedSsid), password);
+}
+
+bool TTWiFiManager::_connectFromScan(const char* skipSsid) {
+    std::vector<String> nearby;
+    if (!_scanNearby(nearby)) {
+        LOG_W("WiFi: scan failed, cannot pick saved SSID");
+        return false;
+    }
+    String ssid;
+    String password;
+    if (!_chooseSavedFromScan(nearby, ssid, password, skipSsid)) {
+        LOG_W("WiFi: no saved SSID in scan nearby=%u skip=%s",
+              (unsigned)nearby.size(),
+              (skipSsid != nullptr && skipSsid[0] != '\0') ? skipSsid : "-");
+        return false;
+    }
+    _rememberSsid(ssid);
+    if (!_startConnect(ssid, password)) {
+        LOG_W("WiFi: scan connect start failed ssid=%s", ssid.c_str());
+        return false;
+    }
+    return true;
+}
+
+void TTWiFiManager::_persistLastSsid(const String& ssid) {
+    if (ssid.isEmpty()) {
+        return;
+    }
+    _rememberSsid(ssid);
+    auto& pref = TTInstanceOf<TTPreference>();
+    String last;
+    pref.get(PREF_WIFI_LAST_SSID, last, String(""));
+    if (last == ssid) {
+        return;
+    }
+    if (!pref.set(PREF_WIFI_LAST_SSID, ssid) || !pref.sync()) {
+        LOG_W("WiFi: persist last ssid failed ssid=%s", ssid.c_str());
+        return;
+    }
+    LOG_I("WiFi: persist last ssid=%s", ssid.c_str());
+}
+
+void TTWiFiManager::_applyTxPower() {
+    if (!WiFi.setTxPower(TT_WIFI_TX_POWER)) {
+        LOG_W("WiFi: set tx power failed");
+        return;
+    }
+    LOG_I("WiFi: tx power=%d", (int)WiFi.getTxPower());
 }
 
 void TTWiFiManager::_buildApSsid() {
@@ -230,7 +302,7 @@ bool TTWiFiManager::_startAP() {
     _buildApSsid();
     ERR_CHECK_RET(WiFi.mode(WIFI_AP));
     delay(100);
-    WiFi.setTxPower(WIFI_POWER_19dBm);
+    _applyTxPower();
     ERR_CHECK_RET(WiFi.softAP(_apSsid));
     ERR_CHECK_RET(_dnsServer.start(TT_WIFI_DNS_PORT, "*", WiFi.softAPIP()));
     LOG_I("WiFi: AP ssid=%s ip=%s open", _apSsid, WiFi.softAPIP().toString().c_str());
@@ -253,7 +325,7 @@ bool TTWiFiManager::_scanNearby(std::vector<String>& out) {
     ERR_CHECK_RET(WiFi.mode(WIFI_STA));
     WiFi.disconnect(false, false);
     delay(200);
-    WiFi.setTxPower(WIFI_POWER_19dBm);
+    _applyTxPower();
 
     int n = WiFi.scanNetworks(false, true);
     if (n <= 0) {
@@ -289,13 +361,17 @@ bool TTWiFiManager::_scanNearby(std::vector<String>& out) {
 }
 
 bool TTWiFiManager::_chooseSavedFromScan(const std::vector<String>& nearby,
-                                         String& ssid, String& password) {
+                                         String& ssid, String& password,
+                                         const char* skipSsid) {
     std::vector<String> keys;
     if (!networkKeys(keys)) {
         return false;
     }
     std::vector<String> matches;
     for (const String& saved : keys) {
+        if (skipSsid != nullptr && skipSsid[0] != '\0' && saved == skipSsid) {
+            continue;
+        }
         if (std::find(nearby.begin(), nearby.end(), saved) == nearby.end()) {
             continue;
         }

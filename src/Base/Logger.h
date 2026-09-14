@@ -13,6 +13,7 @@
 #endif
 
 #define TT_LOG_TIME_MIN_YEAR  2020
+#define TT_SERIAL_BAUD        115200
 
 enum LogLevel {
     LOG_LEVEL_NONE,       /*!< No log output */

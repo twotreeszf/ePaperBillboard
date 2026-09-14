@@ -6,11 +6,13 @@
 #include <vector>
 #include "TTNotificationPayloads.h"
 
-#define PREF_WIFI_NETWORKS  "wifi_networks"
+#define PREF_WIFI_NETWORKS   "wifi_networks"
+#define PREF_WIFI_LAST_SSID  "wifi_last_ssid"
 #define TT_WIFI_AP_SSID_PREFIX  "Billboard"
 #define TT_WIFI_CONNECT_TIMEOUT_MS  15000
 #define TT_WIFI_APPLY_DELAY_MS      800
 #define TT_WIFI_DNS_PORT  53
+#define TT_WIFI_TX_POWER  WIFI_POWER_11dBm
 
 class TTWiFiManager {
 public:
@@ -33,11 +35,16 @@ public:
 private:
     bool _startConnect(const String& ssid, const String& password);
     void _pollConnect();
+    bool _startPreferredConnect();
+    bool _connectFromScan(const char* skipSsid);
     bool _scanNearby(std::vector<String>& out);
     bool _scanWiFi();
     bool _chooseSavedFromScan(const std::vector<String>& nearby,
-                              String& ssid, String& password);
+                              String& ssid, String& password,
+                              const char* skipSsid);
     void _rememberSsid(const String& ssid);
+    void _persistLastSsid(const String& ssid);
+    void _applyTxPower();
     bool _startAP();
     bool _startWebServer();
     void _stopAP();
@@ -60,6 +67,7 @@ private:
     bool _hasNetworks = false;
     bool _serverStarted = false;
     bool _applyPending = false;
+    bool _fallbackScan = false;
     uint32_t _applyAt = 0;
     uint32_t _connectStartedAt = 0;
 };

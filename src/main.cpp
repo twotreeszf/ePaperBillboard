@@ -34,7 +34,7 @@
 
 void setup() {
     _logger.setLevel(LOG_LEVEL_DEBUG);
-    Serial.begin(115200);
+    Serial.begin(TT_SERIAL_BAUD);
     delay(100);
     LOG_I("");
     LOG_I("=================================");

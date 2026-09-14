@@ -7,6 +7,7 @@
 #include "TTRtc.h"
 #include "../Tasks/TTWiFiTask.h"
 #include "../Tasks/TTSensorTask.h"
+#include <Arduino.h>
 #include <WiFi.h>
 #include <cstring>
 #include <driver/gpio.h>
@@ -170,7 +171,9 @@ bool TTSleepService::enterSleep(uint64_t sleepUs) {
     LOG_I("Sleep: ext0 GPIO%d wake on %d", TT_BATTERY_CHARGE_PIN, ext0Level);
 
     Serial.flush();
+    Serial.end();
     const esp_err_t err = esp_light_sleep_start();
+    Serial.begin(TT_SERIAL_BAUD);
     if (err != ESP_OK) {
         LOG_E("Sleep: start err=%d", (int)err);
         return false;
