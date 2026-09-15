@@ -118,11 +118,12 @@ uint32_t TTScreenPage::runRepeat(uint32_t intervalMs, std::function<void()> call
     return handle;
 }
 
-void TTScreenPage::runOnceWall(uint32_t delayMs, std::function<void()> callback) {
+uint32_t TTScreenPage::runOnceWall(uint32_t delayMs, std::function<void()> callback) {
     uint32_t handle = TTInstanceOf<TTUITask>().runOnceWall(delayMs, std::move(callback));
     if (handle != 0) {
         _timerHandles.push_back(handle);
     }
+    return handle;
 }
 
 uint32_t TTScreenPage::runRepeatWall(uint32_t intervalMs, std::function<void()> callback, bool executeImmediately) {

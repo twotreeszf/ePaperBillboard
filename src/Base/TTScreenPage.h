@@ -26,7 +26,7 @@ public:
 
     uint32_t runOnce(uint32_t delayMs, std::function<void()> callback);
     uint32_t runRepeat(uint32_t intervalMs, std::function<void()> callback, bool executeImmediately = true);
-    void runOnceWall(uint32_t delayMs, std::function<void()> callback);
+    uint32_t runOnceWall(uint32_t delayMs, std::function<void()> callback);
     uint32_t runRepeatWall(uint32_t intervalMs, std::function<void()> callback, bool executeImmediately = true);
     void cancelRepeat(uint32_t handle);
     void requestLightSleep();
