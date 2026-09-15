@@ -10,6 +10,8 @@
 #define TT_SLEEP_WALL_TEXT_MAX      24
 #define TT_SLEEP_GPIO_WAKE_MASK \
     ((1ULL << PIN_BUTTONL) | (1ULL << PIN_BUTTONR) | (1ULL << PIN_BUTTONC))
+#define TT_SLEEP_UART_TX_GPIO       1
+#define TT_SLEEP_UART_RX_GPIO       3
 
 class TTSleepService {
 public:

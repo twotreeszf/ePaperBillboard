@@ -142,6 +142,29 @@ uint64_t TTSleepService::sleepUsUntil(time_t deadline) const {
     return (uint64_t)(deadline - now) * 1000000ULL;
 }
 
+static void tt_sleep_hold_uart_pins() {
+    const gpio_num_t pins[] = {
+        (gpio_num_t)TT_SLEEP_UART_TX_GPIO,
+        (gpio_num_t)TT_SLEEP_UART_RX_GPIO,
+    };
+    for (size_t i = 0; i < sizeof(pins) / sizeof(pins[0]); i++) {
+        const gpio_num_t pin = pins[i];
+        esp_err_t err = gpio_sleep_set_direction(pin, GPIO_MODE_INPUT);
+        if (err != ESP_OK) {
+            LOG_W("Sleep: UART GPIO%d sleep dir err=%d", (int)pin, (int)err);
+            continue;
+        }
+        err = gpio_sleep_set_pull_mode(pin, GPIO_FLOATING);
+        if (err != ESP_OK) {
+            LOG_W("Sleep: UART GPIO%d sleep pull err=%d", (int)pin, (int)err);
+        }
+        err = gpio_sleep_sel_en(pin);
+        if (err != ESP_OK) {
+            LOG_W("Sleep: UART GPIO%d sleep sel err=%d", (int)pin, (int)err);
+        }
+    }
+}
+
 bool TTSleepService::enterSleep(uint64_t sleepUs) {
     TTInstanceOf<TTLvglEpdDriver>().hibernate();
     if (WiFi.getMode() != WIFI_OFF) {
@@ -171,6 +194,8 @@ bool TTSleepService::enterSleep(uint64_t sleepUs) {
     LOG_I("Sleep: ext0 GPIO%d wake on %d", TT_BATTERY_CHARGE_PIN, ext0Level);
 
     Serial.flush();
+    fflush(stdout);
+    tt_sleep_hold_uart_pins();
     const esp_err_t err = esp_light_sleep_start();
     if (err != ESP_OK) {
         LOG_E("Sleep: start err=%d", (int)err);
