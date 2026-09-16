@@ -9,7 +9,9 @@ static const struct {
     { 10, "/fonts/all_10.bin", nullptr },
     { 12, "/fonts/all_12.bin", nullptr },
     { 16, "/fonts/all_16.bin", nullptr },
+    { 32, "/fonts/en_32.bin", nullptr },
     { 48, "/fonts/en_48.bin", nullptr },
+    { 120, "/fonts/en_120.bin", nullptr },
 };
 #define TT_FONT_ENTRIES_COUNT  (sizeof(TT_FONT_ENTRIES) / sizeof(TT_FONT_ENTRIES[0]))
 

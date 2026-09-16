@@ -30,8 +30,10 @@
 #define TT_WEATHER_FORECAST_TEMPS_Y (TT_WEATHER_FORECAST_ICON_Y + TT_WEATHER_ICON_DAY + 2)
 #define TT_WEATHER_CURRENT_X      4
 #define TT_WEATHER_CURRENT_Y      8
-#define TT_WEATHER_TEMP_Y         (TT_WEATHER_CURRENT_Y + \
+#define TT_WEATHER_TEXT_NUDGE_Y   (-10)
+#define TT_WEATHER_TEMP_Y_BASE    (TT_WEATHER_CURRENT_Y + \
                                    (TT_WEATHER_ICON_CURRENT - TT_WEATHER_TEXT_STACK_H) / 2)
+#define TT_WEATHER_TEMP_Y         (TT_WEATHER_TEMP_Y_BASE + TT_WEATHER_TEXT_NUDGE_Y)
 #define TT_WEATHER_TEMP_X         (TT_WEATHER_CURRENT_X + TT_WEATHER_ICON_CURRENT + 8)
 #define TT_WEATHER_CITY_Y         2
 #define TT_WEATHER_DETAIL_N       8
@@ -77,7 +79,7 @@
 #define TT_WEATHER_AGE_TEXT_X     TT_WEATHER_TEMP_X
 #define TT_WEATHER_AGE_X          (TT_WEATHER_AGE_TEXT_X - TT_WEATHER_AGE_ICON - \
                                    TT_WEATHER_AGE_ICON_GAP)
-#define TT_WEATHER_AGE_Y          (TT_WEATHER_TEMP_Y + TT_WEATHER_TEXT_STACK_H + \
+#define TT_WEATHER_AGE_Y          (TT_WEATHER_TEMP_Y_BASE + TT_WEATHER_TEXT_STACK_H + \
                                    TT_WEATHER_TEXT_STACK_GAP)
 #define TT_WEATHER_AGE_ICON_Y     (TT_WEATHER_AGE_Y + 3)
 #define TT_WEATHER_AGE_OK_SRC     "/icons/weather/check_8.i1"
@@ -117,6 +119,23 @@
 #define TT_WEATHER_GRAPH_TEMP_STEPS  24
 #define TT_WEATHER_GRAPH_TEMP_POINTS \
     ((TT_WEATHER_GRAPH_X_TICKS - 1) * TT_WEATHER_GRAPH_TEMP_STEPS + 1)
+#define TT_WEATHER_MODE_DETAIL     0
+#define TT_WEATHER_MODE_CLOCK      1
+#define TT_WEATHER_MODE_N          2
+#define TT_WEATHER_CLOCK_FONT         120
+#define TT_WEATHER_CLOCK_METRIC_FONT  32
+#define TT_WEATHER_CLOCK_ICON         32
+#define TT_WEATHER_CLOCK_ICON_GAP     4
+#define TT_WEATHER_CLOCK_ICON_NUDGE_Y 2
+#define TT_WEATHER_CLOCK_TOP          12
+#define TT_WEATHER_CLOCK_COLON_NUDGE_Y (-18)
+#define TT_WEATHER_CLOCK_METRIC_PAD   4
+#define TT_WEATHER_CLOCK_METRIC_INV   8
+#define TT_WEATHER_CLOCK_Y            TT_WEATHER_DETAIL_Y
+#define TT_WEATHER_CLOCK_TEMP_SRC     "/icons/weather/temp_32.i1"
+#define TT_WEATHER_CLOCK_HUM_SRC      "/icons/weather/humidity_32.i1"
+#define TT_WEATHER_INDOOR_TEMP_EPS 0.05f
+#define TT_WEATHER_INDOOR_HUM_EPS  0.05f
 
 struct TTWeatherForecastCol {
     lv_obj_t* weekday = nullptr;
@@ -141,6 +160,7 @@ public:
 
 protected:
     void buildContent(lv_obj_t* screen) override;
+    bool handleKeyAction(TTKeyId key, TTKeyGesture gesture) override;
 
 private:
     bool applyWeather(const TTWeatherPayload& payload);
@@ -169,6 +189,10 @@ private:
     void bindAge(uint32_t fetchedAt);
     void updateAge(bool refreshIfChanged);
     void updateClock(bool refreshIfChanged);
+    void applyDisplayMode();
+    void cycleDisplayMode(int delta);
+    void bindIndoor(const TTSensorDataPayload& data);
+    void layoutClockMetrics();
 
     lv_obj_t* _content = nullptr;
     lv_obj_t* _empty = nullptr;
@@ -188,6 +212,12 @@ private:
     lv_obj_t* _uviLevel = nullptr;
     lv_obj_t* _aqiLevel = nullptr;
     lv_obj_t* _windLevel = nullptr;
+    lv_obj_t* _modeDetail = nullptr;
+    lv_obj_t* _modeClock = nullptr;
+    lv_obj_t* _clockHourLabel = nullptr;
+    lv_obj_t* _clockMinLabel = nullptr;
+    lv_obj_t* _clockTempLabel = nullptr;
+    lv_obj_t* _clockHumLabel = nullptr;
     lv_obj_t* _graph = nullptr;
     lv_obj_t* _tempLine = nullptr;
     lv_obj_t* _hourIcons[TT_WEATHER_GRAPH_X_TICKS] = {};
@@ -212,5 +242,9 @@ private:
     bool _ageOk = true;
     uint32_t _fetchedAt = 0;
     int _lastClockMinute = -1;
+    int _displayMode = TT_WEATHER_MODE_DETAIL;
+    bool _hasIndoor = false;
+    float _indoorTemp = 0;
+    float _indoorHum = 0;
     char _cityName[TT_WEATHER_CITY_MAX + 1] = {};
 };

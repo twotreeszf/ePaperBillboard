@@ -63,6 +63,27 @@ static lv_obj_t* createPlainLabel(lv_obj_t* parent, lv_font_t* font, const char*
     return label;
 }
 
+static lv_obj_t* createPlainBox(lv_obj_t* parent) {
+    lv_obj_t* obj = lv_obj_create(parent);
+    lv_obj_set_style_bg_opa(obj, LV_OPA_TRANSP, 0);
+    lv_obj_set_style_border_width(obj, 0, 0);
+    lv_obj_set_style_pad_all(obj, 0, 0);
+    lv_obj_set_style_radius(obj, 0, 0);
+    lv_obj_remove_flag(obj, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_remove_flag(obj, LV_OBJ_FLAG_CLICKABLE);
+    return obj;
+}
+
+static lv_obj_t* createClockMetric(lv_obj_t* parent) {
+    lv_obj_t* row = createPlainBox(parent);
+    lv_obj_set_size(row, LV_SIZE_CONTENT, LV_SIZE_CONTENT);
+    lv_obj_set_layout(row, LV_LAYOUT_FLEX);
+    lv_obj_set_flex_flow(row, LV_FLEX_FLOW_ROW);
+    lv_obj_set_flex_align(row, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
+    lv_obj_set_style_pad_column(row, TT_WEATHER_CLOCK_ICON_GAP, 0);
+    return row;
+}
+
 static void drawForecastDivArc(lv_layer_t* layer, lv_draw_line_dsc_t* dsc,
                               int cx, int cy, float startDeg, float endDeg, int r) {
     const float span = endDeg - startDeg;
@@ -181,6 +202,14 @@ void TTWeatherPage::buildContent(lv_obj_t* screen) {
     lv_font_t* font12 = fm.getFont(12);
     lv_font_t* font16 = fm.getFont(16);
     lv_font_t* font48 = fm.getFont(TT_WEATHER_TEMP_FONT);
+    lv_font_t* fontMetric = fm.getFont(TT_WEATHER_CLOCK_METRIC_FONT);
+    if (fontMetric == nullptr) {
+        fontMetric = font16;
+    }
+    lv_font_t* fontClock = fm.getFont(TT_WEATHER_CLOCK_FONT);
+    if (fontClock == nullptr) {
+        fontClock = font48;
+    }
     _graphFont = font10;
 
     lv_obj_set_style_bg_color(screen, lv_color_white(), 0);
@@ -318,6 +347,10 @@ void TTWeatherPage::buildContent(lv_obj_t* screen) {
     lv_obj_remove_flag(forecastDiv, LV_OBJ_FLAG_CLICKABLE);
     lv_obj_add_event_cb(forecastDiv, drawForecastDiv, LV_EVENT_DRAW_MAIN, nullptr);
 
+    _modeDetail = createPlainBox(_content);
+    lv_obj_set_pos(_modeDetail, 0, 0);
+    lv_obj_set_size(_modeDetail, EPD_WIDTH, EPD_HEIGHT - TT_NAV_PAGE_INSET);
+
     static const char* kDetailLabels[] = {
         "日出", "日落", "风", "湿度", "紫外线",
         "气压", "空气质量", "能见度"
@@ -342,16 +375,16 @@ void TTWeatherPage::buildContent(lv_obj_t* screen) {
         const int textW = TT_WEATHER_DETAIL_COL_W - TT_WEATHER_ICON_CELL - TT_WEATHER_DETAIL_TEXT_GAP - 2;
         const int textY = y + (TT_WEATHER_DETAIL_ROW_H - TT_WEATHER_DETAIL_TEXT_H) / 2;
 
-        _details[i].icon = tt_stream_image_create(_content);
+        _details[i].icon = tt_stream_image_create(_modeDetail);
         tt_stream_image_set_src(_details[i].icon, kDetailIcons[i]);
         lv_obj_set_size(_details[i].icon, TT_WEATHER_ICON_CELL, TT_WEATHER_ICON_CELL);
         lv_obj_set_pos(_details[i].icon, x, iconY);
 
-        _details[i].value = createPlainLabel(_content, font12, "--");
+        _details[i].value = createPlainLabel(_modeDetail, font12, "--");
         if (i == TT_WEATHER_DETAIL_UVI || i == TT_WEATHER_DETAIL_AQI
             || i == TT_WEATHER_DETAIL_WIND) {
             lv_obj_set_pos(_details[i].value, textX, textY);
-            lv_obj_t* level = createPlainLabel(_content, font10, "");
+            lv_obj_t* level = createPlainLabel(_modeDetail, font10, "");
             alignLevelLabel(level, _details[i].value);
             if (i == TT_WEATHER_DETAIL_UVI) {
                 _uviLevel = level;
@@ -366,13 +399,13 @@ void TTWeatherPage::buildContent(lv_obj_t* screen) {
             lv_obj_set_pos(_details[i].value, textX, textY);
         }
 
-        _details[i].label = createPlainLabel(_content, font10, kDetailLabels[i]);
+        _details[i].label = createPlainLabel(_modeDetail, font10, kDetailLabels[i]);
         lv_obj_set_width(_details[i].label, textW);
         lv_label_set_long_mode(_details[i].label, LV_LABEL_LONG_DOT);
         lv_obj_set_pos(_details[i].label, textX, textY + TT_WEATHER_DETAIL_LINE_H);
     }
     for (int i = 0; i < TT_WEATHER_DETAIL_DIV_N; i++) {
-        lv_obj_t* detailDiv = lv_obj_create(_content);
+        lv_obj_t* detailDiv = lv_obj_create(_modeDetail);
         lv_obj_set_pos(detailDiv, TT_WEATHER_DETAIL_DIV_X, TT_WEATHER_DETAIL_DIV_Y(i));
         lv_obj_set_size(detailDiv, TT_WEATHER_DETAIL_DIV_W, TT_WEATHER_DETAIL_DIV_H);
         lv_obj_set_style_bg_opa(detailDiv, LV_OPA_TRANSP, 0);
@@ -384,7 +417,7 @@ void TTWeatherPage::buildContent(lv_obj_t* screen) {
         lv_obj_add_event_cb(detailDiv, drawDetailDiv, LV_EVENT_DRAW_MAIN, nullptr);
     }
 
-    _graph = lv_obj_create(_content);
+    _graph = lv_obj_create(_modeDetail);
     lv_obj_set_pos(_graph, TT_WEATHER_GRAPH_X, TT_WEATHER_GRAPH_Y);
     lv_obj_set_size(_graph, TT_WEATHER_GRAPH_W, TT_WEATHER_GRAPH_H);
     lv_obj_set_style_bg_opa(_graph, LV_OPA_TRANSP, 0);
@@ -403,10 +436,43 @@ void TTWeatherPage::buildContent(lv_obj_t* screen) {
     lv_obj_set_style_line_rounded(_tempLine, true, 0);
 
     for (int i = 0; i < TT_WEATHER_GRAPH_X_TICKS; i++) {
-        _hourIcons[i] = tt_stream_image_create(_content);
+        _hourIcons[i] = tt_stream_image_create(_modeDetail);
         lv_obj_set_size(_hourIcons[i], TT_WEATHER_ICON_HOUR, TT_WEATHER_ICON_HOUR);
     }
 
+    const int clockH = EPD_HEIGHT - TT_NAV_PAGE_INSET - TT_WEATHER_CLOCK_Y;
+    _modeClock = createPlainBox(_content);
+    lv_obj_set_pos(_modeClock, 0, TT_WEATHER_CLOCK_Y);
+    lv_obj_set_size(_modeClock, EPD_WIDTH, clockH);
+    lv_obj_t* clockRow = createPlainBox(_modeClock);
+    lv_obj_set_size(clockRow, LV_SIZE_CONTENT, LV_SIZE_CONTENT);
+    lv_obj_set_layout(clockRow, LV_LAYOUT_FLEX);
+    lv_obj_set_flex_flow(clockRow, LV_FLEX_FLOW_ROW);
+    lv_obj_set_flex_align(clockRow, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER,
+                         LV_FLEX_ALIGN_CENTER);
+    lv_obj_align(clockRow, LV_ALIGN_TOP_MID, 0, TT_WEATHER_CLOCK_TOP);
+
+    _clockHourLabel = createPlainLabel(clockRow, fontClock, "--");
+    lv_obj_t* clockColon = createPlainLabel(clockRow, fontClock, ":");
+    lv_obj_set_style_margin_top(clockColon, TT_WEATHER_CLOCK_COLON_NUDGE_Y, 0);
+    _clockMinLabel = createPlainLabel(clockRow, fontClock, "--");
+
+    lv_obj_t* tempRow = createClockMetric(_modeClock);
+    lv_obj_t* tempIcon = tt_stream_image_create(tempRow);
+    lv_obj_set_size(tempIcon, TT_WEATHER_CLOCK_ICON, TT_WEATHER_CLOCK_ICON);
+    tt_stream_image_set_src(tempIcon, TT_WEATHER_CLOCK_TEMP_SRC);
+    _clockTempLabel = createPlainLabel(tempRow, fontMetric, "--°C");
+    lv_obj_set_style_pad_top(_clockTempLabel, TT_WEATHER_CLOCK_ICON_NUDGE_Y, 0);
+
+    lv_obj_t* humRow = createClockMetric(_modeClock);
+    lv_obj_t* humIcon = tt_stream_image_create(humRow);
+    lv_obj_set_size(humIcon, TT_WEATHER_CLOCK_ICON, TT_WEATHER_CLOCK_ICON);
+    tt_stream_image_set_src(humIcon, TT_WEATHER_CLOCK_HUM_SRC);
+    _clockHumLabel = createPlainLabel(humRow, fontMetric, "--%");
+    lv_obj_set_style_pad_top(_clockHumLabel, TT_WEATHER_CLOCK_ICON_NUDGE_Y, 0);
+    layoutClockMetrics();
+
+    applyDisplayMode();
     showContent(false);
     showEmpty(true);
     showEmptyActions(false, false);
@@ -438,6 +504,11 @@ void TTWeatherPage::setup() {
         TT_NOTIFICATION_TIME_TICK,
         [this](const TTTimeTickPayload&) {
             onTimeTick();
+        });
+    subscribe<TTSensorDataPayload>(
+        TT_NOTIFICATION_SENSOR_DATA_UPDATE,
+        [this](const TTSensorDataPayload& data) {
+            bindIndoor(data);
         });
     registerKeyAction(TT_KEY_CENTER, TT_KEY_LONG_PRESS, [this]() {
         forceRefresh();
@@ -1038,6 +1109,23 @@ void TTWeatherPage::updateClock(bool refreshIfChanged) {
     }
     _lastClockMinute = minuteKey;
 
+    if (_clockHourLabel != nullptr && _clockMinLabel != nullptr) {
+        char hm[4];
+        if (minuteKey >= 0) {
+            snprintf(hm, sizeof(hm), "%02d", t.tm_hour);
+            lv_label_set_text(_clockHourLabel, hm);
+            snprintf(hm, sizeof(hm), "%02d", t.tm_min);
+            lv_label_set_text(_clockMinLabel, hm);
+        } else {
+            lv_label_set_text(_clockHourLabel, "--");
+            lv_label_set_text(_clockMinLabel, "--");
+        }
+        layoutClockMetrics();
+        if (_displayMode == TT_WEATHER_MODE_CLOCK && _modeClock != nullptr) {
+            lv_obj_invalidate(_modeClock);
+        }
+    }
+
     char cityLine[64];
     if (_cityName[0] != '\0' && dateBuf[0] != '\0') {
         snprintf(cityLine, sizeof(cityLine), "%s  %s", _cityName, dateBuf);
@@ -1091,6 +1179,132 @@ void TTWeatherPage::bindOk(const TTWeatherPayload& payload) {
 
     bindDetails(payload);
     bindGraph(payload);
+}
+
+void TTWeatherPage::bindIndoor(const TTSensorDataPayload& data) {
+    if (_clockTempLabel == nullptr || _clockHumLabel == nullptr) {
+        return;
+    }
+    if (_hasIndoor
+        && fabsf(data.temperature - _indoorTemp) < TT_WEATHER_INDOOR_TEMP_EPS
+        && fabsf(data.humidity - _indoorHum) < TT_WEATHER_INDOOR_HUM_EPS) {
+        return;
+    }
+    _hasIndoor = true;
+    _indoorTemp = data.temperature;
+    _indoorHum = data.humidity;
+
+    char buf[16];
+    snprintf(buf, sizeof(buf), "%.0f°C", _indoorTemp);
+    lv_label_set_text(_clockTempLabel, buf);
+    snprintf(buf, sizeof(buf), "%.0f%%", _indoorHum);
+    lv_label_set_text(_clockHumLabel, buf);
+    layoutClockMetrics();
+    LOG_I("Weather page: indoor T=%.1f H=%.1f", _indoorTemp, _indoorHum);
+
+    const bool clockShown = _visible
+        && _displayMode == TT_WEATHER_MODE_CLOCK
+        && _content != nullptr
+        && !lv_obj_has_flag(_content, LV_OBJ_FLAG_HIDDEN);
+    if (clockShown) {
+        requestRefresh(TT_REFRESH_PARTIAL);
+    }
+}
+
+void TTWeatherPage::layoutClockMetrics() {
+    if (_modeClock == nullptr || _clockHourLabel == nullptr || _clockMinLabel == nullptr
+        || _clockTempLabel == nullptr || _clockHumLabel == nullptr) {
+        return;
+    }
+    lv_obj_t* tempRow = lv_obj_get_parent(_clockTempLabel);
+    lv_obj_t* humRow = lv_obj_get_parent(_clockHumLabel);
+    if (tempRow == nullptr || humRow == nullptr) {
+        return;
+    }
+
+    lv_obj_update_layout(_modeClock);
+    lv_area_t clockArea;
+    lv_area_t hourArea;
+    lv_area_t minArea;
+    lv_obj_get_coords(_modeClock, &clockArea);
+    lv_obj_get_coords(_clockHourLabel, &hourArea);
+    lv_obj_get_coords(_clockMinLabel, &minArea);
+
+    const int tempW = (int)lv_obj_get_width(tempRow);
+    const int humW = (int)lv_obj_get_width(humRow);
+    const int tempH = (int)lv_obj_get_height(tempRow);
+    const int y = (int)lv_obj_get_height(_modeClock) - TT_WEATHER_CLOCK_METRIC_PAD - tempH;
+    const int hourMid = (hourArea.x1 + hourArea.x2 + 1) / 2 - clockArea.x1;
+    const int minMid = (minArea.x1 + minArea.x2 + 1) / 2 - clockArea.x1;
+    const int tempX = hourMid - tempW / 2;
+    const int humX = minMid - humW / 2;
+    if ((int)lv_obj_get_x(tempRow) != tempX || (int)lv_obj_get_y(tempRow) != y) {
+        lv_obj_set_pos(tempRow, tempX, y);
+    }
+    if ((int)lv_obj_get_x(humRow) != humX || (int)lv_obj_get_y(humRow) != y) {
+        lv_obj_set_pos(humRow, humX, y);
+    }
+
+    lv_area_t inv = clockArea;
+    const int band = TT_WEATHER_CLOCK_METRIC_FONT + TT_WEATHER_CLOCK_ICON_NUDGE_Y
+        + TT_WEATHER_CLOCK_METRIC_PAD + TT_WEATHER_CLOCK_METRIC_INV;
+    const int bandY1 = clockArea.y2 - band + 1;
+    if (bandY1 > inv.y1) {
+        inv.y1 = bandY1;
+    }
+    lv_obj_invalidate_area(_modeClock, &inv);
+
+    LOG_I("Weather page: metrics hourMid=%d minMid=%d temp=%dx%d@%d,%d hum=%dx%d@%d,%d",
+          hourMid, minMid, tempW, tempH, tempX, y,
+          humW, (int)lv_obj_get_height(humRow), humX, y);
+}
+
+void TTWeatherPage::applyDisplayMode() {
+    const bool clock = _displayMode == TT_WEATHER_MODE_CLOCK;
+    if (_modeDetail != nullptr) {
+        if (clock) {
+            lv_obj_add_flag(_modeDetail, LV_OBJ_FLAG_HIDDEN);
+        } else {
+            lv_obj_remove_flag(_modeDetail, LV_OBJ_FLAG_HIDDEN);
+        }
+    }
+    if (_modeClock != nullptr) {
+        if (clock) {
+            lv_obj_remove_flag(_modeClock, LV_OBJ_FLAG_HIDDEN);
+            layoutClockMetrics();
+        } else {
+            lv_obj_add_flag(_modeClock, LV_OBJ_FLAG_HIDDEN);
+        }
+    }
+}
+
+void TTWeatherPage::cycleDisplayMode(int delta) {
+    int next = _displayMode + delta;
+    if (next < 0) {
+        next = TT_WEATHER_MODE_N - 1;
+    } else if (next >= TT_WEATHER_MODE_N) {
+        next = 0;
+    }
+    if (next == _displayMode) {
+        return;
+    }
+    _displayMode = next;
+    applyDisplayMode();
+    LOG_I("Weather page: display mode=%d", _displayMode);
+    requestRefresh(TT_REFRESH_DEEP);
+}
+
+bool TTWeatherPage::handleKeyAction(TTKeyId key, TTKeyGesture gesture) {
+    if (gesture == TT_KEY_CLICK && (key == TT_KEY_LEFT || key == TT_KEY_RIGHT)) {
+        const bool contentShown = _content != nullptr
+            && !lv_obj_has_flag(_content, LV_OBJ_FLAG_HIDDEN);
+        if (!contentShown) {
+            return false;
+        }
+        cycleDisplayMode(key == TT_KEY_RIGHT ? 1 : -1);
+        return true;
+    }
+    return TTScreenPage::handleKeyAction(key, gesture);
 }
 
 void TTWeatherPage::requestFetch() {

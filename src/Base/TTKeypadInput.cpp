@@ -44,14 +44,32 @@ bool TTKeypadInput::begin(lv_display_t* display) {
     _btnR = new OneButton(PIN_BUTTONR, false, false);
     _btnC = new OneButton(PIN_BUTTONC, false, false);
 
-    _btnL->attachClick([](void* param) { static_cast<TTKeypadInput*>(param)->emitKey(LV_KEY_PREV); }, this);
+    _btnL->attachClick([](void* param) {
+        TTKeypadInput* self = static_cast<TTKeypadInput*>(param);
+        if (self->_nav != nullptr) {
+            ITTScreenPage* page = self->_nav->getCurrentPage();
+            if (page != nullptr && page->handleKeyAction(TT_KEY_LEFT, TT_KEY_CLICK)) {
+                return;
+            }
+        }
+        self->emitKey(LV_KEY_PREV);
+    }, this);
     _btnL->attachLongPressStart([](void* param) {
         TTKeypadInput* self = static_cast<TTKeypadInput*>(param);
         if (self->_nav != nullptr) {
             self->_nav->pop();
         }
     }, this);
-    _btnR->attachClick([](void* param) { static_cast<TTKeypadInput*>(param)->emitKey(LV_KEY_NEXT); }, this);
+    _btnR->attachClick([](void* param) {
+        TTKeypadInput* self = static_cast<TTKeypadInput*>(param);
+        if (self->_nav != nullptr) {
+            ITTScreenPage* page = self->_nav->getCurrentPage();
+            if (page != nullptr && page->handleKeyAction(TT_KEY_RIGHT, TT_KEY_CLICK)) {
+                return;
+            }
+        }
+        self->emitKey(LV_KEY_NEXT);
+    }, this);
     _btnC->attachClick([](void* param) { static_cast<TTKeypadInput*>(param)->emitKey(LV_KEY_ENTER); }, this);
     _btnC->attachLongPressStart([](void* param) {
         TTKeypadInput* self = static_cast<TTKeypadInput*>(param);
