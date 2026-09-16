@@ -30,7 +30,6 @@
 #include "Tasks/TTUITask.h"
 #include "Tasks/TTSensorTask.h"
 #include "Tasks/TTWiFiTask.h"
-#include "Base/TTAsyncQueue.h"
 
 void setup() {
     _logger.setLevel(LOG_LEVEL_DEBUG);
@@ -49,9 +48,8 @@ void setup() {
 
     TTInstanceOf<TTSensorTask>().start(1);
     TTInstanceOf<TTWiFiTask>().start(TT_WIFI_TASK_CORE, TT_WIFI_LOOP_DELAY_MS);
-    TTInstanceOf<TTAsyncQueue>().start(TT_WIFI_TASK_CORE, TT_ASYNC_LOOP_MS);
     TTInstanceOf<TTUITask>().start(0, TT_UI_LOOP_DELAY_MS);
-    LOG_I("Tasks started: Sensor/WiFi/Async then UI");
+    LOG_I("Tasks started: Sensor/WiFi then UI");
 }
 
 void loop() {
