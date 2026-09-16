@@ -191,7 +191,9 @@ private:
     void updateClock(bool refreshIfChanged);
     void applyDisplayMode();
     void cycleDisplayMode(int delta);
-    void bindIndoor(const TTSensorDataPayload& data);
+    void bindIndoor(const TTSensorDataPayload& data, bool refreshIfChanged = true);
+    void syncIndoor(bool refreshIfChanged);
+    void applyIndoorLabels();
     void layoutClockMetrics();
 
     lv_obj_t* _content = nullptr;

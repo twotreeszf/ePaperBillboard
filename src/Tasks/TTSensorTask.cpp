@@ -93,6 +93,9 @@ void TTSensorTask::performSensorRead() {
     if (_aht20.getEvent(&humidityEvent, &tempEvent)) {
         temperature = tempEvent.temperature;
         humidity = humidityEvent.relative_humidity;
+        _lastTemperature = temperature;
+        _lastHumidity = humidity;
+        _hasIndoor = true;
         LOG_I("AHT20: Temperature=%.1f°C, Humidity=%.1f%%", temperature, humidity);
     }
 
@@ -117,6 +120,15 @@ void TTSensorTask::performSensorRead() {
         temperature, humidity, pressure, voltageMv, percent, charging, usbPlugged
     };
     TTInstanceOf<TTUITask>().postNotification(TT_NOTIFICATION_SENSOR_DATA_UPDATE, payload);
+}
+
+bool TTSensorTask::copyLastIndoor(float& temperature, float& humidity) const {
+    if (!_hasIndoor) {
+        return false;
+    }
+    temperature = _lastTemperature;
+    humidity = _lastHumidity;
+    return true;
 }
 
 void TTSensorTask::requestSensorUpdateAsync() {

@@ -41,6 +41,7 @@ public:
 
     void requestSensorUpdateAsync();
     void requestRtcWriteAsync(time_t utc);
+    bool copyLastIndoor(float& temperature, float& humidity) const;
 
 protected:
     void setup() override;
@@ -54,6 +55,9 @@ private:
     Adafruit_AHTX0 _aht20;
     Adafruit_BMP280 _bmp280;
     bool _bmp280Ok = false;
+    bool _hasIndoor = false;
+    float _lastTemperature = 0;
+    float _lastHumidity = 0;
     uint32_t _tickHandle = 0;
     uint32_t _chargeIrqMs = 0;
     uint32_t _usbPollMs = 0;

@@ -9,6 +9,7 @@
 #include "../Base/TTNavigationBar.h"
 #include "../Base/TTWeatherService.h"
 #include "../Base/TTSleepService.h"
+#include "../Tasks/TTSensorTask.h"
 #include <WiFi.h>
 #include <Arduino.h>
 #include <EPDConfig.h>
@@ -461,7 +462,7 @@ void TTWeatherPage::buildContent(lv_obj_t* screen) {
     lv_obj_t* tempIcon = tt_stream_image_create(tempRow);
     lv_obj_set_size(tempIcon, TT_WEATHER_CLOCK_ICON, TT_WEATHER_CLOCK_ICON);
     tt_stream_image_set_src(tempIcon, TT_WEATHER_CLOCK_TEMP_SRC);
-    _clockTempLabel = createPlainLabel(tempRow, fontMetric, "--°C");
+    _clockTempLabel = createPlainLabel(tempRow, fontMetric, "--.-°C");
     lv_obj_set_style_pad_top(_clockTempLabel, TT_WEATHER_CLOCK_ICON_NUDGE_Y, 0);
 
     lv_obj_t* humRow = createClockMetric(_modeClock);
@@ -513,6 +514,7 @@ void TTWeatherPage::setup() {
     registerKeyAction(TT_KEY_CENTER, TT_KEY_LONG_PRESS, [this]() {
         forceRefresh();
     });
+    syncIndoor(false);
 }
 
 TTRefreshLevel TTWeatherPage::enterRefreshLevel() const {
@@ -525,6 +527,8 @@ TTRefreshLevel TTWeatherPage::enterRefreshLevel() const {
 void TTWeatherPage::willAppear() {
     TTScreenPage::willAppear();
     _visible = true;
+    syncIndoor(false);
+    TTInstanceOf<TTSensorTask>().requestSensorUpdateAsync();
     requestFetch();
 }
 
@@ -1181,34 +1185,56 @@ void TTWeatherPage::bindOk(const TTWeatherPayload& payload) {
     bindGraph(payload);
 }
 
-void TTWeatherPage::bindIndoor(const TTSensorDataPayload& data) {
-    if (_clockTempLabel == nullptr || _clockHumLabel == nullptr) {
-        return;
-    }
-    if (_hasIndoor
+void TTWeatherPage::bindIndoor(const TTSensorDataPayload& data, bool refreshIfChanged) {
+    const bool same = _hasIndoor
         && fabsf(data.temperature - _indoorTemp) < TT_WEATHER_INDOOR_TEMP_EPS
-        && fabsf(data.humidity - _indoorHum) < TT_WEATHER_INDOOR_HUM_EPS) {
+        && fabsf(data.humidity - _indoorHum) < TT_WEATHER_INDOOR_HUM_EPS;
+    const char* tempText = _clockTempLabel != nullptr ? lv_label_get_text(_clockTempLabel) : nullptr;
+    const bool labelsReady = _clockTempLabel != nullptr && _clockHumLabel != nullptr;
+    const bool needsPaint = labelsReady && (tempText == nullptr || tempText[0] == '-' || tempText[0] == '\0');
+    if (same && !needsPaint) {
         return;
     }
     _hasIndoor = true;
     _indoorTemp = data.temperature;
     _indoorHum = data.humidity;
-
-    char buf[16];
-    snprintf(buf, sizeof(buf), "%.0f°C", _indoorTemp);
-    lv_label_set_text(_clockTempLabel, buf);
-    snprintf(buf, sizeof(buf), "%.0f%%", _indoorHum);
-    lv_label_set_text(_clockHumLabel, buf);
-    layoutClockMetrics();
+    if (!labelsReady) {
+        return;
+    }
+    applyIndoorLabels();
     LOG_I("Weather page: indoor T=%.1f H=%.1f", _indoorTemp, _indoorHum);
 
     const bool clockShown = _visible
         && _displayMode == TT_WEATHER_MODE_CLOCK
         && _content != nullptr
         && !lv_obj_has_flag(_content, LV_OBJ_FLAG_HIDDEN);
-    if (clockShown) {
+    if (refreshIfChanged && clockShown) {
         requestRefresh(TT_REFRESH_PARTIAL);
     }
+}
+
+void TTWeatherPage::syncIndoor(bool refreshIfChanged) {
+    float temperature = 0;
+    float humidity = 0;
+    if (!TTInstanceOf<TTSensorTask>().copyLastIndoor(temperature, humidity)) {
+        return;
+    }
+    TTSensorDataPayload data = {};
+    data.temperature = temperature;
+    data.humidity = humidity;
+    bindIndoor(data, refreshIfChanged);
+}
+
+void TTWeatherPage::applyIndoorLabels() {
+    if (!_hasIndoor || _clockTempLabel == nullptr || _clockHumLabel == nullptr) {
+        return;
+    }
+    char buf[16];
+    snprintf(buf, sizeof(buf), "%.1f°C", _indoorTemp);
+    lv_label_set_text(_clockTempLabel, buf);
+    snprintf(buf, sizeof(buf), "%.0f%%", _indoorHum);
+    lv_label_set_text(_clockHumLabel, buf);
+    layoutClockMetrics();
 }
 
 void TTWeatherPage::layoutClockMetrics() {
@@ -1271,6 +1297,8 @@ void TTWeatherPage::applyDisplayMode() {
     if (_modeClock != nullptr) {
         if (clock) {
             lv_obj_remove_flag(_modeClock, LV_OBJ_FLAG_HIDDEN);
+            syncIndoor(false);
+            applyIndoorLabels();
             layoutClockMetrics();
         } else {
             lv_obj_add_flag(_modeClock, LV_OBJ_FLAG_HIDDEN);
