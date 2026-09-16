@@ -1,4 +1,5 @@
 #include "TTStorage.h"
+#include "TTFile.h"
 #include "Logger.h"
 #include "ErrorCheck.h"
 
@@ -21,9 +22,8 @@ bool TTStorage::saveConfig(const JsonDocument& config, const char* filename)
 {
     if (!_initialized) return false;
 
-    File file = _fs.open(filename, "w");
+    File file = tt_file_open(_fs, filename, "w");
     if (!file) {
-        LOG_E("Failed to open file for writing: %s", filename);
         return false;
     }
 
@@ -46,9 +46,8 @@ bool TTStorage::loadConfig(JsonDocument& config, const char* filename)
         return true;
     }
 
-    File file = _fs.open(filename, "r");
+    File file = tt_file_open(_fs, filename, "r");
     if (!file) {
-        LOG_E("Failed to open file for reading: %s", filename);
         return false;
     }
 

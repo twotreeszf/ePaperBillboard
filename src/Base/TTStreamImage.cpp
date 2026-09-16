@@ -1,7 +1,7 @@
 #include "TTStreamImage.h"
 #include "TTDrawBufPassthroughDecoder.h"
+#include "TTFile.h"
 #include "Logger.h"
-#include <LittleFS.h>
 #include <cstring>
 #include <esp_heap_caps.h>
 
@@ -90,9 +90,8 @@ void tt_stream_image_set_src(lv_obj_t* obj, const char* path) {
     }
     memcpy(img->path, path, len + 1);
 
-    File f = LittleFS.open(path, "r");
+    File f = tt_file_open(path, "r");
     if (!f) {
-        LOG_E("TTStreamImage: open failed %s", path);
         lv_obj_invalidate(obj);
         return;
     }
@@ -283,9 +282,8 @@ static tt_stream_image_cache_entry_t* cache_find(const char* path) {
 }
 
 static bool cache_load_i1(tt_stream_image_cache_entry_t* entry) {
-    File f = LittleFS.open(entry->path, "r");
+    File f = tt_file_open(entry->path, "r");
     if (!f) {
-        LOG_E("TTStreamImage: cache open failed %s", entry->path);
         return false;
     }
 

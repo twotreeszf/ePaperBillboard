@@ -1,14 +1,14 @@
 #include "TTWeatherService.h"
 #include "Logger.h"
+#include "TTHttpsClient.h"
+#include "TTFile.h"
 #include "TTInstance.h"
 #include "TTNotificationPayloads.h"
 #include "TTPreference.h"
 #include "../Tasks/TTUITask.h"
 #include "../Tasks/TTWiFiTask.h"
 #include <ArduinoJson.h>
-#include <HTTPClient.h>
 #include <WiFi.h>
-#include <WiFiClient.h>
 #include <esp_heap_caps.h>
 #include <cmath>
 #include <cstring>
@@ -17,53 +17,45 @@
 namespace {
 
 bool httpGetJson(const char* url, JsonDocument& doc, JsonDocument* filter) {
-    WiFiClient client;
-    HTTPClient http;
-    http.setTimeout(TT_WEATHER_HTTP_TIMEOUT_MS);
-    http.useHTTP10(true);
-    if (!http.begin(client, url)) {
-        LOG_E("Weather: http begin failed");
-        return false;
-    }
-    LOG_I("Weather: GET %s heap=%u largest=%u",
-          url,
+    TTHttpsResult res = {};
+    LOG_I("Weather: GET heap=%u largest=%u",
           (unsigned)ESP.getFreeHeap(),
           (unsigned)heap_caps_get_largest_free_block(MALLOC_CAP_8BIT));
-    const int code = http.GET();
-    const int size = http.getSize();
-    LOG_I("Weather: HTTP %d size=%d heap=%u largest=%u",
-          code, size,
-          (unsigned)ESP.getFreeHeap(),
-          (unsigned)heap_caps_get_largest_free_block(MALLOC_CAP_8BIT));
-    if (code != HTTP_CODE_OK) {
-        http.end();
+    if (!tt_https_get_file(url, TT_HTTPS_TMP_RESP, &res)) {
+        LOG_E("Weather: HTTPS file get failed");
         return false;
     }
-    if (size == 0) {
+    if (res.status != 200) {
+        LOG_E("Weather: HTTP %d body_len=%u", res.status, (unsigned)res.bodyLen);
+        tt_file_remove(TT_HTTPS_TMP_RESP);
+        return false;
+    }
+    if (res.bodyLen == 0) {
         LOG_E("Weather: empty body");
-        http.end();
-        return false;
-    }
-    if (size > TT_WEATHER_JSON_BODY_MAX) {
-        LOG_E("Weather: body too large %d", size);
-        http.end();
+        tt_file_remove(TT_HTTPS_TMP_RESP);
         return false;
     }
 
-    String body = http.getString();
-    http.end();
-    if (body.length() == 0) {
-        LOG_E("Weather: empty body");
+    File file = tt_file_open(TT_HTTPS_TMP_RESP, "r");
+    if (!file) {
         return false;
     }
-    LOG_I("Weather: body len=%u head=%.64s", (unsigned)body.length(), body.c_str());
+    if (!file.seek(res.bodyOffset)) {
+        LOG_E("Weather: seek body failed");
+        file.close();
+        tt_file_remove(TT_HTTPS_TMP_RESP);
+        return false;
+    }
 
     DeserializationError err;
     if (filter != nullptr) {
-        err = deserializeJson(doc, body, DeserializationOption::Filter(*filter));
+        err = deserializeJson(doc, file, DeserializationOption::Filter(*filter));
     } else {
-        err = deserializeJson(doc, body);
+        err = deserializeJson(doc, file);
     }
+    file.close();
+    tt_file_remove(TT_HTTPS_TMP_RESP);
+
     const bool overflowed = doc.overflowed();
     LOG_I("Weather: JSON err=%s overflow=%d heap=%u largest=%u",
           err ? err.c_str() : "ok",

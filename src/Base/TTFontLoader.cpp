@@ -1,4 +1,5 @@
 #include "TTFontLoader.h"
+#include "TTFile.h"
 #include "Base/Logger.h"
 
 static uint8_t s_glyphBuf[TT_FONT_GLYPH_BUF_SIZE];
@@ -19,13 +20,8 @@ bool TTFontLoader::_seekToTable(FontData& fd, const char* tag) {
 }
 
 bool TTFontLoader::_loadFontData(FontData& fd, const char* path) {
-    fd.file = LittleFS.open(path, "r");
+    fd.file = tt_file_open(path, "r");
     if (!fd.file) return false;
-    if (!fd.file.setBufferSize(TT_FONT_FILE_BUF_SIZE)) {
-        LOG_W("Font: setBufferSize(%u) failed %s", (unsigned)TT_FONT_FILE_BUF_SIZE, path);
-    } else {
-        LOG_I("Font: open %s buf=%u", path, (unsigned)TT_FONT_FILE_BUF_SIZE);
-    }
 
     if (!_seekToTable(fd, "head")) return false;
     uint32_t headStart = fd.file.position() - 8;

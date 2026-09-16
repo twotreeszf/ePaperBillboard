@@ -7,7 +7,6 @@
 #include <lvgl.h>
 
 #define TT_FONT_GLYPH_BUF_SIZE    2304
-#define TT_FONT_FILE_BUF_SIZE     256
 #define TT_FONT_CMAP_RECORD_SIZE  16
 #define TT_FONT_GLYPH_CACHE_MAX   128
 
