@@ -76,6 +76,28 @@ static lv_obj_t* createPlainBox(lv_obj_t* parent) {
     return obj;
 }
 
+static lv_obj_t* createTempDot(lv_obj_t* parent) {
+    lv_obj_t* dot = lv_obj_create(parent);
+    lv_obj_set_size(dot, TT_WEATHER_TEMP_DOT_SIZE, TT_WEATHER_TEMP_DOT_SIZE);
+    lv_obj_set_style_bg_opa(dot, LV_OPA_TRANSP, 0);
+    lv_obj_set_style_radius(dot, LV_RADIUS_CIRCLE, 0);
+    lv_obj_set_style_border_width(dot, TT_WEATHER_TEMP_DOT_BORDER, 0);
+    lv_obj_set_style_border_color(dot, lv_color_black(), 0);
+    lv_obj_set_style_border_opa(dot, LV_OPA_COVER, 0);
+    lv_obj_set_style_pad_all(dot, 0, 0);
+    lv_obj_remove_flag(dot, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_remove_flag(dot, LV_OBJ_FLAG_CLICKABLE);
+    return dot;
+}
+
+static void alignTempDot(lv_obj_t* dot, lv_obj_t* label) {
+    if (dot == nullptr || label == nullptr) {
+        return;
+    }
+    lv_obj_align_to(dot, label, LV_ALIGN_OUT_RIGHT_TOP,
+                    TT_WEATHER_TEMP_DOT_GAP_X, TT_WEATHER_TEMP_DOT_GAP_Y);
+}
+
 static lv_obj_t* createClockMetric(lv_obj_t* parent) {
     lv_obj_t* row = createPlainBox(parent);
     lv_obj_set_size(row, LV_SIZE_CONTENT, LV_SIZE_CONTENT);
@@ -273,18 +295,8 @@ void TTWeatherPage::buildContent(lv_obj_t* screen) {
     _tempLabel = createPlainLabel(_content, font48, "--");
     lv_obj_set_pos(_tempLabel, TT_WEATHER_TEMP_X, TT_WEATHER_TEMP_Y);
 
-    _tempUnit = lv_obj_create(_content);
-    lv_obj_set_size(_tempUnit, TT_WEATHER_TEMP_DOT_SIZE, TT_WEATHER_TEMP_DOT_SIZE);
-    lv_obj_set_style_bg_opa(_tempUnit, LV_OPA_TRANSP, 0);
-    lv_obj_set_style_radius(_tempUnit, LV_RADIUS_CIRCLE, 0);
-    lv_obj_set_style_border_width(_tempUnit, TT_WEATHER_TEMP_DOT_BORDER, 0);
-    lv_obj_set_style_border_color(_tempUnit, lv_color_black(), 0);
-    lv_obj_set_style_border_opa(_tempUnit, LV_OPA_COVER, 0);
-    lv_obj_set_style_pad_all(_tempUnit, 0, 0);
-    lv_obj_remove_flag(_tempUnit, LV_OBJ_FLAG_SCROLLABLE);
-    lv_obj_remove_flag(_tempUnit, LV_OBJ_FLAG_CLICKABLE);
-    lv_obj_align_to(_tempUnit, _tempLabel, LV_ALIGN_OUT_RIGHT_TOP,
-                    TT_WEATHER_TEMP_DOT_GAP_X, TT_WEATHER_TEMP_DOT_GAP_Y);
+    _tempUnit = createTempDot(_content);
+    alignTempDot(_tempUnit, _tempLabel);
 
     _feelsLabel = createPlainLabel(_content, font12, "");
     lv_obj_align_to(_feelsLabel, _tempLabel, LV_ALIGN_OUT_BOTTOM_LEFT, 0, TT_WEATHER_FEELS_GAP);
@@ -464,8 +476,14 @@ void TTWeatherPage::buildContent(lv_obj_t* screen) {
     lv_obj_t* tempIcon = tt_stream_image_create(tempRow);
     lv_obj_set_size(tempIcon, TT_WEATHER_CLOCK_ICON, TT_WEATHER_CLOCK_ICON);
     tt_stream_image_set_src(tempIcon, TT_WEATHER_CLOCK_TEMP_SRC);
-    _clockTempLabel = createPlainLabel(tempRow, fontMetric, "--.-°C");
+    lv_obj_t* tempValue = createPlainBox(tempRow);
+    lv_obj_set_size(tempValue, LV_SIZE_CONTENT, LV_SIZE_CONTENT);
+    lv_obj_set_style_pad_right(tempValue, TT_WEATHER_TEMP_DOT_SIZE + TT_WEATHER_TEMP_DOT_GAP_X, 0);
+    _clockTempLabel = createPlainLabel(tempValue, fontMetric, "--.-");
     lv_obj_set_style_pad_top(_clockTempLabel, TT_WEATHER_CLOCK_ICON_NUDGE_Y, 0);
+    _clockTempUnit = createTempDot(tempValue);
+    lv_obj_add_flag(_clockTempUnit, LV_OBJ_FLAG_FLOATING);
+    alignTempDot(_clockTempUnit, _clockTempLabel);
 
     lv_obj_t* humRow = createClockMetric(_modeClock);
     lv_obj_t* humIcon = tt_stream_image_create(humRow);
@@ -1180,10 +1198,7 @@ void TTWeatherPage::bindOk(const TTWeatherPayload& payload) {
     char buf[32];
     snprintf(buf, sizeof(buf), "%.0f", payload.current.temp);
     lv_label_set_text(_tempLabel, buf);
-    if (_tempUnit != nullptr) {
-        lv_obj_align_to(_tempUnit, _tempLabel, LV_ALIGN_OUT_RIGHT_TOP,
-                        TT_WEATHER_TEMP_DOT_GAP_X, TT_WEATHER_TEMP_DOT_GAP_Y);
-    }
+    alignTempDot(_tempUnit, _tempLabel);
     snprintf(buf, sizeof(buf), "体感 %.0f°", payload.current.feelsLike);
     lv_label_set_text(_feelsLabel, buf);
     lv_label_set_text(_condLabel, tt_weather_condition_text(payload.current.weatherCode));
@@ -1249,7 +1264,7 @@ void TTWeatherPage::applyIndoorLabels() {
         return;
     }
     char buf[16];
-    snprintf(buf, sizeof(buf), "%.1f°C", _indoorTemp);
+    snprintf(buf, sizeof(buf), "%.1f", _indoorTemp);
     lv_label_set_text(_clockTempLabel, buf);
     snprintf(buf, sizeof(buf), "%.0f%%", _indoorHum);
     lv_label_set_text(_clockHumLabel, buf);
@@ -1261,13 +1276,15 @@ void TTWeatherPage::layoutClockMetrics() {
         || _clockTempLabel == nullptr || _clockHumLabel == nullptr) {
         return;
     }
-    lv_obj_t* tempRow = lv_obj_get_parent(_clockTempLabel);
+    lv_obj_t* tempValue = lv_obj_get_parent(_clockTempLabel);
+    lv_obj_t* tempRow = tempValue != nullptr ? lv_obj_get_parent(tempValue) : nullptr;
     lv_obj_t* humRow = lv_obj_get_parent(_clockHumLabel);
     if (tempRow == nullptr || humRow == nullptr) {
         return;
     }
 
     lv_obj_update_layout(_modeClock);
+    alignTempDot(_clockTempUnit, _clockTempLabel);
     lv_area_t clockArea;
     lv_area_t hourArea;
     lv_area_t minArea;

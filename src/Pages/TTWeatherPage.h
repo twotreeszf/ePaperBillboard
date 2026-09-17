@@ -223,6 +223,7 @@ private:
     lv_obj_t* _clockHourLabel = nullptr;
     lv_obj_t* _clockMinLabel = nullptr;
     lv_obj_t* _clockTempLabel = nullptr;
+    lv_obj_t* _clockTempUnit = nullptr;
     lv_obj_t* _clockHumLabel = nullptr;
     lv_obj_t* _graph = nullptr;
     lv_obj_t* _tempLine = nullptr;
