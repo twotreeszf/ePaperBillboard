@@ -177,11 +177,11 @@ void TTLvglEpdDriver::_flushCallback(lv_display_t* disp, const lv_area_t* area, 
 
 void TTLvglEpdDriver::setAutoDeepRefresh(bool enabled) {
     _autoDeepRefresh = enabled;
-    _deepRefreshPending = false;
     if (enabled) {
         _partialCount = 0;
     }
-    LOG_I("E-Paper auto deep refresh=%d", enabled ? 1 : 0);
+    LOG_I("E-Paper auto deep refresh=%d pending=%d",
+          enabled ? 1 : 0, _deepRefreshPending ? 1 : 0);
 }
 
 void TTLvglEpdDriver::hibernate() {
