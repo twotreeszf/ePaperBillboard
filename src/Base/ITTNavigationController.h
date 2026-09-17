@@ -6,6 +6,7 @@
 #include "TTRefreshLevel.h"
 
 class ITTScreenPage;
+class TTNavigationBar;
 
 class ITTNavigationController {
 public:
@@ -20,6 +21,7 @@ public:
 
     virtual bool canPop() const = 0;
     virtual size_t stackSize() const = 0;
+    virtual TTNavigationBar* getNavBar() { return nullptr; }
 
     template<typename T>
     void pushPage(std::unique_ptr<T> page) {

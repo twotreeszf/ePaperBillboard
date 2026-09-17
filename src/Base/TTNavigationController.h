@@ -23,6 +23,7 @@ public:
 
     bool canPop() const override { return _stack.size() > 1; }
     size_t stackSize() const override { return _stack.size(); }
+    TTNavigationBar* getNavBar() override;
 
 private:
     void ensureNavBar();

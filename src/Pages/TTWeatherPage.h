@@ -128,6 +128,7 @@
 #define TT_WEATHER_CLOCK_ICON_GAP     4
 #define TT_WEATHER_CLOCK_ICON_NUDGE_Y 2
 #define TT_WEATHER_CLOCK_TOP          12
+#define TT_WEATHER_CLOCK_SHIFT_Y      (-4)
 #define TT_WEATHER_CLOCK_COLON_NUDGE_Y (-18)
 #define TT_WEATHER_CLOCK_METRIC_PAD   4
 #define TT_WEATHER_CLOCK_METRIC_INV   8
@@ -185,11 +186,13 @@ private:
     static void onGraphDraw(lv_event_t* e);
     void formatLocalHm(int64_t unixTime, char* out, size_t outMax);
     void formatWeekday(int64_t unixTime, char* out, size_t outMax);
-    void formatDate(char* out, size_t outMax);
+    void formatDate(char* out, size_t outMax, bool includeTime);
+    void bindCityLine();
     void bindAge(uint32_t fetchedAt);
     void updateAge(bool refreshIfChanged);
     void updateClock(bool refreshIfChanged);
     void applyDisplayMode();
+    void applyChrome(bool clock);
     void cycleDisplayMode(int delta);
     void bindIndoor(const TTSensorDataPayload& data, bool refreshIfChanged = true);
     void syncIndoor(bool refreshIfChanged);

@@ -60,6 +60,11 @@ ITTScreenPage* TTNavigationController::getCurrentPage() {
     return _stack.empty() ? nullptr : _stack.back().get();
 }
 
+TTNavigationBar* TTNavigationController::getNavBar() {
+    ensureNavBar();
+    return _navBar.getObject() != nullptr ? &_navBar : nullptr;
+}
+
 void TTNavigationController::ensureNavBar() {
     if (_navBar.getObject() != nullptr) return;
     lv_display_t* disp = TTInstanceOf<TTLvglEpdDriver>().getDisplay();

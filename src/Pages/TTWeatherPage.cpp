@@ -451,7 +451,7 @@ void TTWeatherPage::buildContent(lv_obj_t* screen) {
     lv_obj_set_flex_flow(clockRow, LV_FLEX_FLOW_ROW);
     lv_obj_set_flex_align(clockRow, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER,
                          LV_FLEX_ALIGN_CENTER);
-    lv_obj_align(clockRow, LV_ALIGN_TOP_MID, 0, TT_WEATHER_CLOCK_TOP);
+    lv_obj_align(clockRow, LV_ALIGN_TOP_MID, 0, TT_WEATHER_CLOCK_TOP + TT_WEATHER_CLOCK_SHIFT_Y);
 
     _clockHourLabel = createPlainLabel(clockRow, fontClock, "--");
     lv_obj_t* clockColon = createPlainLabel(clockRow, fontClock, ":");
@@ -527,6 +527,7 @@ TTRefreshLevel TTWeatherPage::enterRefreshLevel() const {
 void TTWeatherPage::willAppear() {
     TTScreenPage::willAppear();
     _visible = true;
+    applyChrome(_displayMode == TT_WEATHER_MODE_CLOCK);
     syncIndoor(false);
     TTInstanceOf<TTSensorTask>().requestSensorUpdateAsync();
     requestFetch();
@@ -538,6 +539,7 @@ void TTWeatherPage::willDisappear() {
     _forceRefreshing = false;
     _sleepAfterTimeTick = false;
     cancelInputIdleSleep();
+    applyChrome(false);
 }
 
 void TTWeatherPage::setMessage(const char* text) {
@@ -668,7 +670,7 @@ void TTWeatherPage::formatWeekday(int64_t unixTime, char* out, size_t outMax) {
     out[outMax - 1] = '\0';
 }
 
-void TTWeatherPage::formatDate(char* out, size_t outMax) {
+void TTWeatherPage::formatDate(char* out, size_t outMax, bool includeTime) {
     static const char* kDays[] = { "周日", "周一", "周二", "周三", "周四", "周五", "周六" };
     struct tm t;
     if (!TTInstanceOf<TTRtc>().getLocalTime(t)) {
@@ -678,8 +680,34 @@ void TTWeatherPage::formatDate(char* out, size_t outMax) {
         }
         return;
     }
-    snprintf(out, outMax, "%s %d/%d %02d:%02d",
-             kDays[t.tm_wday], t.tm_mon + 1, t.tm_mday, t.tm_hour, t.tm_min);
+    if (includeTime) {
+        snprintf(out, outMax, "%s %d/%d %02d:%02d",
+                 kDays[t.tm_wday], t.tm_mon + 1, t.tm_mday, t.tm_hour, t.tm_min);
+    } else {
+        snprintf(out, outMax, "%s %d/%d",
+                 kDays[t.tm_wday], t.tm_mon + 1, t.tm_mday);
+    }
+}
+
+void TTWeatherPage::bindCityLine() {
+    if (_cityLabel == nullptr) {
+        return;
+    }
+    char dateBuf[32];
+    formatDate(dateBuf, sizeof(dateBuf), _displayMode != TT_WEATHER_MODE_CLOCK);
+
+    char cityLine[64];
+    if (_cityName[0] != '\0' && dateBuf[0] != '\0') {
+        snprintf(cityLine, sizeof(cityLine), "%s  %s", _cityName, dateBuf);
+    } else if (_cityName[0] != '\0') {
+        snprintf(cityLine, sizeof(cityLine), "%s", _cityName);
+    } else {
+        snprintf(cityLine, sizeof(cityLine), "%s", dateBuf);
+    }
+    lv_label_set_text(_cityLabel, cityLine);
+    lv_obj_remove_flag(_cityLabel, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_align(_cityLabel, LV_ALIGN_TOP_RIGHT, 0, TT_WEATHER_CITY_Y);
+    LOG_I("Weather page: city %s", cityLine);
 }
 
 void TTWeatherPage::bindDetails(const TTWeatherPayload& payload) {
@@ -1100,9 +1128,6 @@ void TTWeatherPage::updateClock(bool refreshIfChanged) {
         return;
     }
 
-    char dateBuf[32];
-    formatDate(dateBuf, sizeof(dateBuf));
-
     struct tm t;
     int minuteKey = -2;
     if (TTInstanceOf<TTRtc>().getLocalTime(t)) {
@@ -1130,17 +1155,7 @@ void TTWeatherPage::updateClock(bool refreshIfChanged) {
         }
     }
 
-    char cityLine[64];
-    if (_cityName[0] != '\0' && dateBuf[0] != '\0') {
-        snprintf(cityLine, sizeof(cityLine), "%s  %s", _cityName, dateBuf);
-    } else if (_cityName[0] != '\0') {
-        snprintf(cityLine, sizeof(cityLine), "%s", _cityName);
-    } else {
-        snprintf(cityLine, sizeof(cityLine), "%s", dateBuf);
-    }
-    lv_label_set_text(_cityLabel, cityLine);
-    lv_obj_align(_cityLabel, LV_ALIGN_TOP_RIGHT, 0, TT_WEATHER_CITY_Y);
-    LOG_I("Weather page: clock %s", cityLine);
+    bindCityLine();
     if (refreshIfChanged) {
         requestRefresh(TT_REFRESH_PARTIAL);
     }
@@ -1259,7 +1274,8 @@ void TTWeatherPage::layoutClockMetrics() {
     const int tempW = (int)lv_obj_get_width(tempRow);
     const int humW = (int)lv_obj_get_width(humRow);
     const int tempH = (int)lv_obj_get_height(tempRow);
-    const int y = (int)lv_obj_get_height(_modeClock) - TT_WEATHER_CLOCK_METRIC_PAD - tempH;
+    const int y = (int)lv_obj_get_height(_modeClock) - TT_WEATHER_CLOCK_METRIC_PAD - tempH
+        + TT_WEATHER_CLOCK_SHIFT_Y;
     const int hourMid = (hourArea.x1 + hourArea.x2 + 1) / 2 - clockArea.x1;
     const int minMid = (minArea.x1 + minArea.x2 + 1) / 2 - clockArea.x1;
     const int tempX = hourMid - tempW / 2;
@@ -1273,7 +1289,8 @@ void TTWeatherPage::layoutClockMetrics() {
 
     lv_area_t inv = clockArea;
     const int band = TT_WEATHER_CLOCK_METRIC_FONT + TT_WEATHER_CLOCK_ICON_NUDGE_Y
-        + TT_WEATHER_CLOCK_METRIC_PAD + TT_WEATHER_CLOCK_METRIC_INV;
+        + TT_WEATHER_CLOCK_METRIC_PAD + TT_WEATHER_CLOCK_METRIC_INV
+        - TT_WEATHER_CLOCK_SHIFT_Y;
     const int bandY1 = clockArea.y2 - band + 1;
     if (bandY1 > inv.y1) {
         inv.y1 = bandY1;
@@ -1283,6 +1300,16 @@ void TTWeatherPage::layoutClockMetrics() {
     LOG_I("Weather page: metrics hourMid=%d minMid=%d temp=%dx%d@%d,%d hum=%dx%d@%d,%d",
           hourMid, minMid, tempW, tempH, tempX, y,
           humW, (int)lv_obj_get_height(humRow), humX, y);
+}
+
+void TTWeatherPage::applyChrome(bool clock) {
+    ITTNavigationController* nav = getNavigationController();
+    TTNavigationBar* bar = nav != nullptr ? nav->getNavBar() : nullptr;
+    if (bar != nullptr) {
+        bar->setMetricsVisible(!clock);
+    }
+    bindCityLine();
+    LOG_I("Weather page: chrome clock=%d", clock ? 1 : 0);
 }
 
 void TTWeatherPage::applyDisplayMode() {
@@ -1304,6 +1331,7 @@ void TTWeatherPage::applyDisplayMode() {
             lv_obj_add_flag(_modeClock, LV_OBJ_FLAG_HIDDEN);
         }
     }
+    applyChrome(clock);
 }
 
 void TTWeatherPage::cycleDisplayMode(int delta) {

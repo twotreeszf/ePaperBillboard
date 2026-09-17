@@ -279,6 +279,38 @@ void TTNavigationBar::layoutTitle(bool showBack) {
     }
 }
 
+void TTNavigationBar::setMetricsVisible(bool visible) {
+    lv_obj_t* items[] = {
+        _tempLabel != nullptr ? lv_obj_get_parent(_tempLabel) : nullptr,
+        _humLabel != nullptr ? lv_obj_get_parent(_humLabel) : nullptr,
+        _timeLabel
+    };
+    bool changed = false;
+    for (size_t i = 0; i < sizeof(items) / sizeof(items[0]); i++) {
+        lv_obj_t* item = items[i];
+        if (item == nullptr) {
+            continue;
+        }
+        const bool hidden = lv_obj_has_flag(item, LV_OBJ_FLAG_HIDDEN);
+        if (visible == !hidden) {
+            continue;
+        }
+        if (visible) {
+            lv_obj_remove_flag(item, LV_OBJ_FLAG_HIDDEN);
+        } else {
+            lv_obj_add_flag(item, LV_OBJ_FLAG_HIDDEN);
+        }
+        changed = true;
+    }
+    if (!changed) {
+        return;
+    }
+    if (_visible && _backBtn != nullptr) {
+        layoutTitle(!lv_obj_has_flag(_backBtn, LV_OBJ_FLAG_HIDDEN));
+    }
+    LOG_I("NavBar: metrics visible=%d", visible ? 1 : 0);
+}
+
 void TTNavigationBar::hide() {
     if (_bar == nullptr) return;
     lv_obj_add_flag(_bar, LV_OBJ_FLAG_HIDDEN);
