@@ -18,7 +18,8 @@
                                    TT_WEATHER_FEELS_LINE_H + TT_WEATHER_TEXT_STACK_GAP + \
                                    TT_WEATHER_COND_LINE_H)
 #define TT_WEATHER_ICON_CURRENT   97
-#define TT_WEATHER_TEMP_DOT_SIZE  6
+#define TT_WEATHER_TEMP_DOT_SIZE  8
+#define TT_WEATHER_TEMP_DOT_BORDER 1
 #define TT_WEATHER_TEMP_DOT_GAP_X 3
 #define TT_WEATHER_TEMP_DOT_GAP_Y 8
 #define TT_WEATHER_ICON_DAY       45

@@ -275,10 +275,11 @@ void TTWeatherPage::buildContent(lv_obj_t* screen) {
 
     _tempUnit = lv_obj_create(_content);
     lv_obj_set_size(_tempUnit, TT_WEATHER_TEMP_DOT_SIZE, TT_WEATHER_TEMP_DOT_SIZE);
-    lv_obj_set_style_bg_color(_tempUnit, lv_color_black(), 0);
-    lv_obj_set_style_bg_opa(_tempUnit, LV_OPA_COVER, 0);
+    lv_obj_set_style_bg_opa(_tempUnit, LV_OPA_TRANSP, 0);
     lv_obj_set_style_radius(_tempUnit, LV_RADIUS_CIRCLE, 0);
-    lv_obj_set_style_border_width(_tempUnit, 0, 0);
+    lv_obj_set_style_border_width(_tempUnit, TT_WEATHER_TEMP_DOT_BORDER, 0);
+    lv_obj_set_style_border_color(_tempUnit, lv_color_black(), 0);
+    lv_obj_set_style_border_opa(_tempUnit, LV_OPA_COVER, 0);
     lv_obj_set_style_pad_all(_tempUnit, 0, 0);
     lv_obj_remove_flag(_tempUnit, LV_OBJ_FLAG_SCROLLABLE);
     lv_obj_remove_flag(_tempUnit, LV_OBJ_FLAG_CLICKABLE);
