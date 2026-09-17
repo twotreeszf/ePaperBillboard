@@ -5,7 +5,7 @@
 #include "TTNotificationPayloads.h"
 
 #define TT_SLEEP_MIN_US             200000ULL
-#define TT_SLEEP_INPUT_IDLE_MS      10000
+#define TT_SLEEP_INPUT_IDLE_MS      5000
 #define TT_SLEEP_FETCH_PERIOD_MS    (60 * 60 * 1000)
 #define TT_SLEEP_WALL_TEXT_MAX      24
 #define TT_SLEEP_GPIO_WAKE_MASK \
@@ -29,6 +29,7 @@ private:
     void afterWake();
     TTSleepWakeReason classifyWake() const;
     void publishWake(TTSleepWakeReason reason);
+    void publishSleepState(TTSleepState state);
 
     void* _owner = nullptr;
     time_t _nextFetchUnix = 0;

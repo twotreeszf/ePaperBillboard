@@ -24,12 +24,16 @@
 #define TT_NAV_TEMP_ICON_W     9
 #define TT_NAV_HUM_ICON_W      9
 #define TT_NAV_PRESS_ICON_W    10
+#define TT_NAV_SLEEP_ICON_W    12
+#define TT_NAV_SLEEP_ICON_H    12
 #define TT_NAV_SENSOR_ICON_H   12
 #define TT_NAV_STATUS_GAP      4
 #define TT_NAV_WIFI_ICON_GAP   1
 #define TT_NAV_SENSOR_ICON_GAP 2
 #define TT_NAV_WIFI_ICON_Y     -1
 #define TT_NAV_SENSOR_ICON_Y   -2
+#define TT_NAV_TEMP_ICON_Y     (-1)
+#define TT_NAV_BATTERY_Y       (-1)
 #define TT_NAV_BAR_CONTENT_Y   5
 #define TT_NAV_ICON_WIFI_OFF         "/icons/wifi_off_sm.i1"
 #define TT_NAV_ICON_WIFI_WAIT        "/icons/wifi_wait_sm.i1"
@@ -48,6 +52,8 @@
 #define TT_NAV_ICON_TEMP             "/icons/temp_sm.i1"
 #define TT_NAV_ICON_HUM              "/icons/humidity_sm.i1"
 #define TT_NAV_ICON_PRESS            "/icons/pressure_sm.i1"
+#define TT_NAV_ICON_SLEEP            "/icons/sleep_sm.i1"
+#define TT_NAV_ICON_AWAKE            "/icons/standby_sm.i1"
 #define TT_NAV_TEMP_PREFIX           "室内"
 #define TT_NAV_TEMP_PREFIX_FONT      10
 #define TT_NAV_TEMP_PREFIX_Y         (-2)
@@ -74,13 +80,16 @@ private:
     void subscribeStatus();
     void applyWiFi(const TTWiFiStatusPayload& status);
     void applySensor(const TTSensorDataPayload& data);
+    void applySleepState(const TTSleepStatePayload& state);
     bool updateTime();
     void requestRedraw();
     void layoutTitle(bool showBack);
     void createWifiStatus(lv_obj_t* parent);
+    void createSleepStatus(lv_obj_t* parent);
     void createBatteryStatus(lv_obj_t* parent, lv_font_t* font);
     lv_obj_t* createSensorItem(lv_obj_t* parent, lv_font_t* font, const char* iconPath,
-                               int32_t iconW, const char* placeholder, const char* prefix = nullptr);
+                               int32_t iconW, const char* placeholder, const char* prefix = nullptr,
+                               int32_t iconY = TT_NAV_SENSOR_ICON_Y);
     const char* wifiIconPath(TTWiFiLinkState state) const;
     const char* batteryIconPath(const TTSensorDataPayload& data) const;
     lv_obj_t* createIcon(lv_obj_t* parent, const char* path, int32_t width = TT_NAV_STATUS_ICON, int32_t height = -1);
@@ -97,6 +106,7 @@ private:
     lv_obj_t* _tempLabel = nullptr;
     lv_obj_t* _humLabel = nullptr;
     lv_obj_t* _pressLabel = nullptr;
+    lv_obj_t* _sleepIcon = nullptr;
     lv_obj_t* _batteryIcon = nullptr;
     lv_obj_t* _batteryLabel = nullptr;
     TTWiFiLinkState _wifiState = TT_WIFI_LINK_IDLE;
@@ -109,5 +119,6 @@ private:
     uint8_t _batteryPercent = 0;
     bool _batteryCharging = false;
     bool _batteryUsb = false;
+    bool _sleeping = false;
     bool _visible = false;
 };

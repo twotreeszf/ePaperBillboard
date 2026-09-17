@@ -2,6 +2,7 @@
 #include "Logger.h"
 #include "TTInstance.h"
 #include "TTLvglEpdDriver.h"
+#include "TTNotificationPayloads.h"
 #include "TTNotificationCenter.h"
 #include "TTPopupLayer.h"
 #include "TTRtc.h"
@@ -166,6 +167,8 @@ static void tt_sleep_hold_uart_pins() {
 }
 
 bool TTSleepService::enterSleep(uint64_t sleepUs) {
+    publishSleepState(TT_SLEEP_STATE_SLEEPING);
+    TTInstanceOf<TTLvglEpdDriver>().requestOverlayRefresh();
     TTInstanceOf<TTLvglEpdDriver>().hibernate();
     if (WiFi.getMode() != WIFI_OFF) {
         WiFi.mode(WIFI_OFF);
@@ -175,12 +178,16 @@ bool TTSleepService::enterSleep(uint64_t sleepUs) {
     const esp_err_t timerErr = esp_sleep_enable_timer_wakeup(sleepUs);
     if (timerErr != ESP_OK) {
         LOG_E("Sleep: timer wakeup err=%d", (int)timerErr);
+        publishSleepState(TT_SLEEP_STATE_AWAKE);
+        TTInstanceOf<TTLvglEpdDriver>().requestOverlayRefresh();
         return false;
     }
     const esp_err_t gpioErr = esp_sleep_enable_ext1_wakeup(
         TT_SLEEP_GPIO_WAKE_MASK, ESP_EXT1_WAKEUP_ANY_HIGH);
     if (gpioErr != ESP_OK) {
         LOG_E("Sleep: gpio wakeup err=%d", (int)gpioErr);
+        publishSleepState(TT_SLEEP_STATE_AWAKE);
+        TTInstanceOf<TTLvglEpdDriver>().requestOverlayRefresh();
         return false;
     }
     const int chargeLevel = digitalRead(TT_BATTERY_CHARGE_PIN) == HIGH ? 1 : 0;
@@ -189,6 +196,8 @@ bool TTSleepService::enterSleep(uint64_t sleepUs) {
         (gpio_num_t)TT_BATTERY_CHARGE_PIN, ext0Level);
     if (ext0Err != ESP_OK) {
         LOG_E("Sleep: ext0 wakeup err=%d", (int)ext0Err);
+        publishSleepState(TT_SLEEP_STATE_AWAKE);
+        TTInstanceOf<TTLvglEpdDriver>().requestOverlayRefresh();
         return false;
     }
     LOG_I("Sleep: ext0 GPIO%d wake on %d", TT_BATTERY_CHARGE_PIN, ext0Level);
@@ -199,6 +208,8 @@ bool TTSleepService::enterSleep(uint64_t sleepUs) {
     const esp_err_t err = esp_light_sleep_start();
     if (err != ESP_OK) {
         LOG_E("Sleep: start err=%d", (int)err);
+        publishSleepState(TT_SLEEP_STATE_AWAKE);
+        TTInstanceOf<TTLvglEpdDriver>().requestOverlayRefresh();
         return false;
     }
     return true;
@@ -210,6 +221,9 @@ void TTSleepService::afterWake() {
     if (TTInstanceOf<TTRtc>().hasHardwareRtc()) {
         TTInstanceOf<TTRtc>().loadFromHardware();
     }
+
+    publishSleepState(TT_SLEEP_STATE_AWAKE);
+    TTInstanceOf<TTLvglEpdDriver>().requestOverlayRefresh();
 
     const TTSleepWakeReason reason = classifyWake();
     char nowText[TT_SLEEP_WALL_TEXT_MAX];
@@ -269,4 +283,11 @@ void TTSleepService::publishWake(TTSleepWakeReason reason) {
     TTSleepWakePayload payload;
     payload.reason = reason;
     TTInstanceOf<TTNotificationCenter>().sendNotification(TT_NOTIFICATION_SLEEP_WAKE, payload);
+}
+
+void TTSleepService::publishSleepState(TTSleepState state) {
+    TTSleepStatePayload payload;
+    payload.state = state;
+    LOG_I("Sleep: state=%s", state == TT_SLEEP_STATE_SLEEPING ? "sleep" : "awake");
+    TTInstanceOf<TTNotificationCenter>().sendNotification(TT_NOTIFICATION_SLEEP_STATE, payload);
 }

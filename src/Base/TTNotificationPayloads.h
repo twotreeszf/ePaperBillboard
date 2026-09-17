@@ -9,6 +9,7 @@
 #define TT_NOTIFICATION_TIME_SYNC          "TTNotify.TimeSync"
 #define TT_NOTIFICATION_WEATHER            "TTNotify.Weather"
 #define TT_NOTIFICATION_SLEEP_WAKE         "TTNotify.SleepWake"
+#define TT_NOTIFICATION_SLEEP_STATE        "TTNotify.SleepState"
 #define TT_NOTIFICATION_TIME_TICK          "TTNotify.TimeTick"
 
 #define TT_WIFI_SSID_MAX   32
@@ -43,6 +44,15 @@ enum TTSleepWakeReason {
 
 struct TTSleepWakePayload {
     TTSleepWakeReason reason;
+};
+
+enum TTSleepState {
+    TT_SLEEP_STATE_AWAKE = 0,
+    TT_SLEEP_STATE_SLEEPING,
+};
+
+struct TTSleepStatePayload {
+    TTSleepState state;
 };
 
 struct TTTimeTickPayload {

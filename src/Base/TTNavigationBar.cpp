@@ -120,10 +120,11 @@ void TTNavigationBar::beginStatus(lv_font_t* font) {
 
     createWifiStatus(_statusRow);
     _tempLabel = createSensorItem(_statusRow, font, TT_NAV_ICON_TEMP, TT_NAV_TEMP_ICON_W, "--.-℃",
-                                  TT_NAV_TEMP_PREFIX);
+                                  TT_NAV_TEMP_PREFIX, TT_NAV_TEMP_ICON_Y);
     _humLabel = createSensorItem(_statusRow, font, TT_NAV_ICON_HUM, TT_NAV_HUM_ICON_W, "--%");
     _pressLabel = createSensorItem(_statusRow, font, TT_NAV_ICON_PRESS, TT_NAV_PRESS_ICON_W, "----p");
     _timeLabel = createValue(_statusRow, font, "--:--");
+    createSleepStatus(_statusRow);
     createBatteryStatus(_statusRow, font);
 }
 
@@ -134,7 +135,8 @@ void TTNavigationBar::createWifiStatus(lv_obj_t* parent) {
 }
 
 lv_obj_t* TTNavigationBar::createSensorItem(lv_obj_t* parent, lv_font_t* font, const char* iconPath,
-                                            int32_t iconW, const char* placeholder, const char* prefix) {
+                                            int32_t iconW, const char* placeholder, const char* prefix,
+                                            int32_t iconY) {
     lv_obj_t* group = lv_obj_create(parent);
     lv_obj_set_size(group, LV_SIZE_CONTENT, LV_SIZE_CONTENT);
     lv_obj_set_style_bg_opa(group, LV_OPA_TRANSP, 0);
@@ -162,12 +164,18 @@ lv_obj_t* TTNavigationBar::createSensorItem(lv_obj_t* parent, lv_font_t* font, c
 
     lv_obj_t* icon = createIcon(group, iconPath, iconW, TT_NAV_SENSOR_ICON_H);
     lv_obj_set_style_pad_all(icon, 0, 0);
-    lv_obj_set_style_translate_y(icon, TT_NAV_SENSOR_ICON_Y, 0);
+    lv_obj_set_style_translate_y(icon, iconY, 0);
 
     lv_obj_t* label = createValue(group, font, placeholder);
     lv_obj_set_style_pad_all(label, 0, 0);
     lv_obj_set_height(label, lv_font_get_line_height(font));
     return label;
+}
+
+void TTNavigationBar::createSleepStatus(lv_obj_t* parent) {
+    _sleepIcon = createIcon(parent, TT_NAV_ICON_AWAKE, TT_NAV_SLEEP_ICON_W, TT_NAV_SLEEP_ICON_H);
+    lv_obj_set_style_pad_all(_sleepIcon, 0, 0);
+    lv_obj_set_style_translate_y(_sleepIcon, TT_NAV_SENSOR_ICON_Y, 0);
 }
 
 void TTNavigationBar::createBatteryStatus(lv_obj_t* parent, lv_font_t* font) {
@@ -181,6 +189,7 @@ void TTNavigationBar::createBatteryStatus(lv_obj_t* parent, lv_font_t* font) {
     lv_obj_set_flex_flow(group, LV_FLEX_FLOW_ROW);
     lv_obj_set_flex_align(group, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
     lv_obj_set_style_pad_column(group, TT_NAV_WIFI_ICON_GAP, 0);
+    lv_obj_set_style_translate_y(group, TT_NAV_BATTERY_Y, 0);
     lv_obj_remove_flag(group, LV_OBJ_FLAG_SCROLLABLE);
 
     _batteryIcon = createIcon(group, TT_NAV_ICON_BATTERY_EMPTY, TT_NAV_BATTERY_ICON_W, TT_NAV_BATTERY_ICON_H);
@@ -229,6 +238,12 @@ void TTNavigationBar::subscribeStatus() {
             if (updateTime()) {
                 requestRedraw();
             }
+        });
+    nc.subscribe<TTSleepStatePayload>(
+        TT_NOTIFICATION_SLEEP_STATE,
+        this,
+        [this](const TTSleepStatePayload& state) {
+            applySleepState(state);
         });
 }
 
@@ -323,6 +338,19 @@ void TTNavigationBar::onBackClicked(lv_event_t* e) {
     if (self == nullptr || self->_nav == nullptr) return;
     LOG_I("NavBar: back clicked");
     self->_nav->pop();
+}
+
+void TTNavigationBar::applySleepState(const TTSleepStatePayload& state) {
+    if (_sleepIcon == nullptr) {
+        return;
+    }
+    const bool sleeping = state.state == TT_SLEEP_STATE_SLEEPING;
+    if (_sleeping == sleeping) {
+        return;
+    }
+    _sleeping = sleeping;
+    tt_stream_image_set_src(_sleepIcon, sleeping ? TT_NAV_ICON_SLEEP : TT_NAV_ICON_AWAKE);
+    LOG_I("NavBar: sleep state=%s", sleeping ? "sleep" : "awake");
 }
 
 void TTNavigationBar::applyWiFi(const TTWiFiStatusPayload& status) {
