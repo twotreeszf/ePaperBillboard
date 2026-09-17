@@ -9,6 +9,7 @@
 #include "../Base/TTNavigationBar.h"
 #include "../Base/TTWeatherService.h"
 #include "../Base/TTSleepService.h"
+#include "../Base/TTLvglEpdDriver.h"
 #include "../Tasks/TTSensorTask.h"
 #include <WiFi.h>
 #include <Arduino.h>
@@ -527,6 +528,7 @@ TTRefreshLevel TTWeatherPage::enterRefreshLevel() const {
 void TTWeatherPage::willAppear() {
     TTScreenPage::willAppear();
     _visible = true;
+    TTInstanceOf<TTLvglEpdDriver>().setAutoDeepRefresh(false);
     applyChrome(_displayMode == TT_WEATHER_MODE_CLOCK);
     syncIndoor(false);
     TTInstanceOf<TTSensorTask>().requestSensorUpdateAsync();
@@ -540,6 +542,7 @@ void TTWeatherPage::willDisappear() {
     _sleepAfterTimeTick = false;
     cancelInputIdleSleep();
     applyChrome(false);
+    TTInstanceOf<TTLvglEpdDriver>().setAutoDeepRefresh(true);
 }
 
 void TTWeatherPage::setMessage(const char* text) {

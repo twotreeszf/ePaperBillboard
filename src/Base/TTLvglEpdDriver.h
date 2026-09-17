@@ -10,6 +10,7 @@ public:
     bool begin(EPaperDisplay& display);
     void requestRefresh(TTRefreshLevel level = TT_REFRESH_PARTIAL);
     void requestOverlayRefresh();
+    void setAutoDeepRefresh(bool enabled);
     void hibernate();
     lv_display_t* getDisplay() { return _lvDisplay; }
 
@@ -20,6 +21,7 @@ private:
     lv_display_t* _lvDisplay = nullptr;
     uint8_t _partialCount = 0;
     bool _needDeepRefresh = true;
+    bool _autoDeepRefresh = true;
     bool _deepRefreshPending = false;
     bool _flushingOverlay = false;
     bool _navTouched = false;

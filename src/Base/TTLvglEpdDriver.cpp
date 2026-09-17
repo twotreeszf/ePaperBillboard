@@ -167,10 +167,21 @@ void TTLvglEpdDriver::_flushCallback(lv_display_t* disp, const lv_area_t* area, 
 
     lv_display_flush_ready(disp);
 
-    if (pThis->_partialCount >= EPD_FULL_REFRESH_INTERVAL && !pThis->_deepRefreshPending) {
+    if (pThis->_autoDeepRefresh
+        && pThis->_partialCount >= EPD_FULL_REFRESH_INTERVAL
+        && !pThis->_deepRefreshPending) {
         pThis->_deepRefreshPending = true;
         TTInstanceOf<TTUITask>().requestDeepRefreshAsync();
     }
+}
+
+void TTLvglEpdDriver::setAutoDeepRefresh(bool enabled) {
+    _autoDeepRefresh = enabled;
+    _deepRefreshPending = false;
+    if (enabled) {
+        _partialCount = 0;
+    }
+    LOG_I("E-Paper auto deep refresh=%d", enabled ? 1 : 0);
 }
 
 void TTLvglEpdDriver::hibernate() {
