@@ -33,7 +33,7 @@
     3850, 47, \
     3900, 58, \
     4000, 88, \
-    4050, 100
+    4200, 100
 
 class TTSensorTask : public TTVTask {
 public:
