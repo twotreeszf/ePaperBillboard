@@ -46,8 +46,6 @@
 #define TT_CAL_TEMP_Y          (TT_CAL_ICON_Y + TT_CAL_ICON + 2)
 #define TT_CAL_TEMP_DOT_GAP_X  3
 #define TT_CAL_TEMP_DOT_GAP_Y  7
-#define TT_CAL_FEELS_FONT      10
-#define TT_CAL_META_GAP        2
 #define TT_CAL_INFO_GAP_X      6
 #define TT_CAL_DATE_EN_FONT    32
 #define TT_CAL_WEEK_FONT       32
@@ -60,7 +58,7 @@
 #define TT_CAL_EN32_INK_BOTTOM 29
 #define TT_CAL_EN40_INK_TOP    7
 #define TT_CAL_TEXT_FONT       16
-#define TT_CAL_COND_FONT       12
+#define TT_CAL_COND_FONT       16
 #define TT_CAL_DATE_FONT       16
 #define TT_CAL_EVENT_FONT      12
 #define TT_CAL_EVENT_DIGIT_ADV 7
@@ -142,7 +140,6 @@ private:
     lv_obj_t* _weatherIcon = nullptr;
     lv_obj_t* _tempLabel = nullptr;
     lv_obj_t* _tempUnit = nullptr;
-    lv_obj_t* _feelsLabel = nullptr;
     lv_obj_t* _condLabel = nullptr;
     lv_obj_t* _ageIcon = nullptr;
     lv_obj_t* _ageLabel = nullptr;

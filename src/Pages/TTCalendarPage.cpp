@@ -7,6 +7,7 @@
 #include "../Base/TTRtc.h"
 #include "../Service/TTSleepService.h"
 #include "../Base/TTStreamImage.h"
+#include "../Base/TTLvglEpdDriver.h"
 #include "../Base/TTNavigationBar.h"
 #include "../Base/TTPopupLayer.h"
 #include "../Service/TTWeatherService.h"
@@ -192,7 +193,6 @@ void TTCalendarPage::buildContent(lv_obj_t* screen) {
     lv_font_t* fontClock = fonts.getFont(TT_CAL_TIME_FONT);
     lv_font_t* fontDate = fonts.getFont(TT_CAL_DATE_EN_FONT);
     lv_font_t* fontWeek = fonts.getFont(TT_CAL_WEEK_FONT);
-    lv_font_t* fontFeels = fonts.getFont(TT_CAL_FEELS_FONT);
     lv_font_t* fontCond = fonts.getFont(TT_CAL_COND_FONT);
     lv_font_t* font10 = fonts.getFont(TT_CAL_PAGE_FONT);
     if (fontTemp == nullptr) {
@@ -207,14 +207,11 @@ void TTCalendarPage::buildContent(lv_obj_t* screen) {
     if (fontWeek == nullptr) {
         fontWeek = fontDate;
     }
-    if (fontFeels == nullptr) {
-        fontFeels = font16;
-    }
     if (fontCond == nullptr) {
-        fontCond = fontFeels;
+        fontCond = font16;
     }
     if (font10 == nullptr) {
-        font10 = fontFeels;
+        font10 = font16;
     }
     const int height = EPD_HEIGHT - TT_NAV_PAGE_INSET;
     const int listW = EPD_WIDTH - TT_CAL_SIDE_W;
@@ -248,9 +245,6 @@ void TTCalendarPage::buildContent(lv_obj_t* screen) {
     lv_obj_remove_flag(_tempUnit, LV_OBJ_FLAG_SCROLLABLE);
     lv_obj_remove_flag(_tempUnit, LV_OBJ_FLAG_CLICKABLE);
     lv_obj_add_flag(_tempUnit, LV_OBJ_FLAG_HIDDEN);
-
-    _feelsLabel = createLabel(_side, fontFeels, lv_color_black(), "");
-    lv_label_set_long_mode(_feelsLabel, LV_LABEL_LONG_CLIP);
 
     _condLabel = createLabel(_side, fontCond, lv_color_black(), "");
     lv_label_set_long_mode(_condLabel, LV_LABEL_LONG_CLIP);
@@ -335,6 +329,7 @@ void TTCalendarPage::setup() {
 void TTCalendarPage::willAppear() {
     TTScreenPage::willAppear();
     _visible = true;
+    TTInstanceOf<TTLvglEpdDriver>().setAutoDeepRefresh(false);
     setStatusTimeVisible(false);
     updateClock(false);
     layoutSide();
@@ -349,6 +344,7 @@ void TTCalendarPage::willDisappear() {
     cancelInputIdleSleep();
     dismissExtendLoading();
     setStatusTimeVisible(true);
+    TTInstanceOf<TTLvglEpdDriver>().setAutoDeepRefresh(true);
     TTScreenPage::willDisappear();
 }
 
@@ -404,7 +400,7 @@ void TTCalendarPage::forceRefresh() {
     _page = 0;
     lv_label_set_text(_status, "正在刷新");
     showPage();
-    requestRefresh(TT_REFRESH_PARTIAL);
+    requestRefresh(TT_REFRESH_DEEP);
     LOG_I("Calendar page: force refresh");
     requestCalendar(false);
     requestWeather();
@@ -525,7 +521,7 @@ void TTCalendarPage::applyWeather(const TTWeatherPayload& payload) {
         layoutSide();
         LOG_I("Calendar page: weather failed, age cross");
         if (_visible) {
-            requestRefresh(TT_REFRESH_PARTIAL);
+            requestRefresh(TT_REFRESH_DEEP);
         }
         finishFetch();
         return;
@@ -540,8 +536,6 @@ void TTCalendarPage::applyWeather(const TTWeatherPayload& payload) {
     char buf[24];
     snprintf(buf, sizeof(buf), "%.0f", payload.current.temp);
     lv_label_set_text(_tempLabel, buf);
-    snprintf(buf, sizeof(buf), "体感 %.0f°", payload.current.feelsLike);
-    lv_label_set_text(_feelsLabel, buf);
     lv_label_set_text(_condLabel, tt_weather_condition_text(_weatherCode));
     _fetchedAt = payload.fetchedAt;
     if (_fetchedAt == 0) {
@@ -611,7 +605,7 @@ void TTCalendarPage::layoutSide() {
         lv_obj_set_width(_weekLabel, LV_SIZE_CONTENT);
     }
     layoutAge();
-    if (_tempLabel == nullptr || _tempUnit == nullptr || _condLabel == nullptr || _feelsLabel == nullptr) {
+    if (_tempLabel == nullptr || _tempUnit == nullptr || _condLabel == nullptr) {
         return;
     }
     if (_haveWeather) {
@@ -624,7 +618,6 @@ void TTCalendarPage::layoutSide() {
     lv_obj_update_layout(_tempLabel);
     lv_obj_update_layout(_tempUnit);
     lv_obj_update_layout(_condLabel);
-    lv_obj_update_layout(_feelsLabel);
     const int tempW = _haveWeather ? lv_obj_get_width(_tempLabel) : 0;
     const int unitW = _haveWeather ? lv_obj_get_width(_tempUnit) : 0;
     const int condW = lv_obj_get_width(_condLabel);
@@ -641,20 +634,14 @@ void TTCalendarPage::layoutSide() {
     const int tempY = lv_obj_get_y(_tempLabel);
     const int tempH = lv_obj_get_height(_tempLabel);
     const int condH = lv_obj_get_height(_condLabel);
-    const int feelsH = lv_obj_get_height(_feelsLabel);
-    const int stackH = condH + TT_CAL_META_GAP + feelsH;
-    const int stackY = tempY + (tempH - stackH) / 2;
+    const int stackY = tempY + (tempH - condH) / 2;
     const int infoX = lv_obj_get_x(_tempUnit) + lv_obj_get_width(_tempUnit) + TT_CAL_INFO_GAP_X;
     int infoW = sideW - infoX - TT_CAL_SIDE_PAD;
     if (infoW < 24) {
         infoW = 24;
     }
-    if (lv_obj_get_width(_feelsLabel) > infoW) {
-        lv_obj_set_width(_feelsLabel, infoW);
-    }
     lv_obj_set_style_max_width(_condLabel, infoW, 0);
     lv_obj_set_pos(_condLabel, infoX, stackY);
-    lv_obj_set_pos(_feelsLabel, infoX, stackY + condH + TT_CAL_META_GAP);
 
     if (_dateLabel == nullptr || _weekLabel == nullptr) {
         return;
@@ -1050,8 +1037,9 @@ void TTCalendarPage::applyCalendar(const TTCalendarPayload& payload) {
     }
     if (_extendLoading) {
         dismissExtendLoading();
-    } else if (_visible) {
-        requestRefresh(payload.extended ? TT_REFRESH_PARTIAL : TT_REFRESH_DEEP);
+    }
+    if (_visible) {
+        requestRefresh(TT_REFRESH_DEEP);
     }
     finishFetch();
 }
@@ -1063,13 +1051,13 @@ void TTCalendarPage::pageBy(int delta) {
         }
         _page--;
         showPage();
-        requestRefresh(TT_REFRESH_PARTIAL);
+        requestRefresh(TT_REFRESH_FULL);
         return;
     }
     if (_page + 1 < _pageCount) {
         _page++;
         showPage();
-        requestRefresh(TT_REFRESH_PARTIAL);
+        requestRefresh(TT_REFRESH_FULL);
         return;
     }
     LOG_I("Calendar page: load next range");
