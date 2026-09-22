@@ -170,7 +170,7 @@ private:
     void bindDetails(const TTWeatherPayload& payload);
     void bindGraph(const TTWeatherPayload& payload);
     void forceRefresh();
-    void requestFetch();
+    void requestFetch(bool force = false);
     void onSleepWake(const TTSleepWakePayload& wake);
     void onTimeTick();
     void tryRequestLightSleep();

@@ -5,6 +5,7 @@
 #include "../Base/TTInstance.h"
 #include "../Base/TTNotificationPayloads.h"
 #include "../Base/TTPreference.h"
+#include "../Base/TTRtc.h"
 #include "../Tasks/TTUITask.h"
 #include "../Tasks/TTWiFiTask.h"
 #include <WiFi.h>
@@ -423,7 +424,128 @@ void TTCalendarService::publish(TTCalendarState state, const char* message, bool
     TTInstanceOf<TTUITask>().postNotification(TT_NOTIFICATION_CALENDAR, payload);
 }
 
-void TTCalendarService::requestFetch(bool extend) {
+struct TTCalendarCacheFile {
+    uint32_t magic;
+    uint16_t version;
+    uint16_t reserved;
+    uint32_t fetchedAt;
+    int32_t rangeStart;
+    int32_t rangeEnd;
+    uint8_t count;
+    char message[TT_CAL_MSG_MAX];
+    char host[TT_CAL_HOST_MAX];
+    char user[TT_CAL_USER_MAX];
+    TTCalEvent events[TT_CAL_EVENT_MAX];
+};
+
+bool TTCalendarService::publishFreshCache(const char* host, const char* user) {
+    if (host == nullptr || user == nullptr) {
+        return false;
+    }
+    if (!TTInstanceOf<TTRtc>().isTimeValid()) {
+        LOG_I("CalDAV: cache skipped, clock invalid");
+        return false;
+    }
+    const time_t now = time(nullptr);
+    if (now <= 0) {
+        return false;
+    }
+    File file = tt_file_open(TT_CAL_CACHE_PATH, "r");
+    if (!file) {
+        return false;
+    }
+    TTCalendarCacheFile* cache = new TTCalendarCacheFile;
+    if (cache == nullptr) {
+        file.close();
+        LOG_E("CalDAV: cache alloc failed");
+        return false;
+    }
+    const size_t got = file.read((uint8_t*)cache, sizeof(*cache));
+    file.close();
+    if (got != sizeof(*cache)
+        || cache->magic != TT_CAL_CACHE_MAGIC
+        || cache->version != TT_CAL_CACHE_VERSION
+        || cache->count > TT_CAL_EVENT_MAX
+        || strcmp(cache->host, host) != 0
+        || strcmp(cache->user, user) != 0) {
+        delete cache;
+        LOG_I("CalDAV: cache miss");
+        return false;
+    }
+    const uint32_t fetchedAt = cache->fetchedAt;
+    if (fetchedAt == 0 || (time_t)fetchedAt > now
+        || now - (time_t)fetchedAt > TT_CAL_CACHE_MAX_AGE_SEC) {
+        delete cache;
+        LOG_I("CalDAV: cache stale fetchedAt=%u now=%ld", (unsigned)fetchedAt, (long)now);
+        return false;
+    }
+    _count = cache->count;
+    _rangeStart = cache->rangeStart;
+    _rangeEnd = cache->rangeEnd;
+    if (_count > 0) {
+        memcpy(_events, cache->events, sizeof(TTCalEvent) * _count);
+    }
+    LOG_I("CalDAV: reuse cache age=%ld s events=%u", (long)(now - (time_t)fetchedAt), (unsigned)_count);
+    publish(TT_CAL_OK, cache->message, false);
+    delete cache;
+    return true;
+}
+
+void TTCalendarService::saveCache(const char* host, const char* user, const char* message) {
+    TTCalendarCacheFile* cache = new TTCalendarCacheFile;
+    if (cache == nullptr) {
+        LOG_E("CalDAV: cache save alloc failed");
+        return;
+    }
+    memset(cache, 0, sizeof(*cache));
+    cache->magic = TT_CAL_CACHE_MAGIC;
+    cache->version = TT_CAL_CACHE_VERSION;
+    const time_t now = time(nullptr);
+    cache->fetchedAt = (now > 0) ? (uint32_t)now : 1;
+    cache->rangeStart = _rangeStart;
+    cache->rangeEnd = _rangeEnd;
+    cache->count = _count;
+    if (message != nullptr) {
+        strncpy(cache->message, message, sizeof(cache->message) - 1);
+    }
+    if (host != nullptr) {
+        strncpy(cache->host, host, sizeof(cache->host) - 1);
+    }
+    if (user != nullptr) {
+        strncpy(cache->user, user, sizeof(cache->user) - 1);
+    }
+    if (_count > 0) {
+        memcpy(cache->events, _events, sizeof(TTCalEvent) * _count);
+    }
+    File file = tt_file_create(TT_CAL_CACHE_PATH);
+    if (!file) {
+        delete cache;
+        LOG_E("CalDAV: cache create failed");
+        return;
+    }
+    const size_t wrote = file.write((const uint8_t*)cache, sizeof(*cache));
+    file.close();
+    delete cache;
+    if (wrote != sizeof(TTCalendarCacheFile)) {
+        LOG_E("CalDAV: cache write %u/%u", (unsigned)wrote, (unsigned)sizeof(TTCalendarCacheFile));
+        tt_file_remove(TT_CAL_CACHE_PATH);
+        return;
+    }
+    LOG_I("CalDAV: cache saved %u bytes events=%u", (unsigned)wrote, (unsigned)_count);
+}
+
+void TTCalendarService::requestFetch(bool extend, bool force) {
+    if (!extend && !force) {
+        char host[TT_CAL_HOST_MAX];
+        char user[TT_CAL_USER_MAX];
+        char pass[TT_CAL_PASS_MAX];
+        if (loadAccount(host, sizeof(host), user, sizeof(user), pass, sizeof(pass))) {
+            memset(pass, 0, sizeof(pass));
+            if (publishFreshCache(host, user)) {
+                return;
+            }
+        }
+    }
     TTInstanceOf<TTWiFiTask>().runWithRadio(
         "calendar",
         [this, extend]() {
@@ -749,5 +871,7 @@ void TTCalendarService::fetch(bool extend) {
     if (!extend) {
         _rangeStart = (int32_t)localMidnight(now);
     }
-    publish(TT_CAL_OK, _count > 0 ? "" : "这7天没有日程", extend);
+    const char* message = _count > 0 ? "" : "这7天没有日程";
+    saveCache(host, user, message);
+    publish(TT_CAL_OK, message, extend);
 }

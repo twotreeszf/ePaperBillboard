@@ -1384,7 +1384,7 @@ bool TTWeatherPage::handleKeyAction(TTKeyId key, TTKeyGesture gesture) {
     return TTScreenPage::handleKeyAction(key, gesture);
 }
 
-void TTWeatherPage::requestFetch() {
+void TTWeatherPage::requestFetch(bool force) {
     if (_fetching) {
         LOG_I("Weather page: fetch ignored (busy)");
         return;
@@ -1392,8 +1392,8 @@ void TTWeatherPage::requestFetch() {
     cancelLightSleep();
     _sleepAfterTimeTick = false;
     _fetching = true;
-    LOG_I("Weather page: fetch");
-    TTInstanceOf<TTWeatherService>().requestFetch();
+    LOG_I("Weather page: fetch force=%d", force ? 1 : 0);
+    TTInstanceOf<TTWeatherService>().requestFetch(force);
 }
 
 void TTWeatherPage::onSleepWake(const TTSleepWakePayload& wake) {
@@ -1489,7 +1489,7 @@ void TTWeatherPage::forceRefresh() {
     setMessage("正在刷新天气");
     requestRefresh(TT_REFRESH_PARTIAL);
     LOG_I("Weather page: force refresh");
-    requestFetch();
+    requestFetch(true);
 }
 
 bool TTWeatherPage::applyWeather(const TTWeatherPayload& payload) {

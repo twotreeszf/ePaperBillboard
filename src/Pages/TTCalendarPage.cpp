@@ -356,7 +356,7 @@ bool TTCalendarPage::handleKeyAction(TTKeyId key, TTKeyGesture gesture) {
     return TTScreenPage::handleKeyAction(key, gesture);
 }
 
-void TTCalendarPage::requestCalendar(bool extend) {
+void TTCalendarPage::requestCalendar(bool extend, bool force) {
     if (_calendarFetching) {
         LOG_I("Calendar page: calendar fetch ignored (busy)");
         return;
@@ -372,11 +372,11 @@ void TTCalendarPage::requestCalendar(bool extend) {
         _extendLoading = true;
         TTInstanceOf<TTPopupLayer>().showLoading("加载中...");
     }
-    LOG_I("Calendar page: fetch extend=%d", extend ? 1 : 0);
-    TTInstanceOf<TTCalendarService>().requestFetch(extend);
+    LOG_I("Calendar page: fetch extend=%d force=%d", extend ? 1 : 0, force ? 1 : 0);
+    TTInstanceOf<TTCalendarService>().requestFetch(extend, force);
 }
 
-void TTCalendarPage::requestWeather() {
+void TTCalendarPage::requestWeather(bool force) {
     if (_weatherFetching) {
         LOG_I("Calendar page: weather fetch ignored (busy)");
         return;
@@ -384,8 +384,8 @@ void TTCalendarPage::requestWeather() {
     cancelLightSleep();
     _sleepAfterTimeTick = false;
     _weatherFetching = true;
-    LOG_I("Calendar page: weather fetch");
-    TTInstanceOf<TTWeatherService>().requestFetch();
+    LOG_I("Calendar page: weather fetch force=%d", force ? 1 : 0);
+    TTInstanceOf<TTWeatherService>().requestFetch(force);
 }
 
 void TTCalendarPage::forceRefresh() {
@@ -402,8 +402,8 @@ void TTCalendarPage::forceRefresh() {
     showPage();
     requestRefresh(TT_REFRESH_DEEP);
     LOG_I("Calendar page: force refresh");
-    requestCalendar(false);
-    requestWeather();
+    requestCalendar(false, true);
+    requestWeather(true);
 }
 
 void TTCalendarPage::onSleepWake(const TTSleepWakePayload& wake) {

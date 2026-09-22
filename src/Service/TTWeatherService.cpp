@@ -5,6 +5,7 @@
 #include "../Base/TTInstance.h"
 #include "../Base/TTNotificationPayloads.h"
 #include "../Base/TTPreference.h"
+#include "../Base/TTRtc.h"
 #include "../Tasks/TTUITask.h"
 #include "../Tasks/TTWiFiTask.h"
 #include <ArduinoJson.h>
@@ -109,6 +110,92 @@ bool TTWeatherService::loadLocation(float& lat, float& lon, char* city, size_t c
         return false;
     }
     return true;
+}
+
+struct TTWeatherCacheFile {
+    uint32_t magic;
+    uint16_t version;
+    uint16_t reserved;
+    float lat;
+    float lon;
+    TTWeatherPayload payload;
+};
+
+bool coordsMatch(float a, float b) {
+    return fabsf(a - b) <= TT_WEATHER_CACHE_COORD_EPS;
+}
+
+bool TTWeatherService::publishFreshCache(float lat, float lon) {
+    if (!TTInstanceOf<TTRtc>().isTimeValid()) {
+        LOG_I("Weather: cache skipped, clock invalid");
+        return false;
+    }
+    const time_t now = time(nullptr);
+    if (now <= 0) {
+        return false;
+    }
+    File file = tt_file_open(TT_WEATHER_CACHE_PATH, "r");
+    if (!file) {
+        return false;
+    }
+    TTWeatherCacheFile* cache = new TTWeatherCacheFile;
+    if (cache == nullptr) {
+        file.close();
+        LOG_E("Weather: cache alloc failed");
+        return false;
+    }
+    const size_t got = file.read((uint8_t*)cache, sizeof(*cache));
+    file.close();
+    if (got != sizeof(*cache)
+        || cache->magic != TT_WEATHER_CACHE_MAGIC
+        || cache->version != TT_WEATHER_CACHE_VERSION
+        || cache->payload.state != TT_WEATHER_OK
+        || !coordsMatch(cache->lat, lat)
+        || !coordsMatch(cache->lon, lon)) {
+        delete cache;
+        LOG_I("Weather: cache miss");
+        return false;
+    }
+    const uint32_t fetchedAt = cache->payload.fetchedAt;
+    if (fetchedAt == 0 || (time_t)fetchedAt > now
+        || now - (time_t)fetchedAt > TT_WEATHER_CACHE_MAX_AGE_SEC) {
+        delete cache;
+        LOG_I("Weather: cache stale fetchedAt=%u now=%ld", (unsigned)fetchedAt, (long)now);
+        return false;
+    }
+    LOG_I("Weather: reuse cache age=%ld s", (long)(now - (time_t)fetchedAt));
+    publish(cache->payload);
+    delete cache;
+    return true;
+}
+
+void TTWeatherService::saveCache(float lat, float lon, const TTWeatherPayload& payload) {
+    TTWeatherCacheFile* cache = new TTWeatherCacheFile;
+    if (cache == nullptr) {
+        LOG_E("Weather: cache save alloc failed");
+        return;
+    }
+    cache->magic = TT_WEATHER_CACHE_MAGIC;
+    cache->version = TT_WEATHER_CACHE_VERSION;
+    cache->reserved = 0;
+    cache->lat = lat;
+    cache->lon = lon;
+    cache->payload = payload;
+    File file = tt_file_create(TT_WEATHER_CACHE_PATH);
+    if (!file) {
+        delete cache;
+        LOG_E("Weather: cache create failed");
+        return;
+    }
+    const size_t wrote = file.write((const uint8_t*)cache, sizeof(*cache));
+    file.close();
+    delete cache;
+    if (wrote != sizeof(TTWeatherCacheFile)) {
+        LOG_E("Weather: cache write %u/%u", (unsigned)wrote, (unsigned)sizeof(TTWeatherCacheFile));
+        tt_file_remove(TT_WEATHER_CACHE_PATH);
+        return;
+    }
+    LOG_I("Weather: cache saved %u bytes", (unsigned)wrote);
 }
 
 bool TTWeatherService::fetchForecast(float lat, float lon, TTWeatherPayload& out) {
@@ -295,10 +382,17 @@ void TTWeatherService::fetchWeather() {
     draft.message[0] = '\0';
     const time_t now = time(nullptr);
     draft.fetchedAt = (now > 0) ? (uint32_t)now : 1;
+    saveCache(lat, lon, draft);
     publish(draft);
 }
 
-void TTWeatherService::requestFetch() {
+void TTWeatherService::requestFetch(bool force) {
+    float lat = NAN;
+    float lon = NAN;
+    loadLocation(lat, lon, nullptr, 0);
+    if (!force && isfinite(lat) && isfinite(lon) && publishFreshCache(lat, lon)) {
+        return;
+    }
     TTInstanceOf<TTWiFiTask>().runWithRadio(
         "weather",
         [this]() {

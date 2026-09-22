@@ -116,8 +116,8 @@ protected:
     bool handleKeyAction(TTKeyId key, TTKeyGesture gesture) override;
 
 private:
-    void requestCalendar(bool extend);
-    void requestWeather();
+    void requestCalendar(bool extend, bool force = false);
+    void requestWeather(bool force = false);
     void applyCalendar(const TTCalendarPayload& payload);
     void applyWeather(const TTWeatherPayload& payload);
     void forceRefresh();
