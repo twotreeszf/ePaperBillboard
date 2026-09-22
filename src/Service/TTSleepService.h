@@ -1,8 +1,8 @@
 #pragma once
 
 #include <ctime>
-#include "TTKeypadInput.h"
-#include "TTNotificationPayloads.h"
+#include "../Base/TTKeypadInput.h"
+#include "../Base/TTNotificationPayloads.h"
 
 #define TT_SLEEP_MIN_US             200000ULL
 #define TT_SLEEP_INPUT_IDLE_MS      5000

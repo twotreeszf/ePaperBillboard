@@ -3,7 +3,7 @@
 #include "TTNavigationBar.h"
 #include "Logger.h"
 #include "TTInstance.h"
-#include "TTSleepService.h"
+#include "../Service/TTSleepService.h"
 #include "../Tasks/TTUITask.h"
 #include <EPDConfig.h>
 

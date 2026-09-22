@@ -7,8 +7,8 @@
 #include "../Base/TTRtc.h"
 #include "../Base/TTTextButton.h"
 #include "../Base/TTNavigationBar.h"
-#include "../Base/TTWeatherService.h"
-#include "../Base/TTSleepService.h"
+#include "../Service/TTWeatherService.h"
+#include "../Service/TTSleepService.h"
 #include "../Base/TTLvglEpdDriver.h"
 #include "../Tasks/TTSensorTask.h"
 #include <WiFi.h>

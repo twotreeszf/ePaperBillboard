@@ -1,6 +1,6 @@
 #pragma once
 
-#include "TTWeatherTypes.h"
+#include "../Base/TTWeatherTypes.h"
 
 class TTWeatherService {
 public:

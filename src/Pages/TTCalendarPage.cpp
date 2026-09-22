@@ -1,15 +1,15 @@
 #include "TTCalendarPage.h"
 #include "../Base/Logger.h"
-#include "../Base/TTCalendarService.h"
+#include "../Service/TTCalendarService.h"
 #include "../Base/TTFontManager.h"
 #include "../Base/TTInstance.h"
 #include "../Base/TTNotificationPayloads.h"
 #include "../Base/TTRtc.h"
-#include "../Base/TTSleepService.h"
+#include "../Service/TTSleepService.h"
 #include "../Base/TTStreamImage.h"
 #include "../Base/TTNavigationBar.h"
 #include "../Base/TTPopupLayer.h"
-#include "../Base/TTWeatherService.h"
+#include "../Service/TTWeatherService.h"
 #include <EPDConfig.h>
 #include <WiFi.h>
 #include <cstdio>
@@ -76,6 +76,43 @@ void formatAge(uint32_t fetchedAt, char* buf, size_t bufLen) {
         snprintf(buf, bufLen, "刚刚");
     } else {
         snprintf(buf, bufLen, "%d分钟前", minutes);
+    }
+}
+
+int glyphInkOffset(const lv_font_t* font, uint32_t letter, bool bottom) {
+    if (font == nullptr || font->line_height <= 0) {
+        return 0;
+    }
+    lv_font_glyph_dsc_t dsc;
+    if (!lv_font_get_glyph_dsc(font, &dsc, letter, 0) || dsc.box_h == 0) {
+        return bottom ? (font->line_height - 1) : 0;
+    }
+    const int top = (font->line_height - font->base_line) - (int)dsc.box_h - (int)dsc.ofs_y;
+    if (!bottom) {
+        return top;
+    }
+    return top + (int)dsc.box_h - 1;
+}
+
+void drawVDash(lv_layer_t* layer, const lv_draw_rect_dsc_t* ink, int x,
+               int fromY, int toY, int clipY1, int clipY2) {
+    const int dir = (toY >= fromY) ? 1 : -1;
+    const int length = (toY - fromY) * dir + 1;
+    const int period = TT_CAL_RULE_DASH + TT_CAL_RULE_GAP;
+    for (int offset = 0; offset < length; offset++) {
+        if (offset % period >= TT_CAL_RULE_DASH) {
+            continue;
+        }
+        const int y = fromY + dir * offset;
+        if (y < clipY1 || y > clipY2) {
+            continue;
+        }
+        lv_area_t seg;
+        seg.x1 = x;
+        seg.x2 = x;
+        seg.y1 = y;
+        seg.y2 = y;
+        lv_draw_rect(layer, ink, &seg);
     }
 }
 
@@ -1129,26 +1166,37 @@ void TTCalendarPage::onListDraw(lv_event_t* e) {
         }
         return TT_CAL_MARK_LG / 2;
     };
-    auto drawStub = [&](int innerY, int dir) {
-        const int period = TT_CAL_RULE_DASH + TT_CAL_RULE_GAP;
-        for (int offset = 0; offset < TT_CAL_AXIS_STUB; offset++) {
-            if (offset % period >= TT_CAL_RULE_DASH) {
-                continue;
-            }
-            const int y = innerY + dir * offset;
-            if (y < coords.y1 || y > coords.y2) {
-                continue;
-            }
-            lv_area_t seg;
-            seg.x1 = axisX;
-            seg.x2 = axisX;
-            seg.y1 = y;
-            seg.y2 = y;
-            lv_draw_rect(layer, &ink, &seg);
+    int todayTop = -1;
+    for (uint8_t i = 0; i < self->_visibleSlots; i++) {
+        if (self->_slotCapsule[i] != TT_CAL_CAPSULE_FILL || self->_rows[i] == nullptr) {
+            continue;
         }
-    };
-    drawStub(y1 - markRadius(first) - TT_CAL_AXIS_STUB_GAP, -1);
-    drawStub(y2 + markRadius(last) + TT_CAL_AXIS_STUB_GAP, 1);
+        lv_area_t area;
+        lv_obj_get_coords(self->_rows[i], &area);
+        const lv_font_t* font = lv_obj_get_style_text_font(self->_rows[i], LV_PART_MAIN);
+        const int padTop = lv_obj_get_style_pad_top(self->_rows[i], LV_PART_MAIN);
+        todayTop = area.y1 + padTop + glyphInkOffset(font, 0x4ECA, false);
+        break;
+    }
+    int clockBottom = -1;
+    if (self->_clockLabel != nullptr) {
+        lv_area_t area;
+        lv_obj_get_coords(self->_clockLabel, &area);
+        const lv_font_t* font = lv_obj_get_style_text_font(self->_clockLabel, LV_PART_MAIN);
+        clockBottom = area.y1 + glyphInkOffset(font, '0', true);
+    }
+
+    const int topInner = y1 - markRadius(first) - TT_CAL_AXIS_STUB_GAP;
+    const int topOuter = (todayTop >= 0 && todayTop <= topInner)
+        ? todayTop
+        : (topInner - (TT_CAL_AXIS_STUB - 1));
+    drawVDash(layer, &ink, axisX, topOuter, topInner, coords.y1, coords.y2);
+
+    const int bottomInner = y2 + markRadius(last) + TT_CAL_AXIS_STUB_GAP;
+    const int bottomOuter = (clockBottom >= bottomInner)
+        ? clockBottom
+        : (bottomInner + (TT_CAL_AXIS_STUB - 1));
+    drawVDash(layer, &ink, axisX, bottomOuter, bottomInner, coords.y1, coords.y2);
 
     for (uint8_t i = 0; i < self->_visibleSlots; i++) {
         if (self->_slotMark[i] == TT_CAL_MARK_NONE) {

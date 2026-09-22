@@ -1,9 +1,9 @@
 #include "TTTimeService.h"
-#include "Logger.h"
-#include "TTInstance.h"
-#include "TTNotificationCenter.h"
-#include "TTNotificationPayloads.h"
-#include "TTRtc.h"
+#include "../Base/Logger.h"
+#include "../Base/TTInstance.h"
+#include "../Base/TTNotificationCenter.h"
+#include "../Base/TTNotificationPayloads.h"
+#include "../Base/TTRtc.h"
 #include "../Tasks/TTUITask.h"
 
 void TTTimeService::begin() {

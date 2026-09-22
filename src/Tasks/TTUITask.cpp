@@ -9,8 +9,8 @@
 #include "../Base/Logger.h"
 #include "../Base/ErrorCheck.h"
 #include "../Base/TTFontManager.h"
-#include "../Base/TTSleepService.h"
-#include "../Base/TTTimeService.h"
+#include "../Service/TTSleepService.h"
+#include "../Service/TTTimeService.h"
 #include <freertos/FreeRTOS.h>
 #include <freertos/task.h>
 
