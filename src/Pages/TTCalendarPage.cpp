@@ -835,9 +835,10 @@ void TTCalendarPage::showPage() {
         fontEvent = fontDate;
     }
     const int textW = lv_obj_get_width(_list) - TT_CAL_TEXT_X - TT_CAL_PAD;
+    const time_t currentFrom = now + TT_CAL_CURRENT_LEAD_SEC;
     int nextIndex = -1;
     for (uint8_t i = 0; i < _count; i++) {
-        if (_events[i].startUnix > now
+        if ((time_t)_events[i].startUnix > currentFrom
             && (nextIndex < 0 || _events[i].startUnix < _events[nextIndex].startUnix)) {
             nextIndex = (int)i;
         }
@@ -867,7 +868,7 @@ void TTCalendarPage::showPage() {
             _slotMark[slot] = TT_CAL_MARK_NONE;
         } else {
             uint8_t mark = TT_CAL_MARK_SMALL;
-            if (event.startUnix <= now && now < event.endUnix) {
+            if ((time_t)event.startUnix <= currentFrom && now < (time_t)event.endUnix) {
                 mark = TT_CAL_MARK_FILLED;
             } else if ((int)item.eventIndex == nextIndex) {
                 mark = TT_CAL_MARK_HOLLOW;

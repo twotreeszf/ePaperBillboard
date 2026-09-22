@@ -34,6 +34,7 @@
 #define TT_CAL_MARK_CORE       8
 #define TT_CAL_MARK_BORDER     1
 #define TT_CAL_MARK_DY         1
+#define TT_CAL_CURRENT_LEAD_SEC (15 * 60)
 #define TT_CAL_RULE_DASH       3
 #define TT_CAL_RULE_GAP        2
 #define TT_CAL_AXIS_STUB_GAP   2
