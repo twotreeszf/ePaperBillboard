@@ -10,6 +10,7 @@ static const struct {
     { 12, "/fonts/all_12.bin", nullptr },
     { 16, "/fonts/all_16.bin", nullptr },
     { 32, "/fonts/en_32.bin", nullptr },
+    { 40, "/fonts/en_40.bin", nullptr },
     { 48, "/fonts/en_48.bin", nullptr },
     { 120, "/fonts/en_120.bin", nullptr },
 };

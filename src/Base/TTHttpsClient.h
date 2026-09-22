@@ -20,4 +20,14 @@ struct TTHttpsResult {
     size_t bodyLen;
 };
 
+struct TTHttpsRequest {
+    const char* url;
+    const char* method;
+    const char* contentType;
+    const char* body;
+    const char* extraHeaders;
+    size_t bodyMax;
+};
+
 bool tt_https_get_file(const char* url, const char* tmpPath, TTHttpsResult* out);
+bool tt_https_exchange_file(const TTHttpsRequest* request, const char* tmpPath, TTHttpsResult* out);

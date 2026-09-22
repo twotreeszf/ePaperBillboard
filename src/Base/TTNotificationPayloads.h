@@ -3,6 +3,7 @@
 #include <stdint.h>
 
 #include "TTWeatherTypes.h"
+#include "TTCalendarTypes.h"
 
 #define TT_NOTIFICATION_SENSOR_DATA_UPDATE "TTNotify.SensorDataUpdate"
 #define TT_NOTIFICATION_WIFI_STATUS        "TTNotify.WiFiStatus"
@@ -11,6 +12,7 @@
 #define TT_NOTIFICATION_SLEEP_WAKE         "TTNotify.SleepWake"
 #define TT_NOTIFICATION_SLEEP_STATE        "TTNotify.SleepState"
 #define TT_NOTIFICATION_TIME_TICK          "TTNotify.TimeTick"
+#define TT_NOTIFICATION_CALENDAR           "TTNotify.Calendar"
 
 #define TT_WIFI_SSID_MAX   32
 #define TT_WIFI_PASS_MAX   16

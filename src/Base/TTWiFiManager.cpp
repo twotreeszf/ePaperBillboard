@@ -2,6 +2,7 @@
 #include "Logger.h"
 #include "ErrorCheck.h"
 #include "TTInstance.h"
+#include "TTCalendarTypes.h"
 #include "TTPreference.h"
 #include "TTRtc.h"
 #include <ArduinoJson.h>
@@ -440,15 +441,21 @@ void TTWiFiManager::_handleSave() {
     String weatherCity = _server.arg("weather_city");
     String weatherLat = _server.arg("weather_lat");
     String weatherLon = _server.arg("weather_lon");
-    LOG_I("WiFi: portal save args=%d ssid_len=%u tz_len=%u label_len=%u city_len=%u",
+    String calHost = _server.arg("caldav_host");
+    String calUser = _server.arg("caldav_user");
+    String calPass = _server.arg("caldav_pass");
+    LOG_I("WiFi: portal save args=%d ssid_len=%u tz_len=%u label_len=%u city_len=%u cal_host_len=%u",
           _server.args(), (unsigned)ssid.length(), (unsigned)timezone.length(),
-          (unsigned)label.length(), (unsigned)weatherCity.length());
+          (unsigned)label.length(), (unsigned)weatherCity.length(), (unsigned)calHost.length());
     ssid.trim();
     timezone.trim();
     label.trim();
     weatherCity.trim();
     weatherLat.trim();
     weatherLon.trim();
+    calHost.trim();
+    calUser.trim();
+    calPass.trim();
     if (ssid.isEmpty()) {
         _sendSaveResult(400, "保存失败", "Wi-Fi 名称不能为空");
         return;
@@ -468,7 +475,27 @@ void TTWiFiManager::_handleSave() {
         return;
     }
 
+    const bool calAny = !calHost.isEmpty() || !calUser.isEmpty() || !calPass.isEmpty();
+    if (calAny && (calHost.isEmpty() || calUser.isEmpty())) {
+        _sendSaveResult(400, "保存失败", "请填写日历服务器和账号");
+        return;
+    }
+    if (calHost.length() >= TT_CAL_HOST_MAX
+        || calUser.length() >= TT_CAL_USER_MAX
+        || calPass.length() >= TT_CAL_PASS_MAX) {
+        _sendSaveResult(400, "保存失败", "日历配置过长");
+        return;
+    }
+
     auto& pref = TTInstanceOf<TTPreference>();
+    if (calAny && calPass.isEmpty()) {
+        pref.get(PREF_CALDAV_PASS, calPass, String(""));
+    }
+    if (calAny && calPass.isEmpty()) {
+        _sendSaveResult(400, "保存失败", "请填写日历密码");
+        return;
+    }
+
     if (password.isEmpty()) {
         pref.getKv(PREF_WIFI_NETWORKS, ssid.c_str(), password, String(""));
         if (!password.isEmpty()) {
@@ -501,6 +528,19 @@ void TTWiFiManager::_handleSave() {
         pref.set(PREF_WEATHER_LAT, weatherLatVal);
         pref.set(PREF_WEATHER_LON, weatherLonVal);
         LOG_I("Weather: save city=%s lat=%.4f lon=%.4f", weatherCity.c_str(), weatherLatVal, weatherLonVal);
+    }
+
+    if (!calAny) {
+        pref.remove(PREF_CALDAV_HOST);
+        pref.remove(PREF_CALDAV_USER);
+        pref.remove(PREF_CALDAV_PASS);
+        LOG_I("CalDAV: cleared account");
+    } else {
+        pref.set(PREF_CALDAV_HOST, calHost);
+        pref.set(PREF_CALDAV_USER, calUser);
+        pref.set(PREF_CALDAV_PASS, calPass);
+        LOG_I("CalDAV: save host=%s user=%s pass_len=%u",
+              calHost.c_str(), calUser.c_str(), (unsigned)calPass.length());
     }
     pref.sync();
 
@@ -545,8 +585,19 @@ void TTWiFiManager::_handleStatus() {
     if (isfinite(weatherLon)) {
         doc["weather_lon"] = weatherLon;
     }
-    LOG_I("WiFi: status fill ssid=%s password_len=%u tz=%s label=%s city=%s",
-          ssid.c_str(), (unsigned)password.length(), tz, label, weatherCity.c_str());
+
+    String calHost;
+    String calUser;
+    String calPass;
+    pref.get(PREF_CALDAV_HOST, calHost, String(""));
+    pref.get(PREF_CALDAV_USER, calUser, String(""));
+    pref.get(PREF_CALDAV_PASS, calPass, String(""));
+    doc["caldav_host"] = calHost;
+    doc["caldav_user"] = calUser;
+    doc["caldav_pass"] = calPass;
+    LOG_I("WiFi: status fill ssid=%s password_len=%u tz=%s label=%s city=%s cal_host=%s cal_user=%s",
+          ssid.c_str(), (unsigned)password.length(), tz, label, weatherCity.c_str(),
+          calHost.c_str(), calUser.c_str());
     String result;
     serializeJson(doc, result);
     _server.send(200, "application/json", result);
@@ -600,7 +651,7 @@ String TTWiFiManager::_getHTMLContent() {
 <body>
     <div class="box">
         <h2>设备设置</h2>
-        <p class="tip">设置 Wi-Fi、时区和天气地点，点击完成配置后设备将关闭热点并以 STA 模式连接。</p>
+        <p class="tip">设置 Wi-Fi、时区、天气地点和日历账号，点击完成配置后设备将关闭热点并以 STA 模式连接。</p>
         <form method="post" action="/save" onsubmit="return onSubmit()">
             <h3>Wi-Fi</h3>
             <label>名称</label>
@@ -625,6 +676,14 @@ String TTWiFiManager::_getHTMLContent() {
             <input type="text" id="weather_lat" name="weather_lat" placeholder="例如 31.2304" inputmode="decimal">
             <label>经度</label>
             <input type="text" id="weather_lon" name="weather_lon" placeholder="例如 121.4737" inputmode="decimal">
+            <h3>日历</h3>
+            <p class="tip">CalDAV 账号。密码留空则保留已保存的密码。三项都留空则清除日历配置。</p>
+            <label>服务器</label>
+            <input type="text" id="caldav_host" name="caldav_host" placeholder="例如 caldav.feishu.cn" maxlength="47" autocomplete="off">
+            <label>账号</label>
+            <input type="text" id="caldav_user" name="caldav_user" placeholder="CalDAV 用户名" maxlength="31" autocomplete="off">
+            <label>密码</label>
+            <input type="text" id="caldav_pass" name="caldav_pass" placeholder="CalDAV 密码" maxlength="31" autocomplete="off">
             <button type="submit">完成配置</button>
         </form>
     </div>
@@ -719,6 +778,15 @@ String TTWiFiManager::_getHTMLContent() {
             }
             if (status.weather_lon !== undefined && status.weather_lon !== null) {
                 document.getElementById('weather_lon').value = status.weather_lon;
+            }
+            if (status.caldav_host) {
+                document.getElementById('caldav_host').value = status.caldav_host;
+            }
+            if (status.caldav_user) {
+                document.getElementById('caldav_user').value = status.caldav_user;
+            }
+            if (status.caldav_pass) {
+                document.getElementById('caldav_pass').value = status.caldav_pass;
             }
         }
         function onSubmit() {

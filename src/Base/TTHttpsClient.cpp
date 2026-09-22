@@ -125,7 +125,7 @@ bool tlsWriteAll(TTTlsSession* tls, const uint8_t* data, size_t len) {
     return true;
 }
 
-bool writeResponseToFile(TTTlsSession* tls, File& file, size_t* written) {
+bool writeResponseToFile(TTTlsSession* tls, File& file, size_t* written, size_t limit) {
     uint8_t chunk[TT_HTTPS_CHUNK_MAX];
     *written = 0;
     while (true) {
@@ -136,7 +136,7 @@ bool writeResponseToFile(TTTlsSession* tls, File& file, size_t* written) {
                 return false;
             }
             *written += (size_t)ret;
-            if (*written > TT_HTTPS_BODY_MAX + 1024) {
+            if (*written > limit + 1024) {
                 LOG_E("HTTPS: response too large %u", (unsigned)*written);
                 return false;
             }
@@ -198,10 +198,20 @@ bool parseResponseFile(File& file, TTHttpsResult* out) {
 }  // namespace
 
 bool tt_https_get_file(const char* url, const char* tmpPath, TTHttpsResult* out) {
-    if (url == nullptr || tmpPath == nullptr || out == nullptr) {
+    TTHttpsRequest request = {};
+    request.url = url;
+    return tt_https_exchange_file(&request, tmpPath, out);
+}
+
+bool tt_https_exchange_file(const TTHttpsRequest* request, const char* tmpPath, TTHttpsResult* out) {
+    if (request == nullptr || request->url == nullptr || tmpPath == nullptr || out == nullptr) {
         return false;
     }
     memset(out, 0, sizeof(*out));
+    const char* url = request->url;
+    const char* method = (request->method != nullptr && request->method[0] != '\0')
+        ? request->method : "GET";
+    const size_t limit = request->bodyMax > 0 ? request->bodyMax : (size_t)TT_HTTPS_BODY_MAX;
 
     char host[TT_HTTPS_HOST_MAX];
     char path[TT_HTTPS_PATH_MAX];
@@ -245,14 +255,44 @@ bool tt_https_get_file(const char* url, const char* tmpPath, TTHttpsResult* out)
         tt_tls_set_timeout(&tls, (uint32_t)ctx.ioTimeout);
 
         char req[TT_HTTPS_REQ_MAX];
-        const int reqLen = snprintf(req, sizeof(req),
-                                    "GET %s HTTP/1.0\r\nHost: %s\r\nConnection: close\r\n\r\n",
-                                    path, host);
+        const size_t contentLen = request->body != nullptr ? strlen(request->body) : 0;
+        int reqLen = snprintf(req, sizeof(req),
+                              "%s %s HTTP/1.0\r\nHost: %s\r\nConnection: close\r\n",
+                              method, path, host);
+        if (reqLen > 0 && reqLen < (int)sizeof(req)
+            && request->extraHeaders != nullptr && request->extraHeaders[0] != '\0') {
+            const int extra = snprintf(req + reqLen, sizeof(req) - (size_t)reqLen, "%s",
+                                       request->extraHeaders);
+            if (extra < 0 || reqLen + extra >= (int)sizeof(req)) {
+                reqLen = (int)sizeof(req);
+            } else {
+                reqLen += extra;
+            }
+        }
+        if (reqLen > 0 && reqLen < (int)sizeof(req) && contentLen > 0) {
+            const char* type = request->contentType != nullptr ? request->contentType : "application/xml";
+            const int extra = snprintf(req + reqLen, sizeof(req) - (size_t)reqLen,
+                                       "Content-Type: %s\r\nContent-Length: %u\r\n",
+                                       type, (unsigned)contentLen);
+            if (extra < 0 || reqLen + extra >= (int)sizeof(req)) {
+                reqLen = (int)sizeof(req);
+            } else {
+                reqLen += extra;
+            }
+        }
+        if (reqLen > 0 && reqLen + 2 < (int)sizeof(req)) {
+            req[reqLen++] = '\r';
+            req[reqLen++] = '\n';
+            req[reqLen] = '\0';
+        }
         if (reqLen <= 0 || reqLen >= (int)sizeof(req)) {
             LOG_E("HTTPS: request too long");
             break;
         }
         if (!tlsWriteAll(&tls, (const uint8_t*)req, (size_t)reqLen)) {
+            break;
+        }
+        if (contentLen > 0 && !tlsWriteAll(&tls, (const uint8_t*)request->body, contentLen)) {
             break;
         }
 
@@ -261,7 +301,7 @@ bool tt_https_get_file(const char* url, const char* tmpPath, TTHttpsResult* out)
             break;
         }
         size_t written = 0;
-        ok = writeResponseToFile(&tls, file, &written);
+        ok = writeResponseToFile(&tls, file, &written, limit);
         file.flush();
         if (!ok) {
             file.close();
@@ -276,7 +316,7 @@ bool tt_https_get_file(const char* url, const char* tmpPath, TTHttpsResult* out)
         if (!ok) {
             break;
         }
-        if (out->bodyLen > TT_HTTPS_BODY_MAX) {
+        if (out->bodyLen > limit) {
             LOG_E("HTTPS: body too large %u", (unsigned)out->bodyLen);
             ok = false;
             break;

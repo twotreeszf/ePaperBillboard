@@ -326,6 +326,25 @@ void TTNavigationBar::setMetricsVisible(bool visible) {
     LOG_I("NavBar: metrics visible=%d", visible ? 1 : 0);
 }
 
+void TTNavigationBar::setTimeVisible(bool visible) {
+    if (_timeLabel == nullptr) {
+        return;
+    }
+    const bool hidden = lv_obj_has_flag(_timeLabel, LV_OBJ_FLAG_HIDDEN);
+    if (visible == !hidden) {
+        return;
+    }
+    if (visible) {
+        lv_obj_remove_flag(_timeLabel, LV_OBJ_FLAG_HIDDEN);
+    } else {
+        lv_obj_add_flag(_timeLabel, LV_OBJ_FLAG_HIDDEN);
+    }
+    if (_visible && _backBtn != nullptr) {
+        layoutTitle(!lv_obj_has_flag(_backBtn, LV_OBJ_FLAG_HIDDEN));
+    }
+    LOG_I("NavBar: time visible=%d", visible ? 1 : 0);
+}
+
 void TTNavigationBar::hide() {
     if (_bar == nullptr) return;
     lv_obj_add_flag(_bar, LV_OBJ_FLAG_HIDDEN);

@@ -1,6 +1,8 @@
 #include "TTFile.h"
 #include "Logger.h"
 
+#include <sys/stat.h>
+
 File tt_file_open(fs::FS& fs, const char* path, const char* mode) {
     File file;
     if (path == nullptr || mode == nullptr) {
@@ -39,12 +41,20 @@ bool tt_file_open_to(File* out, const char* path, const char* mode) {
 }
 
 void tt_file_remove(fs::FS& fs, const char* path) {
-    if (path == nullptr) {
+    if (path == nullptr || path[0] != '/') {
         return;
     }
-    if (fs.exists(path)) {
-        fs.remove(path);
+    char full[TT_FILE_FULL_PATH_MAX];
+    const int n = snprintf(full, sizeof(full), "%s%s", TT_LITTLEFS_MOUNT, path);
+    if (n <= 0 || (size_t)n >= sizeof(full)) {
+        LOG_E("File: remove path too long %s", path);
+        return;
     }
+    struct stat st;
+    if (stat(full, &st) != 0 || !S_ISREG(st.st_mode)) {
+        return;
+    }
+    fs.remove(path);
 }
 
 void tt_file_remove(const char* path) {

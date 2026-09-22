@@ -28,6 +28,12 @@
       "strokeWidth": 1.5
     },
     {
+      "id": "calendar",
+      "file": "calendar.i1",
+      "size": 48,
+      "strokeWidth": 1.5
+    },
+    {
       "id": "chevron-left",
       "file": "back.i1",
       "size": 14,

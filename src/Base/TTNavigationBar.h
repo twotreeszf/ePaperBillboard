@@ -69,6 +69,7 @@ public:
     void show(const char* title, bool showBack);
     void hide();
     void setMetricsVisible(bool visible);
+    void setTimeVisible(bool visible);
     bool isVisible() const { return _visible; }
     lv_obj_t* getObject() const { return _bar; }
     lv_obj_t* getBackButton() const { return _backBtn; }
