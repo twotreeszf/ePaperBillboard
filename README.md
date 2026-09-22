@@ -1,6 +1,6 @@
 # ESP32 E-Paper Billboard
 
-ESP32-WROOM-32E weather billboard: LVGL 9, custom binary fonts, LittleFS icons, indoor sensors, and Open-Meteo over a small TLS 1.2 client. UI is a page stack with an always-on status bar and E-Paper three-level refresh (partial / full-screen partial / deep full).
+ESP32-WROOM-32E weather and calendar billboard: LVGL 9, custom binary fonts, LittleFS icons, indoor sensors, Open-Meteo, and CalDAV over a small TLS 1.2 client. UI is a page stack with an always-on status bar and E-Paper three-level refresh (partial / full-screen partial / deep full).
 
 **Contents:** [Hardware](#hardware) · [Build & Flash](#build--flash) · [Fonts](#fonts) · [Icons](#icons) · [E-Ink / LVGL](#e-ink-refresh-strategy) · [Software Architecture](#software-architecture) · [Keypad & focus](#keypad--focus)
 
@@ -95,7 +95,8 @@ Custom 8MB table (`partitions_8MB.csv`):
 | Size | File | Role |
 |------|------|------|
 | 10 / 12 / 16 | `all_*.bin` | UI Chinese + ASCII (Source Han Sans CN) |
-| 32 | `en_32.bin` | Clock-mode indoor T/H (Google Sans Code Medium 500) |
+| 32 | `en_32.bin` | Clock-mode indoor T/H; calendar date and weekday (Google Sans Code Medium 500) |
+| 40 | `en_40.bin` | Calendar clock and temperature (Google Sans Code Medium 500) |
 | 48 | `en_48.bin` | Detail-mode temperature (Google Sans Code Medium 500) |
 | 120 | `en_120.bin` | Clock digits `0-9`, space, `-`, `:` (Google Sans Code ExtraBold 800) |
 
@@ -129,6 +130,11 @@ lv_font_conv --font tools/fonts/GoogleSansCode-Medium.ttf --size 32 \
   --bpp 1 --format bin --no-compress \
   --range 0x20-0x7E --range 0x00B0 \
   -o data/fonts/en_32.bin
+
+lv_font_conv --font tools/fonts/GoogleSansCode-Medium.ttf --size 40 \
+  --bpp 1 --format bin --no-compress \
+  --range 0x20-0x7E --range 0x00B0 \
+  -o data/fonts/en_40.bin
 ```
 
 `TTFontLoader` still accepts a main file plus optional ASCII overlay (`begin(path, asciiPath)`); ASCII hits the overlay first. Glyph cache is `TT_FONT_GLYPH_CACHE_MAX` (128). The glyph bitmap buffer is `120×120` for the large clock face.
@@ -145,7 +151,7 @@ On-device icons are uncompressed **TTI1** (`TTI1` + u16le width/height, 1 = whit
 
 | Pipeline | Script | Manifest / notes |
 |----------|--------|------------------|
-| Lucide (home / settings / back) | `tools/icons/slice_lucide_icons.mjs` | `tools/icons/icons.json` |
+| Lucide (weather / calendar / settings / back) | `tools/icons/slice_lucide_icons.mjs` | `tools/icons/icons.json` |
 | Weather Icons (conditions, wind, details) | `tools/icons/slice_weather_icons.mjs` | `tools/icons/weather.json` |
 | Pixel / battery | `tools/icons/slice_battery_icons.mjs`, `slice_pixelart_icons.mjs` | nav status |
 | Material Symbols | clock-mode T/H | `device_thermostat.svg`, `humidity_mid.svg` → `data/icons/weather/temp_32.i1`, `humidity_32.i1` |
@@ -200,35 +206,43 @@ LVGL knobs live in `include/lv_conf.h` (`LV_COLOR_DEPTH 1`, animations off, mono
 ### Pages
 
 ```
-TTHomePage          设置 / 天气
- ├─ TTSettingsPage  Web 设置 / Wi-Fi / NTP 校时
- │   ├─ TTWiFiConfigPage
- │   ├─ TTWiFiStatusPage
- │   └─ TTNtpSyncPage
- └─ TTWeatherPage   detail (default) or clock; left/right wheel switches
+TTHomePage          天气 / 日历 / 设置
+ ├─ TTWeatherPage   detail (default) or clock; left/right wheel switches
+ ├─ TTCalendarPage  left weather/clock, right event timeline
+ └─ TTSettingsPage  Web 设置 / Wi-Fi / NTP 校时
+     ├─ TTWiFiConfigPage
+     ├─ TTWiFiStatusPage
+     └─ TTNtpSyncPage
 ```
 
 **TTWeatherPage**
 
 - Detail: current condition, 5-day forecast, 8 metric cells, 24 h temp/humidity graph (Open-Meteo + AQI).
 - Clock: 120 px `hh:mm` (font colon), indoor T/H from the sensor notification, city/date on the top right.
-- Center long-press force-refreshes weather. Fetch period is `TT_SLEEP_FETCH_PERIOD_MS` (1 hour).
+- Center long-press force-refreshes weather. Fetch wakes at the first second of the next hour (`HH:00:01`).
 
-**TTNavigationBar** (top LVGL layer): back + title, time, indoor T/H/P, Wi-Fi, battery. Page content height is `EPD_HEIGHT - TT_NAV_PAGE_INSET`.
+**TTCalendarPage**
+
+- Left column: condition icon, temperature (`en_40`), condition text, feels-like, date and weekday (`en_32`), clock (`en_40`). The nav-bar clock is hidden on this page.
+- Right column: CalDAV events on a vertical timeline. Today’s header reads 今天; other days keep 月日 and weekday. Left/right page through the loaded window. The last page’s right click loads the next 7 days and shows the loading popup.
+- Center long-press clears the list, shows 正在刷新, and refetches weather and calendar. The same idle-sleep and `HH:00:01` fetch wake updates both.
+
+**TTNavigationBar** (top LVGL layer): back + title, time, indoor T/H/P, Wi-Fi, battery. Page content height is `EPD_HEIGHT - TT_NAV_PAGE_INSET`. `setTimeVisible(false)` hides only the clock.
 
 **TTPopupLayer**: toast, loading (shown while pushing a page), dialog with its own keypad group.
 
 ### Network, time, sleep
 
-- **TTHttpsClient** / **TTTlsClient** / **TTTlsCrypto**: TLS 1.2 (X25519, AES-128-GCM, `VERIFY_NONE`). Handshake and records use LittleFS temp files so the WROOM stays off mbedTLS. Weather stays on HTTPS.
+- **TTHttpsClient** / **TTTlsClient** / **TTTlsCrypto**: TLS 1.2 (X25519, AES-128-GCM, `VERIFY_NONE`). Handshake and records use LittleFS temp files so the WROOM stays off mbedTLS. `tt_https_get_file` is GET; `tt_https_exchange_file` adds method, headers, and body for CalDAV. Weather and calendar stay on HTTPS.
 - **TTWeatherService**: `api.open-meteo.com` + `air-quality-api.open-meteo.com`. Location prefs: `weather_city`, `weather_lat`, `weather_lon`.
+- **TTCalendarService**: CalDAV (`PROPFIND` / `calendar-query` / `calendar-multiget`). Account prefs: `caldav_host`, `caldav_user`, `caldav_pass`, entered on the setup portal. Up to `TT_CAL_EVENT_MAX` (40) events, `TT_CAL_FETCH_DAYS` (7) per request.
 - **TTRtc**: DS3231 if present, else ESP time; NTP `ntp.aliyun.com` / `pool.ntp.org`.
-- **TTTimeService**: posts `TT_NOTIFICATION_TIME_TICK` on the minute for clocks and the nav bar.
-- **TTSleepService**: light sleep after `TT_SLEEP_INPUT_IDLE_MS` (10 s) when a page requests it; wake on keypad, fetch deadline, or time. UART pins are floated in sleep.
+- **TTTimeService**: posts `TT_NOTIFICATION_TIME_TICK` on the minute for clocks and the nav bar. The tick is local `HH:MM:01` (`TT_RTC_MINUTE_TICK_SEC`).
+- **TTSleepService**: light sleep after `TT_SLEEP_INPUT_IDLE_MS` (5 s) when a page requests it; wake on keypad, fetch deadline, or time. The fetch deadline is the first second of the next hour (`HH:00:01`). UART pins are floated in sleep.
 
 ### Storage
 
-- **TTPreference**: named key-value map persisted as JSON (Wi-Fi networks, timezone, weather location).
+- **TTPreference**: named key-value map persisted as JSON (Wi-Fi networks, timezone, weather location, CalDAV account).
 - **TTFile**: LittleFS helpers used by fonts, icons, and TLS/HTTPS scratch files.
 
 ### Notifications (`TTNotificationPayloads.h`)
@@ -239,12 +253,13 @@ TTHomePage          设置 / 天气
 | `TT_NOTIFICATION_WIFI_STATUS` | link / AP / portal |
 | `TT_NOTIFICATION_TIME_SYNC` | NTP / timezone portal |
 | `TT_NOTIFICATION_WEATHER` | forecast / AQI / status |
+| `TT_NOTIFICATION_CALENDAR` | CalDAV events / status |
 | `TT_NOTIFICATION_SLEEP_WAKE` | why sleep ended |
 | `TT_NOTIFICATION_TIME_TICK` | minute tick |
 
 ## Keypad & focus
 
-**TTKeypadInput** is an LVGL keypad indev. Left/Right click first call `ITTScreenPage::handleKeyAction`. If the page returns true (weather mode switch when content is shown), LVGL focus is not moved. Otherwise Left/Right emit `LV_KEY_PREV` / `LV_KEY_NEXT`. Center click is Enter; Center long-press is page-registered (weather force refresh). Left long-press pops the stack.
+**TTKeypadInput** is an LVGL keypad indev. Left/Right click first call `ITTScreenPage::handleKeyAction`. If the page returns true (weather mode switch, or calendar paging), LVGL focus is not moved. Otherwise Left/Right emit `LV_KEY_PREV` / `LV_KEY_NEXT`. Center click is Enter; Center long-press is page-registered (weather and calendar force refresh). Left long-press pops the stack.
 
 | Button | GPIO | Default |
 |--------|------|---------|

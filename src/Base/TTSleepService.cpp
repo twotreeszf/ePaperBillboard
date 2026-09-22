@@ -97,7 +97,11 @@ void TTSleepService::tryEnter() {
         return;
     }
 
-    const time_t deadline = TTInstanceOf<TTRtc>().nextMinuteTick();
+    time_t deadline = TTInstanceOf<TTRtc>().nextMinuteTick();
+    const time_t now = time(nullptr);
+    if (_nextFetchUnix > now && (deadline <= now || _nextFetchUnix < deadline)) {
+        deadline = _nextFetchUnix;
+    }
     const uint64_t sleepUs = sleepUsUntil(deadline);
     if (sleepUs < TT_SLEEP_MIN_US) {
         LOG_W("Sleep: skip, window %.1f s", sleepUs / 1000000.0);
@@ -272,8 +276,20 @@ void TTSleepService::refreshFetchDeadline() {
         _nextFetchUnix = 0;
         return;
     }
-    _nextFetchUnix = now + (time_t)(TT_SLEEP_FETCH_PERIOD_MS / 1000u);
-    LOG_I("Sleep: next fetch unix=%ld", (long)_nextFetchUnix);
+    struct tm t;
+    memset(&t, 0, sizeof(t));
+    localtime_r(&now, &t);
+    t.tm_min = 0;
+    t.tm_sec = TT_RTC_MINUTE_TICK_SEC;
+    t.tm_hour += 1;
+    time_t next = mktime(&t);
+    if (next <= now) {
+        next += 3600;
+    }
+    _nextFetchUnix = next;
+    char untilText[TT_SLEEP_WALL_TEXT_MAX];
+    tt_sleep_format_wall(next, untilText, sizeof(untilText));
+    LOG_I("Sleep: next fetch at %s", untilText[0] != '\0' ? untilText : "?");
 }
 
 void TTSleepService::publishWake(TTSleepWakeReason reason) {

@@ -857,8 +857,13 @@ void TTCalendarPage::showPage() {
         struct tm local = {};
         sameDay(event.startUnix, nullptr, nullptr, &local);
         if (item.kind == TT_CAL_ROW_DAY) {
-            snprintf(text, sizeof(text), "%d月%d日 %s", local.tm_mon + 1, local.tm_mday,
-                     kWeekdays[local.tm_wday]);
+            const bool headerToday = local.tm_year == today.tm_year && local.tm_yday == today.tm_yday;
+            if (headerToday) {
+                snprintf(text, sizeof(text), "今天");
+            } else {
+                snprintf(text, sizeof(text), "%d月%d日 %s", local.tm_mon + 1, local.tm_mday,
+                         kWeekdays[local.tm_wday]);
+            }
             _slotMark[slot] = TT_CAL_MARK_NONE;
         } else {
             uint8_t mark = TT_CAL_MARK_SMALL;
