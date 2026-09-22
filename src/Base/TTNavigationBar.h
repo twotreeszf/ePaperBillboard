@@ -83,6 +83,7 @@ private:
     void applySensor(const TTSensorDataPayload& data);
     void applySleepState(const TTSleepStatePayload& state);
     bool updateTime();
+    void applyStatusVisibility();
     void requestRedraw();
     void layoutTitle(bool showBack);
     void createWifiStatus(lv_obj_t* parent);
@@ -112,6 +113,8 @@ private:
     lv_obj_t* _batteryLabel = nullptr;
     TTWiFiLinkState _wifiState = TT_WIFI_LINK_IDLE;
     int _lastMinute = -1;
+    bool _metricsAllowed = true;
+    bool _timeAllowed = true;
     bool _hasSensor = false;
     float _temperature = 0.0f;
     float _humidity = 0.0f;

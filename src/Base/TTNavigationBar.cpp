@@ -119,13 +119,14 @@ void TTNavigationBar::beginStatus(lv_font_t* font) {
     lv_obj_remove_flag(_statusRow, LV_OBJ_FLAG_SCROLLABLE);
 
     createWifiStatus(_statusRow);
-    _tempLabel = createSensorItem(_statusRow, font, TT_NAV_ICON_TEMP, TT_NAV_TEMP_ICON_W, "--.-℃",
+    _tempLabel = createSensorItem(_statusRow, font, TT_NAV_ICON_TEMP, TT_NAV_TEMP_ICON_W, "",
                                   TT_NAV_TEMP_PREFIX, TT_NAV_TEMP_ICON_Y);
-    _humLabel = createSensorItem(_statusRow, font, TT_NAV_ICON_HUM, TT_NAV_HUM_ICON_W, "--%");
-    _pressLabel = createSensorItem(_statusRow, font, TT_NAV_ICON_PRESS, TT_NAV_PRESS_ICON_W, "----p");
-    _timeLabel = createValue(_statusRow, font, "--:--");
+    _humLabel = createSensorItem(_statusRow, font, TT_NAV_ICON_HUM, TT_NAV_HUM_ICON_W, "");
+    _pressLabel = createSensorItem(_statusRow, font, TT_NAV_ICON_PRESS, TT_NAV_PRESS_ICON_W, "");
+    _timeLabel = createValue(_statusRow, font, "");
     createSleepStatus(_statusRow);
     createBatteryStatus(_statusRow, font);
+    applyStatusVisibility();
 }
 
 void TTNavigationBar::createWifiStatus(lv_obj_t* parent) {
@@ -196,7 +197,7 @@ void TTNavigationBar::createBatteryStatus(lv_obj_t* parent, lv_font_t* font) {
     lv_obj_set_style_pad_all(_batteryIcon, 0, 0);
     lv_obj_set_style_translate_y(_batteryIcon, TT_NAV_SENSOR_ICON_Y, 0);
 
-    _batteryLabel = createValue(group, font, "--%");
+    _batteryLabel = createValue(group, font, "");
     lv_obj_set_style_pad_all(_batteryLabel, 0, 0);
     lv_obj_set_height(_batteryLabel, lv_font_get_line_height(font));
 }
@@ -294,55 +295,56 @@ void TTNavigationBar::layoutTitle(bool showBack) {
     }
 }
 
-void TTNavigationBar::setMetricsVisible(bool visible) {
-    lv_obj_t* items[] = {
-        _tempLabel != nullptr ? lv_obj_get_parent(_tempLabel) : nullptr,
-        _humLabel != nullptr ? lv_obj_get_parent(_humLabel) : nullptr,
-        _timeLabel
-    };
-    bool changed = false;
-    for (size_t i = 0; i < sizeof(items) / sizeof(items[0]); i++) {
-        lv_obj_t* item = items[i];
-        if (item == nullptr) {
-            continue;
-        }
-        const bool hidden = lv_obj_has_flag(item, LV_OBJ_FLAG_HIDDEN);
-        if (visible == !hidden) {
-            continue;
-        }
-        if (visible) {
-            lv_obj_remove_flag(item, LV_OBJ_FLAG_HIDDEN);
-        } else {
-            lv_obj_add_flag(item, LV_OBJ_FLAG_HIDDEN);
-        }
-        changed = true;
+namespace {
+
+bool setHidden(lv_obj_t* obj, bool hidden) {
+    if (obj == nullptr) {
+        return false;
     }
-    if (!changed) {
+    const bool wasHidden = lv_obj_has_flag(obj, LV_OBJ_FLAG_HIDDEN);
+    if (wasHidden == hidden) {
+        return false;
+    }
+    if (hidden) {
+        lv_obj_add_flag(obj, LV_OBJ_FLAG_HIDDEN);
+    } else {
+        lv_obj_remove_flag(obj, LV_OBJ_FLAG_HIDDEN);
+    }
+    return true;
+}
+
+}
+
+void TTNavigationBar::setMetricsVisible(bool visible) {
+    if (_metricsAllowed == visible) {
         return;
     }
-    if (_visible && _backBtn != nullptr) {
-        layoutTitle(!lv_obj_has_flag(_backBtn, LV_OBJ_FLAG_HIDDEN));
-    }
+    _metricsAllowed = visible;
+    applyStatusVisibility();
     LOG_I("NavBar: metrics visible=%d", visible ? 1 : 0);
 }
 
 void TTNavigationBar::setTimeVisible(bool visible) {
-    if (_timeLabel == nullptr) {
+    if (_timeAllowed == visible) {
         return;
     }
-    const bool hidden = lv_obj_has_flag(_timeLabel, LV_OBJ_FLAG_HIDDEN);
-    if (visible == !hidden) {
-        return;
-    }
-    if (visible) {
-        lv_obj_remove_flag(_timeLabel, LV_OBJ_FLAG_HIDDEN);
-    } else {
-        lv_obj_add_flag(_timeLabel, LV_OBJ_FLAG_HIDDEN);
-    }
-    if (_visible && _backBtn != nullptr) {
+    _timeAllowed = visible;
+    applyStatusVisibility();
+    LOG_I("NavBar: time visible=%d", visible ? 1 : 0);
+}
+
+void TTNavigationBar::applyStatusVisibility() {
+    bool changed = false;
+    const bool showIndoor = _metricsAllowed && _hasSensor;
+    changed |= setHidden(_tempLabel != nullptr ? lv_obj_get_parent(_tempLabel) : nullptr, !showIndoor);
+    changed |= setHidden(_humLabel != nullptr ? lv_obj_get_parent(_humLabel) : nullptr, !showIndoor);
+    changed |= setHidden(_pressLabel != nullptr ? lv_obj_get_parent(_pressLabel) : nullptr, !_hasSensor);
+    changed |= setHidden(_batteryLabel != nullptr ? lv_obj_get_parent(_batteryLabel) : nullptr, !_hasSensor);
+    const bool showTime = _timeAllowed && _metricsAllowed && _lastMinute >= 0;
+    changed |= setHidden(_timeLabel, !showTime);
+    if (changed && _visible && _backBtn != nullptr) {
         layoutTitle(!lv_obj_has_flag(_backBtn, LV_OBJ_FLAG_HIDDEN));
     }
-    LOG_I("NavBar: time visible=%d", visible ? 1 : 0);
 }
 
 void TTNavigationBar::hide() {
@@ -441,6 +443,7 @@ void TTNavigationBar::applySensor(const TTSensorDataPayload& data) {
     LOG_I("NavBar: sensor T=%.1f H=%.1f P=%.0f bat=%dmV %u%% usb=%d charging=%d",
           _temperature, _humidity, _pressure,
           _batteryMv, (unsigned)_batteryPercent, _batteryUsb ? 1 : 0, _batteryCharging ? 1 : 0);
+    applyStatusVisibility();
     if (_visible) {
         layoutTitle(!lv_obj_has_flag(_backBtn, LV_OBJ_FLAG_HIDDEN));
     }
@@ -489,7 +492,8 @@ bool TTNavigationBar::updateTime() {
     if (!TTInstanceOf<TTRtc>().getLocalTime(t)) {
         if (_lastMinute != -2) {
             _lastMinute = -2;
-            lv_label_set_text(_timeLabel, "--:--");
+            lv_label_set_text(_timeLabel, "");
+            applyStatusVisibility();
             LOG_I("NavBar: time invalid");
             return true;
         }
@@ -504,6 +508,7 @@ bool TTNavigationBar::updateTime() {
     char text[20];
     snprintf(text, sizeof(text), "%02d:%02d", t.tm_hour, t.tm_min);
     lv_label_set_text(_timeLabel, text);
+    applyStatusVisibility();
     LOG_I("NavBar: time %s", text);
     return true;
 }
