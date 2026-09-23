@@ -122,6 +122,7 @@ void TTPopupLayer::showLoading(const char* text) {
     lv_obj_set_style_max_width(_loadingLabel, TT_POPUP_LOADING_TEXT_W, 0);
     lv_label_set_text(_loadingLabel, (text != nullptr && text[0] != '\0') ? text : "加载中...");
     lv_obj_set_style_text_align(_loadingLabel, LV_TEXT_ALIGN_CENTER, 0);
+    lv_obj_set_style_text_line_space(_loadingLabel, TT_POPUP_LOADING_LINE_SPACE, 0);
     lv_obj_set_style_text_color(_loadingLabel, lv_color_black(), 0);
     lv_font_t* font = TTFontManager::instance().getFont(12);
     if (font != nullptr) {

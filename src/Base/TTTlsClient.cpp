@@ -38,6 +38,12 @@ bool timeLeft(const TTTlsSession* s) {
     return (int32_t)(s->deadline - millis()) > 0;
 }
 
+void noteIoProgress(TTTlsSession* s) {
+    if (s->ioTimeoutMs > 0) {
+        s->deadline = millis() + s->ioTimeoutMs;
+    }
+}
+
 bool waitReadable(int fd, uint32_t deadline) {
     while (true) {
         const int32_t left = (int32_t)(deadline - millis());
@@ -871,6 +877,7 @@ bool tt_tls_handshake(TTTlsSession* session, int socket, const char* sni, uint32
 
 void tt_tls_set_timeout(TTTlsSession* session, uint32_t timeoutMs) {
     if (session != nullptr) {
+        session->ioTimeoutMs = timeoutMs;
         session->deadline = millis() + timeoutMs;
     }
 }
@@ -899,9 +906,11 @@ int tt_tls_read(TTTlsSession* session, uint8_t* data, size_t len) {
         memcpy(data, session->leftover + session->leftoverOff, take);
         session->leftoverOff += take;
         session->leftoverLen -= take;
+        noteIoProgress(session);
         return (int)take;
     }
     if (session->plainFileLen > 0) {
+        noteIoProgress(session);
         return readPlainFile(session, data, len);
     }
 
@@ -948,6 +957,7 @@ int tt_tls_read(TTTlsSession* session, uint8_t* data, size_t len) {
             }
             recFile.close();
         }
+        noteIoProgress(session);
 
         if (type == 21) {
             uint8_t alert[2] = {0, 0};

@@ -21,6 +21,7 @@
 struct TTTlsSession {
     int socket;
     uint32_t deadline;
+    uint32_t ioTimeoutMs;
     uint8_t clientRandom[32];
     uint8_t serverRandom[32];
     uint8_t serverPub[TT_X25519_LEN];
