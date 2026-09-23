@@ -15,7 +15,7 @@
 #define TT_NOTIFICATION_CALENDAR           "TTNotify.Calendar"
 #define TT_NOTIFICATION_OTA                "TTNotify.Ota"
 
-#define TT_OTA_MSG_MAX     96
+#define TT_OTA_MSG_MAX     192
 
 #define TT_WIFI_SSID_MAX   32
 #define TT_WIFI_PASS_MAX   16

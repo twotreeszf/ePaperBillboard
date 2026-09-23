@@ -61,6 +61,16 @@ void postOta(TTOtaPhase phase, const char* version, const char* message) {
     TTInstanceOf<TTUITask>().postNotification(TT_NOTIFICATION_OTA, payload);
 }
 
+void postUpdating(TTOtaPhase phase, const char* detail) {
+    char message[TT_OTA_MSG_MAX];
+    if (detail != nullptr && detail[0] != '\0') {
+        snprintf(message, sizeof(message), TT_OTA_UPDATING_HINT "\n%s", detail);
+    } else {
+        snprintf(message, sizeof(message), "%s", TT_OTA_UPDATING_HINT);
+    }
+    postOta(phase, nullptr, message);
+}
+
 void hexEncode(const uint8_t* in, size_t len, char* out, size_t outLen) {
     static const char* kHex = "0123456789abcdef";
     size_t n = 0;
@@ -250,45 +260,6 @@ bool ensureParent(const char* filePath) {
     return true;
 }
 
-bool sha256File(const char* path, char* hex, size_t hexLen) {
-    if (!tt_file_exists(path)) {
-        return false;
-    }
-    File file = tt_file_open(path, "r");
-    if (!file) {
-        return false;
-    }
-    mbedtls_sha256_context ctx;
-    mbedtls_sha256_init(&ctx);
-    if (mbedtls_sha256_starts_ret(&ctx, 0) != 0) {
-        mbedtls_sha256_free(&ctx);
-        file.close();
-        return false;
-    }
-    uint8_t buf[512];
-    while (file.available()) {
-        size_t n = file.readBytes((char*)buf, sizeof(buf));
-        if (n == 0) {
-            break;
-        }
-        if (mbedtls_sha256_update_ret(&ctx, buf, n) != 0) {
-            mbedtls_sha256_free(&ctx);
-            file.close();
-            return false;
-        }
-        yield();
-    }
-    file.close();
-    uint8_t dig[32];
-    if (mbedtls_sha256_finish_ret(&ctx, dig) != 0) {
-        mbedtls_sha256_free(&ctx);
-        return false;
-    }
-    mbedtls_sha256_free(&ctx);
-    hexEncode(dig, sizeof(dig), hex, hexLen);
-    return hex[0] != '\0';
-}
-
 bool finishHash(TTOtaWriteCtx* writer, const char* expect) {
     if (!writer->shaOn) {
         return false;
@@ -362,21 +333,21 @@ void reportWriteProgress(TTOtaWriteCtx* writer) {
     }
     writer->lastPercent = (uint8_t)percent;
     writer->lastProgressMs = millis();
-    char message[TT_OTA_MSG_MAX];
+    char detailText[TT_OTA_MSG_MAX];
     if (writer->useUpdate) {
-        snprintf(message, sizeof(message), "写入固件\n%u%%", percent);
+        snprintf(detailText, sizeof(detailText), "写入固件\n%u%%", percent);
     } else if (detail) {
         char name[TT_OTA_PROGRESS_NAME];
         copyProgressName(writer->path, name, sizeof(name));
-        snprintf(message, sizeof(message), "更新 %u/%u\n%s\n%u%%",
+        snprintf(detailText, sizeof(detailText), "更新 %u/%u\n%s\n%u%%",
                  (unsigned)writer->fileIndex, (unsigned)writer->fileTotal, name, percent);
     } else {
         char name[TT_OTA_PROGRESS_NAME];
         copyProgressName(writer->path, name, sizeof(name));
-        snprintf(message, sizeof(message), "更新 %u/%u\n%s",
+        snprintf(detailText, sizeof(detailText), "更新 %u/%u\n%s",
                  (unsigned)writer->fileIndex, (unsigned)writer->fileTotal, name);
     }
-    postOta(TT_OTA_PHASE_PROGRESS, nullptr, message);
+    postUpdating(TT_OTA_PHASE_PROGRESS, detailText);
 }
 
 bool otaWriteBody(void* ctx, const uint8_t* data, size_t len) {
@@ -421,6 +392,24 @@ bool otaWriteBody(void* ctx, const uint8_t* data, size_t len) {
     reportWriteProgress(writer);
     yield();
     return true;
+}
+
+bool emitEntry(const char* entryPath, const char* sha, bool truncated,
+               bool haveSize, uint32_t size, TTOtaEntryFn fn, void* ctx) {
+    if (truncated || strlen(sha) != TT_OTA_SHA_HEX || !haveSize || size > TT_OTA_FW_MAX) {
+        LOG_E("OTA: bad file entry %s", entryPath);
+        return false;
+    }
+    TTOtaEntry entry = {};
+    strncpy(entry.remote, entryPath, sizeof(entry.remote) - 1);
+    strncpy(entry.sha, sha, sizeof(entry.sha) - 1);
+    entry.size = size;
+    entry.firmware = isFirmwarePath(entryPath);
+    if (!entry.firmware && strstr(entryPath, "/res/") == nullptr) {
+        LOG_E("OTA: unknown path %s", entryPath);
+        return false;
+    }
+    return fn == nullptr || fn(&entry, ctx);
 }
 
 bool readManifest(const char* path, size_t offset, size_t bodyLen, TTOtaDoc* doc,
@@ -477,13 +466,13 @@ bool readManifest(const char* path, size_t offset, size_t bodyLen, TTOtaDoc* doc
             sawNotes = true;
             continue;
         }
-        if (jsonQuoted(line, "\"path\"", entryPath, sizeof(entryPath), &truncated)) {
+        if (strstr(line, "\"path\"") != nullptr) {
             if (havePath) {
-                LOG_E("OTA: manifest entry missing sha");
+                LOG_E("OTA: manifest entry missing sha %s", entryPath);
                 file.close();
                 return false;
             }
-            if (truncated) {
+            if (!jsonQuoted(line, "\"path\"", entryPath, sizeof(entryPath), &truncated) || truncated) {
                 LOG_E("OTA: path too long");
                 file.close();
                 return false;
@@ -492,9 +481,22 @@ bool readManifest(const char* path, size_t offset, size_t bodyLen, TTOtaDoc* doc
             haveSize = false;
             sha[0] = '\0';
             size = 0;
-            skipEntry = isPackedManifest(entryPath);
-            if (skipEntry) {
+            if (isPackedManifest(entryPath)) {
                 havePath = false;
+                skipEntry = strstr(line, "\"sha256\"") == nullptr;
+                continue;
+            }
+            if (jsonUint(line, "\"size\"", &size)) {
+                haveSize = true;
+            }
+            if (strstr(line, "\"sha256\"") != nullptr) {
+                bool shaCut = false;
+                jsonQuoted(line, "\"sha256\"", sha, sizeof(sha), &shaCut);
+                havePath = false;
+                if (!emitEntry(entryPath, sha, shaCut, haveSize, size, fn, ctx)) {
+                    file.close();
+                    return false;
+                }
             }
             continue;
         }
@@ -511,23 +513,8 @@ bool readManifest(const char* path, size_t offset, size_t bodyLen, TTOtaDoc* doc
         if (!havePath || !jsonQuoted(line, "\"sha256\"", sha, sizeof(sha), &truncated)) {
             continue;
         }
-        if (truncated || strlen(sha) != TT_OTA_SHA_HEX || !haveSize || size > TT_OTA_FW_MAX) {
-            LOG_E("OTA: bad file entry %s", entryPath);
-            file.close();
-            return false;
-        }
-        TTOtaEntry entry = {};
-        strncpy(entry.remote, entryPath, sizeof(entry.remote) - 1);
-        strncpy(entry.sha, sha, sizeof(entry.sha) - 1);
-        entry.size = size;
-        entry.firmware = isFirmwarePath(entryPath);
-        if (!entry.firmware && strstr(entryPath, "/res/") == nullptr) {
-            LOG_E("OTA: unknown path %s", entryPath);
-            file.close();
-            return false;
-        }
         havePath = false;
-        if (fn != nullptr && !fn(&entry, ctx)) {
+        if (!emitEntry(entryPath, sha, truncated, haveSize, size, fn, ctx)) {
             file.close();
             return false;
         }
@@ -800,11 +787,83 @@ bool applyDeleteList() {
     return ok;
 }
 
+struct TTOtaListedSha {
+    const char* resPath;
+    const char* sha;
+    bool match;
+};
+
+bool onListedSha(const TTOtaEntry* entry, void* ctx) {
+    TTOtaListedSha* listed = static_cast<TTOtaListedSha*>(ctx);
+    if (entry->firmware || listed->match) {
+        return true;
+    }
+    char local[TT_FILE_FULL_PATH_MAX];
+    if (!resLocalPath(entry->remote, local, sizeof(local))) {
+        return true;
+    }
+    if (strcmp(local, listed->resPath) == 0 && strcasecmp(entry->sha, listed->sha) == 0) {
+        listed->match = true;
+    }
+    return true;
+}
+
+bool manifestResourceSame(const char* resPath, const char* sha) {
+    if (!tt_file_exists(TT_OTA_LOCAL_MANIFEST)) {
+        return false;
+    }
+    File file = tt_file_open(TT_OTA_LOCAL_MANIFEST, "r");
+    if (!file) {
+        return false;
+    }
+    const size_t len = file.size();
+    file.close();
+    TTOtaListedSha listed = {};
+    listed.resPath = resPath;
+    listed.sha = sha;
+    return readManifest(TT_OTA_LOCAL_MANIFEST, 0, len, nullptr, onListedSha, &listed)
+        && listed.match;
+}
+
 struct TTOtaScan {
     size_t replaceCount;
     size_t firmwareCount;
+    size_t resourceTotal;
+    size_t resourceIndex;
+    uint32_t lastProgressMs;
+    uint8_t lastPercent;
     TTOtaEntry firmware;
 };
+
+bool onCountResource(const TTOtaEntry* entry, void* ctx) {
+    if (!entry->firmware) {
+        *static_cast<size_t*>(ctx) += 1;
+    }
+    return true;
+}
+
+void reportCompareProgress(TTOtaScan* scan) {
+    if (scan->resourceTotal == 0 || scan->resourceIndex == 0) {
+        return;
+    }
+    unsigned percent = (unsigned)((scan->resourceIndex * 100) / scan->resourceTotal);
+    if (percent > 100) {
+        percent = 100;
+    }
+    const bool first = scan->resourceIndex == 1;
+    const bool last = scan->resourceIndex == scan->resourceTotal;
+    if (!first && !last && scan->lastPercent != 255
+        && percent < (unsigned)scan->lastPercent + TT_OTA_PROGRESS_PERCENT) {
+        return;
+    }
+    scan->lastPercent = (uint8_t)percent;
+    scan->lastProgressMs = millis();
+    char detail[48];
+    snprintf(detail, sizeof(detail), "正在比对资源\n%u/%u",
+             (unsigned)scan->resourceIndex, (unsigned)scan->resourceTotal);
+    LOG_I("OTA: compare manifest %u/%u", (unsigned)scan->resourceIndex, (unsigned)scan->resourceTotal);
+    postUpdating(TT_OTA_PHASE_PROGRESS, detail);
+}
 
 bool onScanEntry(const TTOtaEntry* entry, void* ctx) {
     TTOtaScan* scan = static_cast<TTOtaScan*>(ctx);
@@ -820,11 +879,12 @@ bool onScanEntry(const TTOtaEntry* entry, void* ctx) {
         LOG_E("OTA: bad res path %s", entry->remote);
         return false;
     }
-    char hex[TT_OTA_SHA_HEX + 1];
-    if (!sha256File(local, hex, sizeof(hex)) || strcasecmp(hex, entry->sha) != 0) {
+    if (!manifestResourceSame(local, entry->sha)) {
         scan->replaceCount++;
-        LOG_I("OTA: need replace %s", local);
+        LOG_I("OTA: manifest differs %s", local);
     }
+    scan->resourceIndex++;
+    reportCompareProgress(scan);
     return true;
 }
 
@@ -844,8 +904,7 @@ bool onFetchEntry(const TTOtaEntry* entry, void* ctx) {
     if (!resLocalPath(entry->remote, local, sizeof(local))) {
         return false;
     }
-    char hex[TT_OTA_SHA_HEX + 1];
-    if (sha256File(local, hex, sizeof(hex)) && strcasecmp(hex, entry->sha) == 0) {
+    if (manifestResourceSame(local, entry->sha)) {
         return true;
     }
     TTOtaFetch* fetch = static_cast<TTOtaFetch*>(ctx);
@@ -1017,25 +1076,35 @@ void TTOtaService::checkNow() {
         return;
     }
     char message[TT_OTA_MSG_MAX];
-    if (!sameFw) {
-        snprintf(message, sizeof(message), "发现新版本 %s", doc.version);
-    } else {
-        snprintf(message, sizeof(message), "需要同步资源");
-    }
-    if (doc.notes[0] != '\0' && strlen(doc.notes) <= 36) {
+    snprintf(message, sizeof(message), "发现新版本 %s", doc.version);
+    const char* ask = "\n是否更新？";
+    const size_t askLen = strlen(ask);
+    if (doc.notes[0] != '\0' && askLen < sizeof(message)) {
         const size_t used = strlen(message);
-        if (used + 2 < sizeof(message)) {
+        const size_t room = sizeof(message) - 1 - askLen;
+        if (used + 1 < room) {
             message[used] = '\n';
-            strncpy(message + used + 1, doc.notes, sizeof(message) - used - 2);
-            message[sizeof(message) - 1] = '\0';
+            strncpy(message + used + 1, doc.notes, room - used - 1);
+            message[room] = '\0';
         }
+    }
+    const size_t used = strlen(message);
+    if (used + askLen < sizeof(message)) {
+        memcpy(message + used, ask, askLen + 1);
     }
     postOta(TT_OTA_PHASE_AVAILABLE, doc.version, message);
     tt_file_remove(TT_OTA_REMOTE_MANIFEST);
 }
 
+void rebootAfterOta() {
+    LOG_I("OTA: reboot");
+    postUpdating(TT_OTA_PHASE_REBOOT, "正在重启");
+    delay(300);
+    ESP.restart();
+}
+
 void TTOtaService::upgradeNow() {
-    postOta(TT_OTA_PHASE_PROGRESS, nullptr, "正在下载清单");
+    postUpdating(TT_OTA_PHASE_PROGRESS, "正在下载清单");
     TTOtaDoc doc = {};
     if (!downloadManifest(&doc)) {
         postOta(TT_OTA_PHASE_FAILED, nullptr, "清单下载失败");
@@ -1051,8 +1120,16 @@ void TTOtaService::upgradeNow() {
         return;
     }
 
-    postOta(TT_OTA_PHASE_PROGRESS, doc.version, "正在比对资源");
+    size_t resourceTotal = 0;
+    if (!readManifest(TT_OTA_REMOTE_MANIFEST, doc.bodyOffset, doc.bodyLen, nullptr, onCountResource, &resourceTotal)) {
+        postOta(TT_OTA_PHASE_FAILED, nullptr, "资源比对失败");
+        tt_file_remove(TT_OTA_REMOTE_MANIFEST);
+        return;
+    }
     TTOtaScan scan = {};
+    scan.resourceTotal = resourceTotal;
+    scan.lastPercent = 255;
+    LOG_I("OTA: compare manifests resources=%u", (unsigned)resourceTotal);
     if (!readManifest(TT_OTA_REMOTE_MANIFEST, doc.bodyOffset, doc.bodyLen, nullptr, onScanEntry, &scan)
         || scan.firmwareCount != 1) {
         LOG_E("OTA: firmware entries=%u", (unsigned)scan.firmwareCount);
@@ -1106,11 +1183,12 @@ void TTOtaService::upgradeNow() {
         const bool copied = stagedLen > 0
             && copyRange(TT_OTA_STAGED_MANIFEST, 0, stagedLen, TT_OTA_LOCAL_MANIFEST);
         if (!deleted || !copied) {
-            postOta(TT_OTA_PHASE_FAILED, nullptr, "重启后继续清理");
+            LOG_E("OTA: resource apply incomplete, reboot to continue");
+            rebootAfterOta();
             return;
         }
         discardPending();
-        postOta(TT_OTA_PHASE_UP_TO_DATE, nullptr, "资源已同步");
+        rebootAfterOta();
         return;
     }
 
@@ -1119,9 +1197,7 @@ void TTOtaService::upgradeNow() {
         postOta(TT_OTA_PHASE_FAILED, nullptr, "固件升级失败");
         return;
     }
-    postOta(TT_OTA_PHASE_REBOOT, nullptr, "正在重启");
-    delay(300);
-    ESP.restart();
+    rebootAfterOta();
 }
 
 void TTOtaService::applyPending() {

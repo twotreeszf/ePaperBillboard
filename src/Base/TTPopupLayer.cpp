@@ -4,6 +4,20 @@
 #include "TTInstance.h"
 #include "TTFontManager.h"
 #include "TTLvglEpdDriver.h"
+#include "TTNotificationPayloads.h"
+#include <cstring>
+
+static lv_obj_t* addDialogText(lv_obj_t* parent, const char* text, lv_text_align_t align, lv_font_t* font) {
+    lv_obj_t* label = lv_label_create(parent);
+    lv_label_set_long_mode(label, LV_LABEL_LONG_WRAP);
+    lv_obj_set_width(label, LV_SIZE_CONTENT);
+    lv_obj_set_style_max_width(label, TT_POPUP_LOADING_TEXT_W, 0);
+    lv_label_set_text(label, text != nullptr ? text : "");
+    lv_obj_set_style_text_align(label, align, 0);
+    lv_obj_set_style_text_color(label, lv_color_black(), 0);
+    lv_obj_set_style_text_font(label, font, 0);
+    return label;
+}
 
 bool TTPopupLayer::isBusy() const {
     return _toastPanel != nullptr || _loadingPanel != nullptr || _dialogPanel != nullptr;
@@ -104,7 +118,8 @@ void TTPopupLayer::showLoading(const char* text) {
 
     _loadingLabel = lv_label_create(_loadingPanel);
     lv_label_set_long_mode(_loadingLabel, LV_LABEL_LONG_WRAP);
-    lv_obj_set_width(_loadingLabel, TT_POPUP_LOADING_TEXT_W);
+    lv_obj_set_width(_loadingLabel, LV_SIZE_CONTENT);
+    lv_obj_set_style_max_width(_loadingLabel, TT_POPUP_LOADING_TEXT_W, 0);
     lv_label_set_text(_loadingLabel, (text != nullptr && text[0] != '\0') ? text : "加载中...");
     lv_obj_set_style_text_align(_loadingLabel, LV_TEXT_ALIGN_CENTER, 0);
     lv_obj_set_style_text_color(_loadingLabel, lv_color_black(), 0);
@@ -194,10 +209,34 @@ void TTPopupLayer::showDialog(const char* msg, DialogCallback onOk, DialogCallba
     lv_font_t* font = TTFontManager::instance().getFont(12);
     if (font == nullptr) font = (lv_font_t*)LV_FONT_DEFAULT;
 
-    lv_obj_t* label = lv_label_create(_dialogPanel);
-    lv_label_set_text(label, msg != nullptr ? msg : "");
-    lv_obj_set_style_text_color(label, lv_color_black(), 0);
-    lv_obj_set_style_text_font(label, font, 0);
+    const char* text = msg != nullptr ? msg : "";
+    const char* firstBreak = strchr(text, '\n');
+    const char* lastBreak = strrchr(text, '\n');
+    char title[TT_OTA_MSG_MAX];
+    char notes[TT_OTA_MSG_MAX];
+    char ask[TT_OTA_MSG_MAX];
+    title[0] = '\0';
+    notes[0] = '\0';
+    ask[0] = '\0';
+    const bool splitNotes = firstBreak != nullptr && lastBreak != nullptr && firstBreak != lastBreak
+        && (size_t)(firstBreak - text) < sizeof(title)
+        && (size_t)(lastBreak - firstBreak - 1) < sizeof(notes)
+        && strlen(lastBreak + 1) < sizeof(ask);
+    lv_obj_t* notesLabel = nullptr;
+    if (splitNotes) {
+        memcpy(title, text, (size_t)(firstBreak - text));
+        title[firstBreak - text] = '\0';
+        memcpy(notes, firstBreak + 1, (size_t)(lastBreak - firstBreak - 1));
+        notes[lastBreak - firstBreak - 1] = '\0';
+        memcpy(ask, lastBreak + 1, strlen(lastBreak + 1) + 1);
+        addDialogText(_dialogPanel, title, LV_TEXT_ALIGN_CENTER, font);
+        if (notes[0] != '\0') {
+            notesLabel = addDialogText(_dialogPanel, notes, LV_TEXT_ALIGN_LEFT, font);
+        }
+        addDialogText(_dialogPanel, ask, LV_TEXT_ALIGN_CENTER, font);
+    } else {
+        addDialogText(_dialogPanel, text, LV_TEXT_ALIGN_CENTER, font);
+    }
 
     lv_obj_t* btnRow = lv_obj_create(_dialogPanel);
     lv_obj_set_size(btnRow, LV_SIZE_CONTENT, LV_SIZE_CONTENT);
@@ -254,7 +293,7 @@ void TTPopupLayer::showDialog(const char* msg, DialogCallback onOk, DialogCallba
     lv_obj_set_style_border_width(okBtn, 1, 0);
     lv_obj_set_style_border_width(okBtn, 1, LV_STATE_FOCUSED);
     lv_obj_t* okLabel = lv_label_create(okBtn);
-    lv_label_set_text(okLabel, "确定");
+    lv_label_set_text(okLabel, "更新");
     lv_obj_set_style_text_color(okLabel, lv_color_black(), 0);
     lv_obj_set_style_text_font(okLabel, font, 0);
     lv_obj_center(okLabel);
@@ -279,6 +318,12 @@ void TTPopupLayer::showDialog(const char* msg, DialogCallback onOk, DialogCallba
     }
 
     lv_obj_update_layout(_dialogPanel);
+    if (notesLabel != nullptr) {
+        const int32_t width = lv_obj_get_content_width(_dialogPanel);
+        if (width > lv_obj_get_width(notesLabel)) {
+            lv_obj_set_width(notesLabel, width);
+        }
+    }
     lv_obj_align(_dialogPanel, LV_ALIGN_CENTER, 0, 0);
 
     TTInstanceOf<TTLvglEpdDriver>().requestRefresh(TT_REFRESH_FULL);

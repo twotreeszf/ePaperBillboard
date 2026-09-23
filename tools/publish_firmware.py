@@ -228,13 +228,14 @@ def write_local_manifest(version, fingerprint, notes=None):
             if not first:
                 out.write(",\n")
             first = False
-            entry = {
-                "path": f"{version}/{rel}",
-                "size": file_path.stat().st_size,
-                "sha256": sha256_file(file_path),
-            }
-            out.write("    ")
-            out.write(json.dumps(entry, ensure_ascii=False))
+            remote = f"{version}/{rel}"
+            size = file_path.stat().st_size
+            digest = sha256_file(file_path)
+            out.write("    {\n")
+            out.write(f'      "path": {json.dumps(remote, ensure_ascii=False)},\n')
+            out.write(f'      "size": {size},\n')
+            out.write(f'      "sha256": {json.dumps(digest)}\n')
+            out.write("    }")
         out.write("\n  ]\n}\n")
     print(f"local manifest {path} version={version}")
     return path

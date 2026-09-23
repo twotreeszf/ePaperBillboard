@@ -13,7 +13,8 @@ static void styleText(lv_obj_t* label, lv_font_t* font) {
     lv_obj_set_style_text_font(label, font, 0);
 }
 
-static lv_obj_t* addTextBlock(lv_obj_t* parent, const char* title, lv_font_t* font, lv_obj_t** value) {
+static lv_obj_t* addTextBlock(lv_obj_t* parent, const char* title,
+                            lv_font_t* titleFont, lv_font_t* valueFont, lv_obj_t** value) {
     lv_obj_t* block = lv_obj_create(parent);
     lv_obj_set_width(block, lv_pct(100));
     lv_obj_set_height(block, LV_SIZE_CONTENT);
@@ -29,18 +30,19 @@ static lv_obj_t* addTextBlock(lv_obj_t* parent, const char* title, lv_font_t* fo
     lv_obj_t* titleLabel = lv_label_create(block);
     lv_label_set_text(titleLabel, title);
     lv_obj_set_width(titleLabel, lv_pct(100));
-    styleText(titleLabel, font);
+    styleText(titleLabel, titleFont);
 
     *value = lv_label_create(block);
     lv_label_set_long_mode(*value, LV_LABEL_LONG_WRAP);
     lv_obj_set_width(*value, lv_pct(100));
-    styleText(*value, font);
+    styleText(*value, valueFont);
     return block;
 }
 
 void TTUpdatePage::buildContent(lv_obj_t* screen) {
     TTFontManager& fm = TTFontManager::instance();
     lv_font_t* font16 = fm.getFont(16);
+    lv_font_t* font12 = fm.getFont(12);
 
     lv_obj_set_style_bg_color(screen, lv_color_white(), 0);
     lv_obj_set_style_bg_opa(screen, LV_OPA_COVER, 0);
@@ -58,9 +60,9 @@ void TTUpdatePage::buildContent(lv_obj_t* screen) {
     lv_obj_remove_flag(column, LV_OBJ_FLAG_SCROLLABLE);
     lv_obj_align(column, LV_ALIGN_TOP_MID, 0, TT_UPDATE_PAD);
 
-    addTextBlock(column, "当前版本", font16, &_versionValue);
+    addTextBlock(column, "当前版本", font16, font12, &_versionValue);
     lv_label_set_text(_versionValue, TT_FW_VERSION);
-    addTextBlock(column, "更新说明", font16, &_notesValue);
+    addTextBlock(column, "更新说明", font16, font12, &_notesValue);
     lv_label_set_text(_notesValue, "无");
 
     _checkBtn = TTTextButton::create(screen, "检查更新", font16);
@@ -69,8 +71,8 @@ void TTUpdatePage::buildContent(lv_obj_t* screen) {
     addToFocusGroup(_checkBtn);
 
     _statusBox = lv_obj_create(screen);
-    lv_obj_set_width(_statusBox, TT_UPDATE_STATUS_MAX_W);
-    lv_obj_set_height(_statusBox, LV_SIZE_CONTENT);
+    lv_obj_set_size(_statusBox, LV_SIZE_CONTENT, LV_SIZE_CONTENT);
+    lv_obj_set_style_max_width(_statusBox, TT_UPDATE_STATUS_MAX_W, 0);
     lv_obj_set_style_bg_color(_statusBox, lv_color_white(), 0);
     lv_obj_set_style_bg_opa(_statusBox, LV_OPA_COVER, 0);
     lv_obj_set_style_border_color(_statusBox, lv_color_black(), 0);
@@ -85,9 +87,11 @@ void TTUpdatePage::buildContent(lv_obj_t* screen) {
     _statusLabel = lv_label_create(_statusBox);
     lv_label_set_text(_statusLabel, "");
     lv_label_set_long_mode(_statusLabel, LV_LABEL_LONG_WRAP);
-    lv_obj_set_width(_statusLabel, TT_UPDATE_STATUS_MAX_W - (TT_UPDATE_STATUS_PAD * 2));
+    lv_obj_set_width(_statusLabel, LV_SIZE_CONTENT);
+    lv_obj_set_style_max_width(_statusLabel,
+                               TT_UPDATE_STATUS_MAX_W - (TT_UPDATE_STATUS_PAD * 2), 0);
     lv_obj_set_style_text_align(_statusLabel, LV_TEXT_ALIGN_CENTER, 0);
-    styleText(_statusLabel, font16);
+    styleText(_statusLabel, font12);
 }
 
 void TTUpdatePage::setup() {
@@ -134,6 +138,8 @@ void TTUpdatePage::setStatus(const char* text) {
     }
     const bool show = text != nullptr && text[0] != '\0';
     lv_label_set_text(_statusLabel, show ? text : "");
+    lv_obj_update_layout(_statusBox);
+    lv_obj_align(_statusBox, LV_ALIGN_CENTER, 0, TT_NAV_PAGE_INSET / 2);
     if (show) {
         lv_obj_remove_flag(_statusBox, LV_OBJ_FLAG_HIDDEN);
         lv_obj_move_foreground(_statusBox);
@@ -180,7 +186,7 @@ void TTUpdatePage::startUpgrade() {
     setLocked(true);
     showCheckButton(false);
     LOG_I("OTA page: upgrade");
-    TTInstanceOf<TTPopupLayer>().showLoading("正在更新");
+    TTInstanceOf<TTPopupLayer>().showLoading(TT_OTA_UPDATING_HINT);
     TTInstanceOf<TTOtaService>().upgradeAsync();
 }
 
@@ -208,8 +214,7 @@ void TTUpdatePage::applyOta(const TTOtaPayload& payload) {
     case TT_OTA_PHASE_AVAILABLE:
         _loading = false;
         TTInstanceOf<TTPopupLayer>().dismissLoading();
-        setStatus(payload.message);
-        requestRefresh(TT_REFRESH_PARTIAL);
+        setStatus("");
         TTInstanceOf<TTPopupLayer>().showDialog(
             payload.message,
             [this]() { startUpgrade(); },
