@@ -72,7 +72,7 @@ pio device monitor
 ```bash
 pio run --target upload
 pio device monitor
-pio run --target uploadfs   # after changing data/fonts or data/icons
+pio run --target uploadfs   # after changing data/res/fonts or data/res/icons
 ```
 
 ### Flash layout
@@ -83,7 +83,7 @@ Custom 8MB table (`partitions_8MB.csv`):
 |-----------|------|-------------|
 | app0 | 2 MB | Main application (OTA slot 0) |
 | app1 | 2 MB | OTA slot 1 |
-| spiffs | ~3.875 MB | LittleFS (fonts, icons, TLS/HTTPS temp files) |
+| spiffs | ~3.875 MB | LittleFS: `/res` fonts and icons, `/tmp` cache and scratch files |
 | coredump | 64 KB | Core dump |
 
 `board_build.flash_size` and `board_upload.flash_size` must both be `8MB`.
@@ -124,17 +124,17 @@ Clock / metric examples:
 lv_font_conv --font tools/fonts/GoogleSansCode-ExtraBold.ttf --size 120 \
   --bpp 1 --format bin --no-compress \
   --range 0x20 --range 0x2D --range 0x30-0x3A \
-  -o data/fonts/en_120.bin
+  -o data/res/fonts/en_120.bin
 
 lv_font_conv --font tools/fonts/GoogleSansCode-Medium.ttf --size 32 \
   --bpp 1 --format bin --no-compress \
   --range 0x20-0x7E --range 0x00B0 \
-  -o data/fonts/en_32.bin
+  -o data/res/fonts/en_32.bin
 
 lv_font_conv --font tools/fonts/GoogleSansCode-Medium.ttf --size 40 \
   --bpp 1 --format bin --no-compress \
   --range 0x20-0x7E --range 0x00B0 \
-  -o data/fonts/en_40.bin
+  -o data/res/fonts/en_40.bin
 ```
 
 `TTFontLoader` still accepts a main file plus optional ASCII overlay (`begin(path, asciiPath)`); ASCII hits the overlay first. Glyph cache is `TT_FONT_GLYPH_CACHE_MAX` (128). The glyph bitmap buffer is `120×120` for the large clock face.
@@ -154,7 +154,7 @@ On-device icons are uncompressed **TTI1** (`TTI1` + u16le width/height, 1 = whit
 | Lucide (weather / calendar / settings / back) | `tools/icons/slice_lucide_icons.mjs` | `tools/icons/icons.json` |
 | Weather Icons (conditions, wind, details) | `tools/icons/slice_weather_icons.mjs` | `tools/icons/weather.json` |
 | Pixel / battery | `tools/icons/slice_battery_icons.mjs`, `slice_pixelart_icons.mjs` | nav status |
-| Material Symbols | clock-mode T/H | `device_thermostat.svg`, `humidity_mid.svg` → `data/icons/weather/temp_32.i1`, `humidity_32.i1` |
+| Material Symbols | clock-mode T/H | `device_thermostat.svg`, `humidity_mid.svg` → `data/res/icons/weather/temp_32.i1`, `humidity_32.i1` |
 
 ```bash
 cd tools/icons

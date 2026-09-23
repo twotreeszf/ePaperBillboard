@@ -1,6 +1,6 @@
 {
   "source": "https://lucide.dev/",
-  "outputDir": "../../data/icons",
+  "outputDir": "../../data/res/icons",
   "svgDir": "svg",
   "icons": [
     {

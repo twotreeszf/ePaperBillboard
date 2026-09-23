@@ -371,14 +371,14 @@ void TTWeatherPage::buildContent(lv_obj_t* screen) {
         "气压", "空气质量", "能见度"
     };
     static const char* kDetailIcons[] = {
-        "/icons/weather/wi_sunrise_40.i1",
-        "/icons/weather/wi_sunset_40.i1",
-        "/icons/weather/wi_strong_wind_40.i1",
-        "/icons/weather/wi_humidity_40.i1",
-        "/icons/weather/wi_hot_40.i1",
-        "/icons/weather/wi_barometer_40.i1",
-        "/icons/weather/air_filter_40.i1",
-        "/icons/weather/visibility_icon_40.i1"
+        TT_FS_RES_DIR "/icons/weather/wi_sunrise_40.i1",
+        TT_FS_RES_DIR "/icons/weather/wi_sunset_40.i1",
+        TT_FS_RES_DIR "/icons/weather/wi_strong_wind_40.i1",
+        TT_FS_RES_DIR "/icons/weather/wi_humidity_40.i1",
+        TT_FS_RES_DIR "/icons/weather/wi_hot_40.i1",
+        TT_FS_RES_DIR "/icons/weather/wi_barometer_40.i1",
+        TT_FS_RES_DIR "/icons/weather/air_filter_40.i1",
+        TT_FS_RES_DIR "/icons/weather/visibility_icon_40.i1"
     };
     for (int i = 0; i < TT_WEATHER_DETAIL_N; i++) {
         const int col = i % 2;

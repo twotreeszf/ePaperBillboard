@@ -1,7 +1,8 @@
 #pragma once
 
-#include <lvgl.h>
+#include "TTFile.h"
 #include "TTNotificationPayloads.h"
+#include <lvgl.h>
 
 #define TT_NAV_BAR_HEIGHT      20
 #define TT_NAV_DIVIDER_Y       2
@@ -13,7 +14,7 @@
 #define TT_NAV_TITLE_BRACKET_GAP 1
 #define TT_NAV_ARROW_W         14
 #define TT_NAV_DIVIDER_H       1
-#define TT_NAV_BACK_ICON       "/icons/back.i1"
+#define TT_NAV_BACK_ICON       TT_FS_RES_DIR "/icons/back.i1"
 #define TT_NAV_STATUS_ICON     12
 #define TT_NAV_WIFI_ICON_W     16
 #define TT_NAV_WIFI_ICON_H     12
@@ -35,25 +36,25 @@
 #define TT_NAV_TEMP_ICON_Y     (-1)
 #define TT_NAV_BATTERY_Y       (-1)
 #define TT_NAV_BAR_CONTENT_Y   5
-#define TT_NAV_ICON_WIFI_OFF         "/icons/wifi_off_sm.i1"
-#define TT_NAV_ICON_WIFI_WAIT        "/icons/wifi_wait_sm.i1"
-#define TT_NAV_ICON_WIFI_ON          "/icons/wifi_sm.i1"
-#define TT_NAV_ICON_WIFI_AP          "/icons/wifi_ap_sm.i1"
-#define TT_NAV_ICON_BATTERY_EMPTY    "/icons/battery_sm.i1"
-#define TT_NAV_ICON_BATTERY_LOW      "/icons/battery_low_sm.i1"
-#define TT_NAV_ICON_BATTERY_MEDIUM   "/icons/battery_medium_sm.i1"
-#define TT_NAV_ICON_BATTERY_HIGH     "/icons/battery_high_sm.i1"
-#define TT_NAV_ICON_BATTERY_FULL     "/icons/battery_full_sm.i1"
-#define TT_NAV_ICON_BATTERY_CHARGE   "/icons/battery_charging_sm.i1"
-#define TT_NAV_ICON_BATTERY_USB      "/icons/plug_sm.i1"
+#define TT_NAV_ICON_WIFI_OFF         TT_FS_RES_DIR "/icons/wifi_off_sm.i1"
+#define TT_NAV_ICON_WIFI_WAIT        TT_FS_RES_DIR "/icons/wifi_wait_sm.i1"
+#define TT_NAV_ICON_WIFI_ON          TT_FS_RES_DIR "/icons/wifi_sm.i1"
+#define TT_NAV_ICON_WIFI_AP          TT_FS_RES_DIR "/icons/wifi_ap_sm.i1"
+#define TT_NAV_ICON_BATTERY_EMPTY    TT_FS_RES_DIR "/icons/battery_sm.i1"
+#define TT_NAV_ICON_BATTERY_LOW      TT_FS_RES_DIR "/icons/battery_low_sm.i1"
+#define TT_NAV_ICON_BATTERY_MEDIUM   TT_FS_RES_DIR "/icons/battery_medium_sm.i1"
+#define TT_NAV_ICON_BATTERY_HIGH     TT_FS_RES_DIR "/icons/battery_high_sm.i1"
+#define TT_NAV_ICON_BATTERY_FULL     TT_FS_RES_DIR "/icons/battery_full_sm.i1"
+#define TT_NAV_ICON_BATTERY_CHARGE   TT_FS_RES_DIR "/icons/battery_charging_sm.i1"
+#define TT_NAV_ICON_BATTERY_USB      TT_FS_RES_DIR "/icons/plug_sm.i1"
 #define TT_NAV_BATTERY_BAR1_PCT      25
 #define TT_NAV_BATTERY_BAR2_PCT      50
 #define TT_NAV_BATTERY_BAR3_PCT      75
-#define TT_NAV_ICON_TEMP             "/icons/temp_sm.i1"
-#define TT_NAV_ICON_HUM              "/icons/humidity_sm.i1"
-#define TT_NAV_ICON_PRESS            "/icons/pressure_sm.i1"
-#define TT_NAV_ICON_SLEEP            "/icons/sleep_sm.i1"
-#define TT_NAV_ICON_AWAKE            "/icons/standby_sm.i1"
+#define TT_NAV_ICON_TEMP             TT_FS_RES_DIR "/icons/temp_sm.i1"
+#define TT_NAV_ICON_HUM              TT_FS_RES_DIR "/icons/humidity_sm.i1"
+#define TT_NAV_ICON_PRESS            TT_FS_RES_DIR "/icons/pressure_sm.i1"
+#define TT_NAV_ICON_SLEEP            TT_FS_RES_DIR "/icons/sleep_sm.i1"
+#define TT_NAV_ICON_AWAKE            TT_FS_RES_DIR "/icons/standby_sm.i1"
 #define TT_NAV_TEMP_PREFIX           "室内"
 #define TT_NAV_TEMP_PREFIX_FONT      10
 #define TT_NAV_TEMP_PREFIX_Y         (-2)

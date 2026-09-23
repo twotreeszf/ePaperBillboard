@@ -1,7 +1,7 @@
 {
   "sourceDir": "../../.ref/esp32-weather-epd/icons/svg",
   "svgDir": "weather-svg",
-  "outputDir": "../../data/icons/weather",
+  "outputDir": "../../data/res/icons/weather",
   "icons": [
     { "id": "wi-day-sunny", "sizes": [24, 45, 97] },
     { "id": "wi-night-clear", "sizes": [24, 97] },

@@ -6,6 +6,8 @@
 #define TT_FILE_BUF_SIZE       256
 #define TT_LITTLEFS_MOUNT      "/littlefs"
 #define TT_FILE_FULL_PATH_MAX  64
+#define TT_FS_RES_DIR          "/res"
+#define TT_FS_TMP_DIR          "/tmp"
 
 File tt_file_open(fs::FS& fs, const char* path, const char* mode);
 File tt_file_open(const char* path, const char* mode);

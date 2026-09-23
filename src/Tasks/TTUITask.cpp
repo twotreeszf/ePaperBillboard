@@ -8,6 +8,7 @@
 #include "../Base/TTPopupLayer.h"
 #include "../Base/Logger.h"
 #include "../Base/ErrorCheck.h"
+#include "../Base/TTFile.h"
 #include "../Base/TTFontManager.h"
 #include "../Service/TTSleepService.h"
 #include "../Service/TTTimeService.h"
@@ -22,6 +23,9 @@ void TTUITask::setup() {
     _display.init(115200, true, 2, false, SPI, SPISettings(4000000, MSBFIRST, SPI_MODE0));
 
     ERR_CHECK_FAIL(LittleFS.begin());
+    if (!LittleFS.exists(TT_FS_TMP_DIR) && !LittleFS.mkdir(TT_FS_TMP_DIR)) {
+        LOG_E("LittleFS mkdir %s failed", TT_FS_TMP_DIR);
+    }
     LOG_I("LittleFS initialized, heap=%u", (unsigned)ESP.getFreeHeap());
 
     LOG_I("Initializing LVGL...");

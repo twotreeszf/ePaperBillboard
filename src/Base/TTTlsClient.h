@@ -1,5 +1,6 @@
 #pragma once
 
+#include "TTFile.h"
 #include "TTTlsCrypto.h"
 
 #include <stddef.h>
@@ -10,8 +11,8 @@
 #define TT_TLS_MFL                1024
 #define TT_TLS_RECORD_RAM         1100
 #define TT_TLS_HS_BODY_MAX        320
-#define TT_TLS_TMP_REC            "/tls_rec"
-#define TT_TLS_TMP_PLAIN          "/tls_plain"
+#define TT_TLS_TMP_REC            TT_FS_TMP_DIR "/tls_rec"
+#define TT_TLS_TMP_PLAIN          TT_FS_TMP_DIR "/tls_plain"
 #define TT_TLS_VERSION            0x0303
 #define TT_TLS_SUITE_ECDHE_RSA    0xC02F
 #define TT_TLS_SUITE_ECDHE_ECDSA  0xC02B

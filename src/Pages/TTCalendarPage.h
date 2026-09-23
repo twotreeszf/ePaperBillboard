@@ -1,5 +1,6 @@
 #pragma once
 
+#include "../Base/TTFile.h"
 #include "../Base/TTScreenPage.h"
 #include "../Base/TTCalendarTypes.h"
 #include "../Base/TTNotificationPayloads.h"
@@ -10,8 +11,8 @@
 #define TT_CAL_AGE_ICON_GAP    2
 #define TT_CAL_AGE_ICON_DY     3
 #define TT_CAL_AGE_PAD         4
-#define TT_CAL_AGE_OK_SRC      "/icons/weather/check_8.i1"
-#define TT_CAL_AGE_FAIL_SRC    "/icons/weather/cross_8.i1"
+#define TT_CAL_AGE_OK_SRC      TT_FS_RES_DIR "/icons/weather/check_8.i1"
+#define TT_CAL_AGE_FAIL_SRC    TT_FS_RES_DIR "/icons/weather/cross_8.i1"
 #define TT_CAL_PAGE_SLOTS   10
 #define TT_CAL_ROW_H        26
 #define TT_CAL_EVENT_LEAD_TRIM 2

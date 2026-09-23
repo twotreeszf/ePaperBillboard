@@ -1,5 +1,6 @@
 #pragma once
 
+#include "TTFile.h"
 #include <stdint.h>
 
 #define PREF_CALDAV_USER   "caldav_user"
@@ -19,7 +20,7 @@
 #define TT_CAL_BODY_MAX        32768
 #define TT_CAL_MULTIGET_BATCH  2
 #define TT_CAL_MSG_MAX         32
-#define TT_CAL_TMP             "/caldav_resp"
+#define TT_CAL_TMP             TT_FS_TMP_DIR "/caldav_resp"
 
 enum TTCalendarState {
     TT_CAL_IDLE = 0,

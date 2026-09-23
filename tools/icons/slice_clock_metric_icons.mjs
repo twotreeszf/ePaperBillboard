@@ -185,7 +185,7 @@ function maskToAscii(mask) {
 
 function main() {
   const svgDir = path.join(__dirname, "svg");
-  const outputDir = path.resolve(__dirname, "../../data/icons/weather");
+  const outputDir = path.resolve(__dirname, "../../data/res/icons/weather");
   fs.mkdirSync(svgDir, { recursive: true });
   fs.mkdirSync(outputDir, { recursive: true });
 

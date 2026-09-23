@@ -92,12 +92,12 @@ void TTHomePage::buildContent(lv_obj_t* screen) {
     lv_obj_set_style_pad_column(container, TT_HOME_ITEMS_GAP, 0);
     lv_obj_align(container, LV_ALIGN_CENTER, 0, 0);
 
-    MenuItem::create(&_items[0], container, this, "/icons/weather.i1", "天气", fontBtn,
+    MenuItem::create(&_items[0], container, this, TT_FS_RES_DIR "/icons/weather.i1", "天气", fontBtn,
         [this]() { getNavigationController()->pushPage(std::unique_ptr<TTScreenPage>(new TTWeatherPage())); });
 
-    MenuItem::create(&_items[1], container, this, "/icons/calendar.i1", "日历", fontBtn,
+    MenuItem::create(&_items[1], container, this, TT_FS_RES_DIR "/icons/calendar.i1", "日历", fontBtn,
         [this]() { getNavigationController()->pushPage(std::unique_ptr<TTScreenPage>(new TTCalendarPage())); });
 
-    MenuItem::create(&_items[2], container, this, "/icons/settings.i1", "设置", fontBtn,
+    MenuItem::create(&_items[2], container, this, TT_FS_RES_DIR "/icons/settings.i1", "设置", fontBtn,
         [this]() { getNavigationController()->pushPage(std::unique_ptr<TTScreenPage>(new TTSettingsPage())); });
 }

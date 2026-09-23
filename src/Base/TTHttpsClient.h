@@ -1,5 +1,6 @@
 #pragma once
 
+#include "TTFile.h"
 #include <stddef.h>
 #include <stdint.h>
 
@@ -8,8 +9,8 @@
 #define TT_HTTPS_HOST_MAX          64
 #define TT_HTTPS_PATH_MAX          768
 #define TT_HTTPS_REQ_MAX           896
-#define TT_HTTPS_TMP_DIR           "/"
-#define TT_HTTPS_TMP_RESP          "/https_resp"
+#define TT_HTTPS_TMP_DIR           TT_FS_TMP_DIR
+#define TT_HTTPS_TMP_RESP          TT_FS_TMP_DIR "/https_resp"
 #define TT_HTTPS_HANDSHAKE_MS      15000
 #define TT_HTTPS_IO_TIMEOUT_MS     15000
 #define TT_HTTPS_BODY_MAX          16384

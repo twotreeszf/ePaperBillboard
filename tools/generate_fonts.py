@@ -184,7 +184,7 @@ def main():
     
     # Determine output directory
     script_dir = Path(__file__).parent.parent
-    output_dir = script_dir / "data" / "fonts"
+    output_dir = script_dir / "data" / "res" / "fonts"
     output_dir.mkdir(parents=True, exist_ok=True)
     
     print(f"Font: {font_path}")
@@ -221,7 +221,7 @@ def main():
     if success_count == len(sizes):
         print()
         print("Usage in code:")
-        print(f'  fontLoader.begin("/fonts/chs_{sizes[0]}.bin", "/fonts/{prefix}_{sizes[0]}.bin");')
+        print(f'  fontLoader.begin("/res/fonts/chs_{sizes[0]}.bin", "/res/fonts/{prefix}_{sizes[0]}.bin");')
 
 
 if __name__ == "__main__":

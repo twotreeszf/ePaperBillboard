@@ -20,7 +20,7 @@
 #define TT_BATTERY_EMPTY_MV         3500
 #define TT_BATTERY_LOW_MV           3700
 #define TT_BATTERY_MEDIUM_MV        3900
-#define TT_BATTERY_FULL_MV          4200
+#define TT_BATTERY_FULL_MV          4100
 #define TT_BATTERY_SOC_PAIRS        11
 #define TT_BATTERY_SOC_MAP \
     3400, 0, \
@@ -33,7 +33,7 @@
     3850, 47, \
     3900, 58, \
     4000, 88, \
-    4200, 100
+    4100, 100
 
 class TTSensorTask : public TTVTask {
 public:

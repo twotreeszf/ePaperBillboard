@@ -1,5 +1,6 @@
 #pragma once
 
+#include "../Base/TTFile.h"
 #include <lvgl.h>
 #include "../Base/TTScreenPage.h"
 #include "../Base/TTNotificationPayloads.h"
@@ -83,8 +84,8 @@
 #define TT_WEATHER_AGE_Y          (TT_WEATHER_TEMP_Y_BASE + TT_WEATHER_TEXT_STACK_H + \
                                    TT_WEATHER_TEXT_STACK_GAP)
 #define TT_WEATHER_AGE_ICON_Y     (TT_WEATHER_AGE_Y + 3)
-#define TT_WEATHER_AGE_OK_SRC     "/icons/weather/check_8.i1"
-#define TT_WEATHER_AGE_FAIL_SRC   "/icons/weather/cross_8.i1"
+#define TT_WEATHER_AGE_OK_SRC     TT_FS_RES_DIR "/icons/weather/check_8.i1"
+#define TT_WEATHER_AGE_FAIL_SRC   TT_FS_RES_DIR "/icons/weather/cross_8.i1"
 #define TT_WEATHER_FORECAST_X     TT_WEATHER_GRAPH_X
 #define TT_WEATHER_FORECAST_COL_X(i) \
     (TT_WEATHER_FORECAST_X + (i) * TT_WEATHER_GRAPH_W / TT_WEATHER_FORECAST_N)
@@ -134,8 +135,8 @@
 #define TT_WEATHER_CLOCK_METRIC_PAD   4
 #define TT_WEATHER_CLOCK_METRIC_INV   8
 #define TT_WEATHER_CLOCK_Y            TT_WEATHER_DETAIL_Y
-#define TT_WEATHER_CLOCK_TEMP_SRC     "/icons/weather/temp_32.i1"
-#define TT_WEATHER_CLOCK_HUM_SRC      "/icons/weather/humidity_32.i1"
+#define TT_WEATHER_CLOCK_TEMP_SRC     TT_FS_RES_DIR "/icons/weather/temp_32.i1"
+#define TT_WEATHER_CLOCK_HUM_SRC      TT_FS_RES_DIR "/icons/weather/humidity_32.i1"
 #define TT_WEATHER_INDOOR_TEMP_EPS 0.05f
 #define TT_WEATHER_INDOOR_HUM_EPS  0.05f
 

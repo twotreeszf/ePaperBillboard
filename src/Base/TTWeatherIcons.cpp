@@ -1,4 +1,5 @@
 #include "TTWeatherTypes.h"
+#include "TTFile.h"
 #include <cstdio>
 #include <cstring>
 
@@ -51,7 +52,7 @@ void tt_weather_condition_path(char* out, size_t outMax, int weatherCode, bool i
     if (out == nullptr || outMax == 0) {
         return;
     }
-    snprintf(out, outMax, "/icons/weather/%s_%d.i1", conditionBase(weatherCode, isDay), size);
+    snprintf(out, outMax, TT_FS_RES_DIR "/icons/weather/%s_%d.i1", conditionBase(weatherCode, isDay), size);
 }
 
 void tt_weather_wind_path(char* out, size_t outMax, int windDeg, int size) {
@@ -78,7 +79,7 @@ void tt_weather_wind_path(char* out, size_t outMax, int windDeg, int size) {
             best = kDegs[i];
         }
     }
-    snprintf(out, outMax, "/icons/weather/wi_wind_%ddeg_%d.i1", best, size);
+    snprintf(out, outMax, TT_FS_RES_DIR "/icons/weather/wi_wind_%ddeg_%d.i1", best, size);
 }
 
 const char* tt_weather_condition_text(int weatherCode) {

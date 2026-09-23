@@ -1,8 +1,9 @@
 #pragma once
 
+#include "../Base/TTFile.h"
 #include "../Base/TTWeatherTypes.h"
 
-#define TT_WEATHER_CACHE_PATH        "/weather.bin"
+#define TT_WEATHER_CACHE_PATH        TT_FS_TMP_DIR "/weather.bin"
 #define TT_WEATHER_CACHE_MAGIC       0x52544857u
 #define TT_WEATHER_CACHE_VERSION     1
 #define TT_WEATHER_CACHE_MAX_AGE_SEC (60 * 60)

@@ -24,6 +24,7 @@
 
 #include <Arduino.h>
 #include "Base/Logger.h"
+#include "Base/TTFirmwareVersion.h"
 #include "Base/TTInstance.h"
 #include "Base/TTPreference.h"
 #include "Base/Util.h"
@@ -37,7 +38,7 @@ void setup() {
     delay(100);
     LOG_I("");
     LOG_I("=================================");
-    LOG_I("E-Paper Weather Clock (LVGL Version)");
+    LOG_I("E-Paper Weather Clock (LVGL Version) fw=%s", TT_FW_VERSION);
     LOG_I("=================================");
 
     Util::printChipInfo();
