@@ -13,6 +13,9 @@
 #define TT_NOTIFICATION_SLEEP_STATE        "TTNotify.SleepState"
 #define TT_NOTIFICATION_TIME_TICK          "TTNotify.TimeTick"
 #define TT_NOTIFICATION_CALENDAR           "TTNotify.Calendar"
+#define TT_NOTIFICATION_OTA                "TTNotify.Ota"
+
+#define TT_OTA_MSG_MAX     96
 
 #define TT_WIFI_SSID_MAX   32
 #define TT_WIFI_PASS_MAX   16
@@ -77,6 +80,20 @@ struct TTWiFiStatusPayload {
     char apSsid[TT_WIFI_SSID_MAX + 1];
     char apPassword[TT_WIFI_PASS_MAX + 1];
     char portalUrl[TT_WIFI_URL_MAX + 1];
+};
+
+enum TTOtaPhase {
+    TT_OTA_PHASE_UP_TO_DATE = 0,
+    TT_OTA_PHASE_AVAILABLE,
+    TT_OTA_PHASE_PROGRESS,
+    TT_OTA_PHASE_FAILED,
+    TT_OTA_PHASE_REBOOT,
+};
+
+struct TTOtaPayload {
+    TTOtaPhase phase;
+    char version[16];
+    char message[TT_OTA_MSG_MAX];
 };
 
 struct TTTimeSyncPayload {

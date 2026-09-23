@@ -7,9 +7,9 @@ static const struct {
     const char* path;
     const char* asciiPath;
 } TT_FONT_ENTRIES[] = {
-    { 10, TT_FS_RES_DIR "/fonts/all_10.bin", nullptr },
-    { 12, TT_FS_RES_DIR "/fonts/all_12.bin", nullptr },
-    { 16, TT_FS_RES_DIR "/fonts/all_16.bin", nullptr },
+    { 10, TT_FS_FONT_DIR "/all_10.bin", nullptr },
+    { 12, TT_FS_FONT_DIR "/all_12.bin", nullptr },
+    { 16, TT_FS_FONT_DIR "/all_16.bin", nullptr },
     { 32, TT_FS_RES_DIR "/fonts/en_32.bin", nullptr },
     { 40, TT_FS_RES_DIR "/fonts/en_40.bin", nullptr },
     { 48, TT_FS_RES_DIR "/fonts/en_48.bin", nullptr },

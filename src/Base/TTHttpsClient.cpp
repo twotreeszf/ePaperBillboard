@@ -195,6 +195,67 @@ bool parseResponseFile(File& file, TTHttpsResult* out) {
     return false;
 }
 
+bool writeResponseToSink(TTTlsSession* tls, const TTHttpsRequest* request, TTHttpsResult* out, size_t limit) {
+    uint8_t chunk[TT_HTTPS_CHUNK_MAX];
+    uint8_t header[1024];
+    size_t headerLen = 0;
+    bool headerDone = false;
+    out->status = 0;
+    out->bodyOffset = 0;
+    out->bodyLen = 0;
+
+    while (true) {
+        const int ret = tt_tls_read(tls, chunk, sizeof(chunk));
+        if (ret > 0) {
+            const uint8_t* data = chunk;
+            size_t len = (size_t)ret;
+            if (!headerDone) {
+                size_t used = 0;
+                while (used < len && headerLen + 1 < sizeof(header)) {
+                    header[headerLen++] = data[used++];
+                    if (headerLen >= 4 && memcmp(header + headerLen - 4, "\r\n\r\n", 4) == 0) {
+                        headerDone = true;
+                        header[headerLen] = '\0';
+                        const char* space = strchr((const char*)header, ' ');
+                        if (space != nullptr) {
+                            out->status = atoi(space + 1);
+                        }
+                        break;
+                    }
+                }
+                if (!headerDone) {
+                    if (headerLen + 1 >= sizeof(header)) {
+                        LOG_E("HTTPS: header too large");
+                        return false;
+                    }
+                    continue;
+                }
+                data += used;
+                len -= used;
+            }
+            if (len == 0) {
+                continue;
+            }
+            if (out->bodyLen + len > limit) {
+                LOG_E("HTTPS: body too large %u", (unsigned)(out->bodyLen + len));
+                return false;
+            }
+            if (request->bodyWriter != nullptr
+                && !request->bodyWriter(request->bodyWriterCtx, data, len)) {
+                LOG_E("HTTPS: body writer failed at %u", (unsigned)out->bodyLen);
+                return false;
+            }
+            out->bodyLen += len;
+            continue;
+        }
+        if (ret == 0) {
+            return headerDone && out->status > 0;
+        }
+        LOG_E("HTTPS: tls read failed written=%u", (unsigned)out->bodyLen);
+        return false;
+    }
+}
+
 }  // namespace
 
 bool tt_https_get_file(const char* url, const char* tmpPath, TTHttpsResult* out) {
@@ -203,8 +264,20 @@ bool tt_https_get_file(const char* url, const char* tmpPath, TTHttpsResult* out)
     return tt_https_exchange_file(&request, tmpPath, out);
 }
 
+bool tt_https_get_body(const char* url, size_t bodyMax, TTHttpsBodyFn writer, void* ctx, TTHttpsResult* out) {
+    TTHttpsRequest request = {};
+    request.url = url;
+    request.bodyMax = bodyMax;
+    request.bodyWriter = writer;
+    request.bodyWriterCtx = ctx;
+    return tt_https_exchange_file(&request, nullptr, out);
+}
+
 bool tt_https_exchange_file(const TTHttpsRequest* request, const char* tmpPath, TTHttpsResult* out) {
-    if (request == nullptr || request->url == nullptr || tmpPath == nullptr || out == nullptr) {
+    if (request == nullptr || request->url == nullptr || out == nullptr) {
+        return false;
+    }
+    if (request->bodyWriter == nullptr && tmpPath == nullptr) {
         return false;
     }
     memset(out, 0, sizeof(*out));
@@ -230,7 +303,9 @@ bool tt_https_exchange_file(const TTHttpsRequest* request, const char* tmpPath, 
     LOG_I("HTTPS: DNS %s -> %s elapsed=%u",
           host, ip.toString().c_str(), (unsigned)(millis() - dnsStart));
 
-    tt_file_remove(tmpPath);
+    if (tmpPath != nullptr) {
+        tt_file_remove(tmpPath);
+    }
 
     TTHttpsCtx ctx;
     ctxInit(&ctx);
@@ -296,38 +371,46 @@ bool tt_https_exchange_file(const TTHttpsRequest* request, const char* tmpPath, 
             break;
         }
 
-        File file = tt_file_create(tmpPath);
-        if (!file) {
-            break;
-        }
-        size_t written = 0;
-        ok = writeResponseToFile(&tls, file, &written, limit);
-        file.flush();
-        if (!ok) {
+        if (request->bodyWriter != nullptr) {
+            ok = writeResponseToSink(&tls, request, out, limit);
+            if (!ok) {
+                break;
+            }
+            LOG_I("HTTPS: stream status=%d body=%u", out->status, (unsigned)out->bodyLen);
+        } else {
+            File file = tt_file_create(tmpPath);
+            if (!file) {
+                break;
+            }
+            size_t written = 0;
+            ok = writeResponseToFile(&tls, file, &written, limit);
+            file.flush();
+            if (!ok) {
+                file.close();
+                break;
+            }
+            LOG_I("HTTPS: tmp %s bytes=%u heap=%u largest=%u",
+                  tmpPath, (unsigned)written,
+                  (unsigned)ESP.getFreeHeap(),
+                  (unsigned)heap_caps_get_largest_free_block(MALLOC_CAP_8BIT));
+            ok = parseResponseFile(file, out);
             file.close();
-            break;
+            if (!ok) {
+                break;
+            }
+            if (out->bodyLen > limit) {
+                LOG_E("HTTPS: body too large %u", (unsigned)out->bodyLen);
+                ok = false;
+                break;
+            }
+            LOG_I("HTTPS: status=%d body_off=%u body_len=%u",
+                  out->status, (unsigned)out->bodyOffset, (unsigned)out->bodyLen);
         }
-        LOG_I("HTTPS: tmp %s bytes=%u heap=%u largest=%u",
-              tmpPath, (unsigned)written,
-              (unsigned)ESP.getFreeHeap(),
-              (unsigned)heap_caps_get_largest_free_block(MALLOC_CAP_8BIT));
-        ok = parseResponseFile(file, out);
-        file.close();
-        if (!ok) {
-            break;
-        }
-        if (out->bodyLen > limit) {
-            LOG_E("HTTPS: body too large %u", (unsigned)out->bodyLen);
-            ok = false;
-            break;
-        }
-        LOG_I("HTTPS: status=%d body_off=%u body_len=%u",
-              out->status, (unsigned)out->bodyOffset, (unsigned)out->bodyLen);
     } while (false);
 
     tt_tls_close(&tls);
     ctxFree(&ctx);
-    if (!ok) {
+    if (!ok && tmpPath != nullptr) {
         tt_file_remove(tmpPath);
     }
     return ok;

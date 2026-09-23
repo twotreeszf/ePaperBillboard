@@ -60,6 +60,13 @@ def iter_files(root):
             yield path
 
 
+def iter_res_files():
+    for path in iter_files(RES_ROOT):
+        if path.name == MANIFEST_NAME and path.parent == RES_ROOT:
+            continue
+        yield path
+
+
 def normalized_version_text(text):
     updated, count = VERSION_RE.subn(
         f'#define TT_FW_VERSION "{VERSION_PLACEHOLDER}"', text, count=1)
@@ -88,7 +95,7 @@ def content_fingerprint():
             lines.append(f"{name} {sha256_file(path)}")
     if not RES_ROOT.is_dir():
         raise SystemExit(f"missing {RES_ROOT}")
-    for path in iter_files(RES_ROOT):
+    for path in iter_res_files():
         rel = path.relative_to(ROOT).as_posix()
         lines.append(f"{rel} {sha256_file(path)}")
     lines.sort()
@@ -130,7 +137,42 @@ def object_key(env, path):
     return f"{prefix}/{path}"
 
 
-def load_manifest(client, env):
+def json_line_string(line, key):
+    mark = f'"{key}"'
+    idx = line.find(mark)
+    if idx < 0:
+        return None
+    rest = line[idx + len(mark):]
+    colon = rest.find(":")
+    if colon < 0:
+        return None
+    raw = rest[colon + 1:].strip()
+    if raw.endswith(","):
+        raw = raw[:-1].strip()
+    if not raw.startswith('"'):
+        return None
+    try:
+        return json.loads(raw)
+    except json.JSONDecodeError:
+        return None
+
+
+def read_manifest_fields(path):
+    found = {}
+    with path.open(encoding="utf-8") as handle:
+        for line in handle:
+            for key in ("version", "notes", "content"):
+                if key in found or f'"{key}"' not in line:
+                    continue
+                value = json_line_string(line, key)
+                if isinstance(value, str):
+                    found[key] = value
+            if len(found) == 3:
+                break
+    return found
+
+
+def download_manifest(client, env, dest):
     from tos.exceptions import TosServerError
     key = object_key(env, MANIFEST_NAME)
     try:
@@ -138,9 +180,15 @@ def load_manifest(client, env):
     except TosServerError as exc:
         if exc.status_code == 404 or exc.code in ("NoSuchKey", "NotFound"):
             print(f"manifest missing: {key}")
-            return None
+            return False
         raise
-    return json.loads(result.read().decode())
+    with dest.open("wb") as out:
+        while True:
+            chunk = result.read(8192)
+            if not chunk:
+                break
+            out.write(chunk)
+    return True
 
 
 def build_firmware():
@@ -156,19 +204,59 @@ def load_notes():
     return NOTES_PATH.read_text().strip()
 
 
-def upload_bytes(client, env, key, body):
-    with tempfile.NamedTemporaryFile() as tmp:
-        tmp.write(body)
-        tmp.flush()
-        upload_file(client, env, key, Path(tmp.name))
-
-
 def package_files():
+    if not FIRMWARE_BIN.is_file():
+        raise SystemExit(f"missing {FIRMWARE_BIN}")
     files = [("firmware.bin", FIRMWARE_BIN)]
-    for path in iter_files(RES_ROOT):
+    for path in iter_res_files():
         rel = Path("res") / path.relative_to(RES_ROOT)
         files.append((rel.as_posix(), path))
     return files
+
+
+def write_local_manifest(version, fingerprint, notes=None):
+    note = load_notes() if notes is None else notes
+    path = RES_ROOT / MANIFEST_NAME
+    with path.open("w", encoding="utf-8") as out:
+        out.write("{\n")
+        out.write(f'  "version": {json.dumps(version)},\n')
+        out.write(f'  "notes": {json.dumps(note, ensure_ascii=False)},\n')
+        out.write(f'  "content": {json.dumps(fingerprint)},\n')
+        out.write('  "files": [\n')
+        first = True
+        for rel, file_path in package_files():
+            if not first:
+                out.write(",\n")
+            first = False
+            entry = {
+                "path": f"{version}/{rel}",
+                "size": file_path.stat().st_size,
+                "sha256": sha256_file(file_path),
+            }
+            out.write("    ")
+            out.write(json.dumps(entry, ensure_ascii=False))
+        out.write("\n  ]\n}\n")
+    print(f"local manifest {path} version={version}")
+    return path
+
+
+def rewrite_notes(src, dst, notes):
+    replaced = False
+    with src.open(encoding="utf-8") as inp, dst.open("w", encoding="utf-8") as out:
+        for line in inp:
+            if not replaced and '"notes"' in line:
+                out.write('  "notes": ' + json.dumps(notes, ensure_ascii=False) + ",\n")
+                replaced = True
+            else:
+                out.write(line)
+    if not replaced:
+        raise SystemExit("manifest notes field missing")
+
+
+def store_manifest(client, env, version, path):
+    upload_file(client, env, object_key(env, MANIFEST_NAME), path)
+    upload_file(client, env, object_key(env, f"{version}/res/{MANIFEST_NAME}"), path)
+    print(f"manifest stored version={version} res={version}/res/{MANIFEST_NAME}")
 
 
 def upload_file(client, env, key, path):
@@ -177,44 +265,32 @@ def upload_file(client, env, key, path):
 
 
 def publish(env, client, version, fingerprint):
-    packaged = package_files()
-    entries = []
-    for rel, path in packaged:
-        remote = f"{version}/{rel}"
-        upload_file(client, env, object_key(env, remote), path)
-        entries.append({
-            "path": remote,
-            "size": path.stat().st_size,
-            "sha256": sha256_file(path),
-        })
-    manifest = {
-        "version": version,
-        "notes": load_notes(),
-        "content": fingerprint,
-        "files": entries,
-    }
-    body = json.dumps(manifest, indent=2).encode() + b"\n"
-    upload_bytes(client, env, object_key(env, MANIFEST_NAME), body)
-    print(f"published {version} files={len(entries)}")
+    for rel, path in package_files():
+        upload_file(client, env, object_key(env, f"{version}/{rel}"), path)
+    body = write_local_manifest(version, fingerprint)
+    store_manifest(client, env, version, body)
+    print(f"published {version}")
 
 
 def main():
     env = load_env(ENV_PATH)
     client = tos_client(env)
     fingerprint = content_fingerprint()
-    manifest = load_manifest(client, env)
-    remote_content = manifest.get("content") if isinstance(manifest, dict) else None
-    remote_version = manifest.get("version") if isinstance(manifest, dict) else None
     notes = load_notes()
-    if remote_content == fingerprint:
-        if isinstance(manifest, dict) and manifest.get("notes") == notes:
-            print(f"no update version={remote_version}")
+    with tempfile.TemporaryDirectory() as tmp:
+        remote_path = Path(tmp) / MANIFEST_NAME
+        remote = read_manifest_fields(remote_path) if download_manifest(client, env, remote_path) else None
+        remote_content = remote.get("content") if remote else None
+        remote_version = remote.get("version") if remote else None
+        if remote_content == fingerprint:
+            if remote and remote.get("notes") == notes:
+                print(f"no update version={remote_version}")
+                return
+            local_path = RES_ROOT / MANIFEST_NAME
+            rewrite_notes(remote_path, local_path, notes)
+            store_manifest(client, env, remote_version, local_path)
+            print(f"updated notes version={remote_version}")
             return
-        manifest["notes"] = notes
-        body = json.dumps(manifest, indent=2).encode() + b"\n"
-        upload_bytes(client, env, object_key(env, MANIFEST_NAME), body)
-        print(f"updated notes version={remote_version}")
-        return
     version = datetime.now().strftime("%Y%m%d%H%M")
     print(f"update {remote_version or '-'} -> {version}")
     previous = read_version()

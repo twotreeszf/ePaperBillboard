@@ -2,6 +2,7 @@
 #include "TTWiFiConfigPage.h"
 #include "TTWiFiStatusPage.h"
 #include "TTNtpSyncPage.h"
+#include "TTUpdatePage.h"
 #include "../Base/TTFile.h"
 #include "../Base/TTFontManager.h"
 #include <memory>
@@ -32,4 +33,7 @@ void TTSettingsPage::buildContent(lv_obj_t* screen) {
 
     MenuItem::create(&_items[2], container, this, TT_FS_RES_DIR "/icons/ntp.i1", "NTP 校时", fontBtn,
         [this]() { getNavigationController()->pushPage(std::unique_ptr<TTScreenPage>(new TTNtpSyncPage())); });
+
+    MenuItem::create(&_items[3], container, this, TT_FS_RES_DIR "/icons/ntp.i1", "系统更新", fontBtn,
+        [this]() { getNavigationController()->pushPage(std::unique_ptr<TTScreenPage>(new TTUpdatePage())); });
 }

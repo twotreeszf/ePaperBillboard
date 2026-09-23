@@ -12,6 +12,7 @@
 #include "../Base/TTFontManager.h"
 #include "../Service/TTSleepService.h"
 #include "../Service/TTTimeService.h"
+#include "../Service/TTOtaService.h"
 #include <freertos/FreeRTOS.h>
 #include <freertos/task.h>
 
@@ -26,6 +27,7 @@ void TTUITask::setup() {
     if (!LittleFS.exists(TT_FS_TMP_DIR) && !LittleFS.mkdir(TT_FS_TMP_DIR)) {
         LOG_E("LittleFS mkdir %s failed", TT_FS_TMP_DIR);
     }
+    TTInstanceOf<TTOtaService>().applyPending();
     LOG_I("LittleFS initialized, heap=%u", (unsigned)ESP.getFreeHeap());
 
     LOG_I("Initializing LVGL...");
