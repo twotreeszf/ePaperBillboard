@@ -173,6 +173,16 @@ void TTPopupLayer::dialogBtnClicked(lv_event_t* e) {
     TTPopupLayer* self = (TTPopupLayer*)lv_obj_get_user_data(panel);
     if (self == nullptr) return;
     intptr_t isOk = (intptr_t)lv_event_get_user_data(e);
+    if (isOk && self->_keepDialogOnOk) {
+        self->_keepDialogOnOk = false;
+        DialogCallback ok = std::move(self->_onDialogOk);
+        self->_onDialogOk = nullptr;
+        self->_onDialogCancel = nullptr;
+        if (ok) {
+            ok();
+        }
+        return;
+    }
     self->dismissDialog();
 
     if (isOk && self->_onDialogOk) self->_onDialogOk();
@@ -236,10 +246,11 @@ void TTPopupLayer::showDialog(const char* msg, DialogCallback onOk, DialogCallba
         }
         addDialogText(_dialogPanel, ask, LV_TEXT_ALIGN_CENTER, font);
     } else {
-        addDialogText(_dialogPanel, text, LV_TEXT_ALIGN_CENTER, font);
+        _dialogLabel = addDialogText(_dialogPanel, text, LV_TEXT_ALIGN_CENTER, font);
     }
 
     lv_obj_t* btnRow = lv_obj_create(_dialogPanel);
+    _dialogActions = btnRow;
     lv_obj_set_size(btnRow, LV_SIZE_CONTENT, LV_SIZE_CONTENT);
     lv_obj_set_style_bg_opa(btnRow, LV_OPA_TRANSP, 0);
     lv_obj_set_style_border_width(btnRow, 0, 0);
@@ -336,6 +347,25 @@ void TTPopupLayer::showConfirm(const char* msg, DialogCallback onOk) {
     showDialog(msg, std::move(onOk), nullptr);
 }
 
+void TTPopupLayer::showConfirmKeep(const char* msg, DialogCallback onOk) {
+    showDialog(msg, std::move(onOk), nullptr);
+    _keepDialogOnOk = true;
+}
+
+void TTPopupLayer::setDialogMessage(const char* msg) {
+    if (_dialogLabel == nullptr) {
+        return;
+    }
+    lv_label_set_text(_dialogLabel, msg != nullptr ? msg : "");
+    if (_dialogActions != nullptr) {
+        lv_obj_add_flag(_dialogActions, LV_OBJ_FLAG_HIDDEN);
+    }
+    if (_dialogPanel != nullptr) {
+        lv_obj_update_layout(_dialogPanel);
+        lv_obj_align(_dialogPanel, LV_ALIGN_CENTER, 0, 0);
+    }
+}
+
 void TTPopupLayer::dismissDialog() {
     if (_keypad != nullptr && _savedPageGroup != nullptr)
         lv_indev_set_group(_keypad->getIndev(), _savedPageGroup);
@@ -348,6 +378,9 @@ void TTPopupLayer::dismissDialog() {
     if (_dialogPanel != nullptr) {
         lv_obj_delete(_dialogPanel);
         _dialogPanel = nullptr;
+        _dialogLabel = nullptr;
+        _dialogActions = nullptr;
+        _keepDialogOnOk = false;
         TTInstanceOf<TTLvglEpdDriver>().requestRefresh(TT_REFRESH_FULL);
     }
 }

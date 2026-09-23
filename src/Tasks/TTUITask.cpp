@@ -51,7 +51,11 @@ void TTUITask::setup() {
 
 void TTUITask::requestDeepRefreshAsync() {
     auto* f = new std::function<void()>([]() {
-        TTInstanceOf<TTLvglEpdDriver>().requestRefresh(TT_REFRESH_DEEP);
+        TTLvglEpdDriver& driver = TTInstanceOf<TTLvglEpdDriver>();
+        if (!driver.isAutoDeepRefreshEnabled()) {
+            return;
+        }
+        driver.requestRefresh(TT_REFRESH_DEEP);
     });
     enqueue(f);
 }

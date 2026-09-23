@@ -11,6 +11,7 @@ public:
     void requestRefresh(TTRefreshLevel level = TT_REFRESH_PARTIAL);
     void requestOverlayRefresh();
     void setAutoDeepRefresh(bool enabled);
+    bool isAutoDeepRefreshEnabled() const { return _autoDeepRefresh; }
     void hibernate();
     lv_display_t* getDisplay() { return _lvDisplay; }
 

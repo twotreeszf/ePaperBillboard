@@ -530,13 +530,31 @@ bool readManifest(const char* path, size_t offset, size_t bodyLen, TTOtaDoc* doc
     return ok;
 }
 
+uint32_t downloadTimeoutMs(size_t bytes) {
+    const uint32_t unit = TT_OTA_TIMEOUT_UNIT_BYTES;
+    uint64_t units = ((uint64_t)bytes + unit - 1) / unit;
+    if (units == 0) {
+        units = 1;
+    }
+    uint64_t ms = units * TT_OTA_TIMEOUT_UNIT_MS;
+    if (ms < TT_OTA_TIMEOUT_MIN_MS) {
+        ms = TT_OTA_TIMEOUT_MIN_MS;
+    }
+    if (ms > 0xffffffffull) {
+        ms = 0xffffffffull;
+    }
+    return (uint32_t)ms;
+}
+
 bool downloadManifest(TTOtaDoc* doc) {
     memset(doc, 0, sizeof(*doc));
     TTHttpsRequest request = {};
     request.url = TT_OTA_MANIFEST_URL;
     request.bodyMax = TT_OTA_MANIFEST_MAX;
+    request.bodyTimeoutMs = downloadTimeoutMs(TT_OTA_MANIFEST_MAX);
     TTHttpsResult result = {};
-    LOG_I("OTA: GET %s heap=%u", TT_OTA_MANIFEST_URL, (unsigned)ESP.getFreeHeap());
+    LOG_I("OTA: GET %s timeout=%u ms heap=%u",
+          TT_OTA_MANIFEST_URL, (unsigned)request.bodyTimeoutMs, (unsigned)ESP.getFreeHeap());
     if (!tt_https_exchange_file(&request, TT_OTA_REMOTE_MANIFEST, &result)) {
         LOG_E("OTA: manifest get failed");
         return false;
@@ -1029,7 +1047,9 @@ bool downloadRes(const TTOtaEntry& entry, size_t index, size_t total) {
         LOG_E("OTA: url too long %s", entry.remote);
         return false;
     }
-    LOG_I("OTA: GET %s -> %s", url, local);
+    const uint32_t timeoutMs = downloadTimeoutMs(entry.size);
+    LOG_I("OTA: GET %s -> %s size=%u timeout=%u ms",
+          url, local, (unsigned)entry.size, (unsigned)timeoutMs);
     TTHttpsResult result = {};
     TTOtaWriteCtx writer = {};
     writer.path = local;
@@ -1040,7 +1060,7 @@ bool downloadRes(const TTOtaEntry& entry, size_t index, size_t total) {
     writer.fileTotal = total;
     writer.lastPercent = 255;
     reportWriteProgress(&writer);
-    const bool httpOk = tt_https_get_body(url, entry.size, otaWriteBody, &writer, &result);
+    const bool httpOk = tt_https_get_body(url, entry.size, timeoutMs, otaWriteBody, &writer, &result);
     if (writer.file) {
         writer.file.flush();
         writer.file.close();
@@ -1074,7 +1094,8 @@ bool flashFirmware(const TTOtaEntry& entry) {
         LOG_E("OTA: begin failed %s", Update.errorString());
         return false;
     }
-    LOG_I("OTA: GET firmware %s size=%u", url, (unsigned)entry.size);
+    const uint32_t timeoutMs = downloadTimeoutMs(entry.size);
+    LOG_I("OTA: GET firmware %s size=%u timeout=%u ms", url, (unsigned)entry.size, (unsigned)timeoutMs);
     TTHttpsResult result = {};
     TTOtaWriteCtx writer = {};
     writer.useUpdate = true;
@@ -1082,7 +1103,7 @@ bool flashFirmware(const TTOtaEntry& entry) {
     writer.expect = entry.size;
     writer.lastPercent = 255;
     reportWriteProgress(&writer);
-    const bool httpOk = tt_https_get_body(url, entry.size, otaWriteBody, &writer, &result);
+    const bool httpOk = tt_https_get_body(url, entry.size, timeoutMs, otaWriteBody, &writer, &result);
     const bool hashOk = httpOk && result.status == 200 && result.bodyLen == entry.size
         && finishHash(&writer, entry.sha);
     if (!hashOk) {
@@ -1201,7 +1222,7 @@ void TTOtaService::checkNow() {
 
 void rebootAfterOta() {
     LOG_I("OTA: wait for reboot confirm");
-    postOta(TT_OTA_PHASE_REBOOT, nullptr, "更新完成");
+    postOta(TT_OTA_PHASE_REBOOT, nullptr, "更新完成，点击确定重启");
 }
 
 void TTOtaService::upgradeNow() {

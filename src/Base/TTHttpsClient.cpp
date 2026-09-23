@@ -264,10 +264,11 @@ bool tt_https_get_file(const char* url, const char* tmpPath, TTHttpsResult* out)
     return tt_https_exchange_file(&request, tmpPath, out);
 }
 
-bool tt_https_get_body(const char* url, size_t bodyMax, TTHttpsBodyFn writer, void* ctx, TTHttpsResult* out) {
+bool tt_https_get_body(const char* url, size_t bodyMax, uint32_t bodyTimeoutMs, TTHttpsBodyFn writer, void* ctx, TTHttpsResult* out) {
     TTHttpsRequest request = {};
     request.url = url;
     request.bodyMax = bodyMax;
+    request.bodyTimeoutMs = bodyTimeoutMs;
     request.bodyWriter = writer;
     request.bodyWriterCtx = ctx;
     return tt_https_exchange_file(&request, nullptr, out);
@@ -327,7 +328,12 @@ bool tt_https_exchange_file(const TTHttpsRequest* request, const char* tmpPath, 
             break;
         }
         logHeap("after tls handshake");
-        tt_tls_set_timeout(&tls, (uint32_t)ctx.ioTimeout);
+        if (request->bodyTimeoutMs > 0) {
+            tt_tls_set_deadline(&tls, request->bodyTimeoutMs);
+            LOG_I("HTTPS: body deadline %u ms", (unsigned)request->bodyTimeoutMs);
+        } else {
+            tt_tls_set_timeout(&tls, (uint32_t)ctx.ioTimeout);
+        }
 
         char req[TT_HTTPS_REQ_MAX];
         const size_t contentLen = request->body != nullptr ? strlen(request->body) : 0;

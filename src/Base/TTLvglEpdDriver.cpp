@@ -179,6 +179,9 @@ void TTLvglEpdDriver::setAutoDeepRefresh(bool enabled) {
     _autoDeepRefresh = enabled;
     if (enabled) {
         _partialCount = 0;
+    } else {
+        _needDeepRefresh = false;
+        _deepRefreshPending = false;
     }
     LOG_I("E-Paper auto deep refresh=%d pending=%d",
           enabled ? 1 : 0, _deepRefreshPending ? 1 : 0);

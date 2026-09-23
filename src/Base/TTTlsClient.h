@@ -56,6 +56,7 @@ struct TTTlsSession {
 
 bool tt_tls_handshake(TTTlsSession* session, int socket, const char* sni, uint32_t timeoutMs);
 void tt_tls_set_timeout(TTTlsSession* session, uint32_t timeoutMs);
+void tt_tls_set_deadline(TTTlsSession* session, uint32_t timeoutMs);
 int tt_tls_write(TTTlsSession* session, const uint8_t* data, size_t len);
 int tt_tls_read(TTTlsSession* session, uint8_t* data, size_t len);
 void tt_tls_close(TTTlsSession* session);

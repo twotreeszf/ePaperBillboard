@@ -23,6 +23,9 @@
 #define TT_OTA_PROGRESS_DETAIL  (16 * 1024)
 #define TT_OTA_PROGRESS_NAME    48
 #define TT_OTA_UPDATING_HINT    "正在更新，不要退出界面或关闭设备"
+#define TT_OTA_TIMEOUT_UNIT_BYTES  (4 * 1024)
+#define TT_OTA_TIMEOUT_UNIT_MS     1000
+#define TT_OTA_TIMEOUT_MIN_MS      15000
 
 class TTOtaService {
 public:

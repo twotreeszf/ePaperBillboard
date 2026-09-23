@@ -7,6 +7,7 @@
 #include "../Base/TTTextButton.h"
 #include "../Base/Logger.h"
 #include "../Base/TTFontManager.h"
+#include "../Base/TTLvglEpdDriver.h"
 #include "../Base/TTNavigationBar.h"
 #include "../Service/TTOtaService.h"
 #include <Arduino.h>
@@ -18,7 +19,8 @@ static void styleText(lv_obj_t* label, lv_font_t* font) {
 }
 
 static lv_obj_t* addTextBlock(lv_obj_t* parent, const char* title,
-                            lv_font_t* titleFont, lv_font_t* valueFont, lv_obj_t** value) {
+                            lv_font_t* titleFont, lv_font_t* valueFont, lv_obj_t** value,
+                            lv_obj_t** titleOut = nullptr) {
     lv_obj_t* block = lv_obj_create(parent);
     lv_obj_set_width(block, lv_pct(100));
     lv_obj_set_height(block, LV_SIZE_CONTENT);
@@ -35,6 +37,9 @@ static lv_obj_t* addTextBlock(lv_obj_t* parent, const char* title,
     lv_label_set_text(titleLabel, title);
     lv_obj_set_width(titleLabel, lv_pct(100));
     styleText(titleLabel, titleFont);
+    if (titleOut != nullptr) {
+        *titleOut = titleLabel;
+    }
 
     *value = lv_label_create(block);
     lv_label_set_long_mode(*value, LV_LABEL_LONG_WRAP);
@@ -64,7 +69,7 @@ void TTUpdatePage::buildContent(lv_obj_t* screen) {
     lv_obj_remove_flag(column, LV_OBJ_FLAG_SCROLLABLE);
     lv_obj_align(column, LV_ALIGN_TOP_MID, 0, TT_UPDATE_PAD);
 
-    addTextBlock(column, "当前版本", font16, font12, &_versionValue);
+    addTextBlock(column, "当前版本", font16, font12, &_versionValue, &_versionTitle);
     lv_label_set_text(_versionValue, TT_FW_VERSION);
     addTextBlock(column, "更新说明", font16, font12, &_notesValue);
     lv_label_set_text(_notesValue, "无");
@@ -132,6 +137,9 @@ void TTUpdatePage::rememberTarget(const TTOtaPayload& payload) {
 }
 
 void TTUpdatePage::showTarget() {
+    if (_versionTitle != nullptr) {
+        lv_label_set_text(_versionTitle, "正在更新");
+    }
     if (_versionValue != nullptr && _targetVersion[0] != '\0') {
         lv_label_set_text(_versionValue, _targetVersion);
     }
@@ -146,6 +154,9 @@ void TTUpdatePage::showInstalled() {
     TTOtaService& ota = TTInstanceOf<TTOtaService>();
     ota.readLocalVersion(version, sizeof(version));
     ota.readLocalNotes(notes, sizeof(notes));
+    if (_versionTitle != nullptr) {
+        lv_label_set_text(_versionTitle, "当前版本");
+    }
     if (_versionValue != nullptr) {
         lv_label_set_text(_versionValue, version[0] != '\0' ? version : TT_FW_VERSION);
     }
@@ -157,6 +168,7 @@ void TTUpdatePage::showInstalled() {
 void TTUpdatePage::willDisappear() {
     TTScreenPage::willDisappear();
     _visible = false;
+    setDeepRefreshBlocked(false);
     if (_loading) {
         _loading = false;
         TTInstanceOf<TTPopupLayer>().dismissLoading();
@@ -177,6 +189,15 @@ void TTUpdatePage::setStatus(const char* text) {
     } else {
         lv_obj_add_flag(_statusBox, LV_OBJ_FLAG_HIDDEN);
     }
+}
+
+void TTUpdatePage::setDeepRefreshBlocked(bool blocked) {
+    if (_deepBlocked == blocked) {
+        return;
+    }
+    _deepBlocked = blocked;
+    TTInstanceOf<TTLvglEpdDriver>().setAutoDeepRefresh(!blocked);
+    LOG_I("OTA page: deep refresh %s", blocked ? "blocked" : "allowed");
 }
 
 void TTUpdatePage::setLocked(bool locked) {
@@ -204,6 +225,7 @@ void TTUpdatePage::startCheck() {
         return;
     }
     _loading = true;
+    setDeepRefreshBlocked(true);
     setLocked(true);
     showCheckButton(false);
     setStatus("");
@@ -215,6 +237,7 @@ void TTUpdatePage::startCheck() {
 void TTUpdatePage::startUpgrade() {
     _loading = true;
     _updateStarted = true;
+    setDeepRefreshBlocked(true);
     setLocked(true);
     showCheckButton(false);
     showTarget();
@@ -228,10 +251,23 @@ void TTUpdatePage::startUpgrade() {
     TTInstanceOf<TTOtaService>().upgradeAsync();
 }
 
+void TTUpdatePage::showFinishedDialog(const char* message) {
+    _loading = false;
+    TTInstanceOf<TTPopupLayer>().dismissLoading();
+    const char* text = (message != nullptr && message[0] != '\0') ? message : "更新完成，点击确定重启";
+    LOG_I("OTA page: reboot dialog %s", text);
+    TTInstanceOf<TTPopupLayer>().showConfirmKeep(text, []() {
+        LOG_I("OTA page: reboot");
+        TTInstanceOf<TTPopupLayer>().setDialogMessage("正在重启中");
+        TTInstanceOf<TTLvglEpdDriver>().requestRefresh(TT_REFRESH_FULL);
+        ESP.restart();
+    });
+}
+
 void TTUpdatePage::showRebootDialog(const char* message) {
     _loading = false;
     TTInstanceOf<TTPopupLayer>().dismissLoading();
-    const char* text = (message != nullptr && message[0] != '\0') ? message : "更新完成";
+    const char* text = (message != nullptr && message[0] != '\0') ? message : "更新失败";
     LOG_I("OTA page: reboot dialog %s", text);
     TTInstanceOf<TTPopupLayer>().showConfirm(text, []() {
         LOG_I("OTA page: reboot");
@@ -260,7 +296,7 @@ void TTUpdatePage::applyOta(const TTOtaPayload& payload) {
         }
         break;
     case TT_OTA_PHASE_REBOOT:
-        showRebootDialog(payload.message);
+        showFinishedDialog(payload.message);
         break;
     case TT_OTA_PHASE_AVAILABLE:
         _loading = false;
@@ -271,6 +307,7 @@ void TTUpdatePage::applyOta(const TTOtaPayload& payload) {
             payload.message,
             [this]() { startUpgrade(); },
             [this]() {
+                setDeepRefreshBlocked(false);
                 setLocked(false);
                 showCheckButton(true);
                 requestRefresh(TT_REFRESH_PARTIAL);
@@ -282,6 +319,7 @@ void TTUpdatePage::applyOta(const TTOtaPayload& payload) {
             showRebootDialog(payload.message);
             break;
         }
+        setDeepRefreshBlocked(false);
         _loading = false;
         setLocked(false);
         TTInstanceOf<TTPopupLayer>().dismissLoading();

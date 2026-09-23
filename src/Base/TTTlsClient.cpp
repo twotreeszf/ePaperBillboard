@@ -882,6 +882,13 @@ void tt_tls_set_timeout(TTTlsSession* session, uint32_t timeoutMs) {
     }
 }
 
+void tt_tls_set_deadline(TTTlsSession* session, uint32_t timeoutMs) {
+    if (session != nullptr) {
+        session->ioTimeoutMs = 0;
+        session->deadline = millis() + timeoutMs;
+    }
+}
+
 int tt_tls_write(TTTlsSession* session, const uint8_t* data, size_t len) {
     if (session == nullptr || data == nullptr || !session->sendEncrypted) {
         return -1;

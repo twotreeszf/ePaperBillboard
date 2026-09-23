@@ -36,6 +36,8 @@ public:
 
     void showDialog(const char* msg, DialogCallback onOk, DialogCallback onCancel);
     void showConfirm(const char* msg, DialogCallback onOk);
+    void showConfirmKeep(const char* msg, DialogCallback onOk);
+    void setDialogMessage(const char* msg);
     void dismissDialog();
     bool isBusy() const;
 
@@ -53,8 +55,11 @@ private:
 
     TTKeypadInput* _keypad = nullptr;
     lv_obj_t* _dialogPanel = nullptr;
+    lv_obj_t* _dialogLabel = nullptr;
+    lv_obj_t* _dialogActions = nullptr;
     lv_group_t* _dialogGroup = nullptr;
     lv_group_t* _savedPageGroup = nullptr;
     DialogCallback _onDialogOk;
     DialogCallback _onDialogCancel;
+    bool _keepDialogOnOk = false;
 };

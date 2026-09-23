@@ -30,10 +30,11 @@ struct TTHttpsRequest {
     const char* body;
     const char* extraHeaders;
     size_t bodyMax;
+    uint32_t bodyTimeoutMs;
     TTHttpsBodyFn bodyWriter;
     void* bodyWriterCtx;
 };
 
 bool tt_https_get_file(const char* url, const char* tmpPath, TTHttpsResult* out);
-bool tt_https_get_body(const char* url, size_t bodyMax, TTHttpsBodyFn writer, void* ctx, TTHttpsResult* out);
+bool tt_https_get_body(const char* url, size_t bodyMax, uint32_t bodyTimeoutMs, TTHttpsBodyFn writer, void* ctx, TTHttpsResult* out);
 bool tt_https_exchange_file(const TTHttpsRequest* request, const char* tmpPath, TTHttpsResult* out);

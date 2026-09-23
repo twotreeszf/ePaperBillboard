@@ -33,11 +33,14 @@ private:
     void setStatus(const char* text);
     void showCheckButton(bool show);
     void setLocked(bool locked);
+    void setDeepRefreshBlocked(bool blocked);
     void startCheck();
     void startUpgrade();
     void showRebootDialog(const char* message);
+    void showFinishedDialog(const char* message);
     static void onCheckEvent(lv_event_t* e);
 
+    lv_obj_t* _versionTitle = nullptr;
     lv_obj_t* _versionValue = nullptr;
     lv_obj_t* _notesValue = nullptr;
     lv_obj_t* _statusBox = nullptr;
@@ -47,6 +50,7 @@ private:
     bool _loading = false;
     bool _locked = false;
     bool _updateStarted = false;
+    bool _deepBlocked = false;
     char _targetVersion[TT_OTA_VER_MAX] = {};
     char _targetNotes[TT_OTA_MSG_MAX] = {};
 };
