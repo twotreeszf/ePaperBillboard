@@ -6,7 +6,10 @@
 #include "../Base/TTPopupLayer.h"
 #include "../Base/TTTextButton.h"
 #include "../Base/Logger.h"
+#include "../Base/TTFontManager.h"
+#include "../Base/TTNavigationBar.h"
 #include "../Service/TTOtaService.h"
+#include <Arduino.h>
 #include <cstring>
 
 static void styleText(lv_obj_t* label, lv_font_t* font) {
@@ -211,12 +214,29 @@ void TTUpdatePage::startCheck() {
 
 void TTUpdatePage::startUpgrade() {
     _loading = true;
+    _updateStarted = true;
     setLocked(true);
     showCheckButton(false);
     showTarget();
+    TTFontManager::instance().releaseResFonts();
+    ITTNavigationController* nav = getNavigationController();
+    if (nav != nullptr && nav->getNavBar() != nullptr) {
+        nav->getNavBar()->suspendForUpdate();
+    }
     LOG_I("OTA page: upgrade %s", _targetVersion);
     TTInstanceOf<TTPopupLayer>().showLoading(TT_OTA_UPDATING_HINT);
     TTInstanceOf<TTOtaService>().upgradeAsync();
+}
+
+void TTUpdatePage::showRebootDialog(const char* message) {
+    _loading = false;
+    TTInstanceOf<TTPopupLayer>().dismissLoading();
+    const char* text = (message != nullptr && message[0] != '\0') ? message : "更新完成";
+    LOG_I("OTA page: reboot dialog %s", text);
+    TTInstanceOf<TTPopupLayer>().showConfirm(text, []() {
+        LOG_I("OTA page: reboot");
+        ESP.restart();
+    });
 }
 
 void TTUpdatePage::onCheckEvent(lv_event_t* e) {
@@ -232,13 +252,15 @@ void TTUpdatePage::applyOta(const TTOtaPayload& payload) {
     }
     switch (payload.phase) {
     case TT_OTA_PHASE_PROGRESS:
-    case TT_OTA_PHASE_REBOOT:
         if (!_loading) {
             _loading = true;
             TTInstanceOf<TTPopupLayer>().showLoading(payload.message);
         } else {
             TTInstanceOf<TTPopupLayer>().updateLoading(payload.message);
         }
+        break;
+    case TT_OTA_PHASE_REBOOT:
+        showRebootDialog(payload.message);
         break;
     case TT_OTA_PHASE_AVAILABLE:
         _loading = false;
@@ -256,6 +278,10 @@ void TTUpdatePage::applyOta(const TTOtaPayload& payload) {
         break;
     case TT_OTA_PHASE_UP_TO_DATE:
     case TT_OTA_PHASE_FAILED:
+        if (_updateStarted) {
+            showRebootDialog(payload.message);
+            break;
+        }
         _loading = false;
         setLocked(false);
         TTInstanceOf<TTPopupLayer>().dismissLoading();

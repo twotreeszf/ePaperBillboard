@@ -251,6 +251,7 @@ void TTPopupLayer::showDialog(const char* msg, DialogCallback onOk, DialogCallba
 
     _dialogGroup = lv_group_create();
 
+    if (_onDialogCancel) {
     lv_obj_t* cancelBtn = lv_btn_create(btnRow);
     lv_obj_set_size(cancelBtn, LV_SIZE_CONTENT, LV_SIZE_CONTENT);
     lv_obj_set_style_pad_left(cancelBtn, TT_POPUP_DIALOG_BTN_PAD_X, 0);
@@ -281,6 +282,7 @@ void TTPopupLayer::showDialog(const char* msg, DialogCallback onOk, DialogCallba
     lv_obj_add_event_cb(cancelBtn, dialogBtnClicked, LV_EVENT_CLICKED, (void*)0);
     lv_obj_add_event_cb(cancelBtn, dialogBtnFocusChanged, LV_EVENT_FOCUSED, cancelUnderline);
     lv_obj_add_event_cb(cancelBtn, dialogBtnFocusChanged, LV_EVENT_DEFOCUSED, cancelUnderline);
+    }
 
     lv_obj_t* okBtn = lv_btn_create(btnRow);
     lv_obj_set_size(okBtn, LV_SIZE_CONTENT, LV_SIZE_CONTENT);
@@ -294,7 +296,7 @@ void TTPopupLayer::showDialog(const char* msg, DialogCallback onOk, DialogCallba
     lv_obj_set_style_border_width(okBtn, 1, 0);
     lv_obj_set_style_border_width(okBtn, 1, LV_STATE_FOCUSED);
     lv_obj_t* okLabel = lv_label_create(okBtn);
-    lv_label_set_text(okLabel, "更新");
+    lv_label_set_text(okLabel, _onDialogCancel ? "更新" : "确定");
     lv_obj_set_style_text_color(okLabel, lv_color_black(), 0);
     lv_obj_set_style_text_font(okLabel, font, 0);
     lv_obj_center(okLabel);
@@ -328,6 +330,10 @@ void TTPopupLayer::showDialog(const char* msg, DialogCallback onOk, DialogCallba
     lv_obj_align(_dialogPanel, LV_ALIGN_CENTER, 0, 0);
 
     TTInstanceOf<TTLvglEpdDriver>().requestRefresh(TT_REFRESH_FULL);
+}
+
+void TTPopupLayer::showConfirm(const char* msg, DialogCallback onOk) {
+    showDialog(msg, std::move(onOk), nullptr);
 }
 
 void TTPopupLayer::dismissDialog() {

@@ -69,6 +69,7 @@ public:
     void begin(lv_obj_t* parent, ITTNavigationController* nav);
     void show(const char* title, bool showBack);
     void hide();
+    void suspendForUpdate();
     void setMetricsVisible(bool visible);
     void setTimeVisible(bool visible);
     bool isVisible() const { return _visible; }
@@ -126,4 +127,5 @@ private:
     bool _batteryUsb = false;
     bool _sleeping = false;
     bool _visible = false;
+    bool _suspended = false;
 };

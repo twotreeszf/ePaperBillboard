@@ -35,6 +35,7 @@ private:
     void setLocked(bool locked);
     void startCheck();
     void startUpgrade();
+    void showRebootDialog(const char* message);
     static void onCheckEvent(lv_event_t* e);
 
     lv_obj_t* _versionValue = nullptr;
@@ -45,6 +46,7 @@ private:
     bool _visible = false;
     bool _loading = false;
     bool _locked = false;
+    bool _updateStarted = false;
     char _targetVersion[TT_OTA_VER_MAX] = {};
     char _targetNotes[TT_OTA_MSG_MAX] = {};
 };

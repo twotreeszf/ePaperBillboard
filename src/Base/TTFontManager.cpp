@@ -1,6 +1,7 @@
 #include "TTFontManager.h"
 #include "Logger.h"
 #include "TTFile.h"
+#include <cstring>
 
 static const struct {
     int size;
@@ -33,6 +34,23 @@ bool TTFontManager::begin() {
         }
     }
     return ok;
+}
+
+void TTFontManager::releaseResFonts() {
+    const char* prefix = TT_FS_RES_DIR "/";
+    const size_t prefixLen = strlen(prefix);
+    for (size_t i = 0; i < TT_FONT_ENTRIES_COUNT; i++) {
+        const char* path = TT_FONT_ENTRIES[i].path;
+        if (strncmp(path, prefix, prefixLen) != 0) {
+            continue;
+        }
+        auto it = _fonts.find(TT_FONT_ENTRIES[i].size);
+        if (it == _fonts.end()) {
+            continue;
+        }
+        LOG_I("Font: release %d %s", TT_FONT_ENTRIES[i].size, path);
+        _fonts.erase(it);
+    }
 }
 
 lv_font_t* TTFontManager::getFont(int size) {

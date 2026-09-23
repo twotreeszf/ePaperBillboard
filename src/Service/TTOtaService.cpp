@@ -35,6 +35,7 @@ typedef bool (*TTOtaEntryFn)(const TTOtaEntry* entry, void* ctx);
 struct TTOtaWriteCtx {
     File file;
     const char* path;
+    const char* storePath;
     TTHttpsResult* result;
     mbedtls_sha256_context sha;
     size_t written;
@@ -357,10 +358,11 @@ bool otaWriteBody(void* ctx, const uint8_t* data, size_t len) {
     }
     if (!writer->opened) {
         if (!writer->useUpdate) {
-            if (!ensureParent(writer->path)) {
+            const char* store = writer->storePath != nullptr ? writer->storePath : writer->path;
+            if (!ensureParent(store)) {
                 return false;
             }
-            writer->file = tt_file_create(writer->path);
+            writer->file = tt_file_create(store);
             if (!writer->file) {
                 return false;
             }
@@ -1003,6 +1005,20 @@ bool onFetchEntry(const TTOtaEntry* entry, void* ctx) {
     return true;
 }
 
+bool commitStaged(const char* stage, const char* dest) {
+    if (!ensureParent(dest)) {
+        tt_file_remove(stage);
+        return false;
+    }
+    if (!LittleFS.rename(stage, dest)) {
+        LOG_E("OTA: rename %s -> %s failed", stage, dest);
+        tt_file_remove(stage);
+        return false;
+    }
+    LOG_I("OTA: installed %s", dest);
+    return true;
+}
+
 bool downloadRes(const TTOtaEntry& entry, size_t index, size_t total) {
     char local[TT_FILE_FULL_PATH_MAX];
     char url[TT_OTA_URL_MAX];
@@ -1017,6 +1033,7 @@ bool downloadRes(const TTOtaEntry& entry, size_t index, size_t total) {
     TTHttpsResult result = {};
     TTOtaWriteCtx writer = {};
     writer.path = local;
+    writer.storePath = TT_OTA_PART_PATH;
     writer.result = &result;
     writer.expect = entry.size;
     writer.fileIndex = index;
@@ -1034,11 +1051,10 @@ bool downloadRes(const TTOtaEntry& entry, size_t index, size_t total) {
         dropHash(&writer);
         LOG_E("OTA: replace failed %s status=%d body=%u",
               local, result.status, (unsigned)result.bodyLen);
-        tt_file_remove(local);
+        tt_file_remove(TT_OTA_PART_PATH);
         return false;
     }
-    LOG_I("OTA: replaced %s", local);
-    return true;
+    return commitStaged(TT_OTA_PART_PATH, local);
 }
 
 bool flashFirmware(const TTOtaEntry& entry) {
@@ -1184,10 +1200,8 @@ void TTOtaService::checkNow() {
 }
 
 void rebootAfterOta() {
-    LOG_I("OTA: reboot");
-    postUpdating(TT_OTA_PHASE_REBOOT, "正在重启");
-    delay(300);
-    ESP.restart();
+    LOG_I("OTA: wait for reboot confirm");
+    postOta(TT_OTA_PHASE_REBOOT, nullptr, "更新完成");
 }
 
 void TTOtaService::upgradeNow() {

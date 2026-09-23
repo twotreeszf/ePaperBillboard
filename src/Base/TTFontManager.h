@@ -11,6 +11,7 @@ public:
     static TTFontManager& instance() { return TTInstanceOf<TTFontManager>(); }
 
     bool begin();
+    void releaseResFonts();
 
     lv_font_t* getFont(int size);
 

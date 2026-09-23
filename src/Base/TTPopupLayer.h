@@ -35,6 +35,7 @@ public:
     void dismissLoading();
 
     void showDialog(const char* msg, DialogCallback onOk, DialogCallback onCancel);
+    void showConfirm(const char* msg, DialogCallback onOk);
     void dismissDialog();
     bool isBusy() const;
 

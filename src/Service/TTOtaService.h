@@ -10,6 +10,7 @@
 #define TT_OTA_STAGED_MANIFEST  TT_FS_TMP_DIR "/ota_manifest.json"
 #define TT_OTA_DELETE_LIST      TT_FS_TMP_DIR "/ota_delete.lst"
 #define TT_OTA_PENDING_VER      TT_FS_TMP_DIR "/ota_pending.txt"
+#define TT_OTA_PART_PATH        TT_FS_TMP_DIR "/ota_part"
 #define TT_OTA_MANIFEST_MAX     65536
 #define TT_OTA_REMOTE_MAX       96
 #define TT_OTA_SHA_HEX          64

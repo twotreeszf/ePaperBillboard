@@ -354,6 +354,23 @@ void TTNavigationBar::hide() {
     LOG_I("NavBar: hide");
 }
 
+void TTNavigationBar::suspendForUpdate() {
+    _suspended = true;
+    if (_statusRow != nullptr) {
+        lv_obj_delete(_statusRow);
+        _statusRow = nullptr;
+    }
+    _wifiIcon = nullptr;
+    _timeLabel = nullptr;
+    _tempLabel = nullptr;
+    _humLabel = nullptr;
+    _pressLabel = nullptr;
+    _sleepIcon = nullptr;
+    _batteryIcon = nullptr;
+    _batteryLabel = nullptr;
+    LOG_I("NavBar: suspended, status detached");
+}
+
 void TTNavigationBar::onBackClicked(lv_event_t* e) {
     TTNavigationBar* self = (TTNavigationBar*)lv_event_get_user_data(e);
     if (self == nullptr || self->_nav == nullptr) return;
@@ -362,7 +379,7 @@ void TTNavigationBar::onBackClicked(lv_event_t* e) {
 }
 
 void TTNavigationBar::applySleepState(const TTSleepStatePayload& state) {
-    if (_sleepIcon == nullptr) {
+    if (_suspended || _sleepIcon == nullptr) {
         return;
     }
     const bool sleeping = state.state == TT_SLEEP_STATE_SLEEPING;
@@ -375,7 +392,7 @@ void TTNavigationBar::applySleepState(const TTSleepStatePayload& state) {
 }
 
 void TTNavigationBar::applyWiFi(const TTWiFiStatusPayload& status) {
-    if (_wifiIcon == nullptr) return;
+    if (_suspended || _wifiIcon == nullptr) return;
     if (_wifiState == status.state) {
         return;
     }
@@ -388,6 +405,9 @@ void TTNavigationBar::applyWiFi(const TTWiFiStatusPayload& status) {
 }
 
 void TTNavigationBar::applySensor(const TTSensorDataPayload& data) {
+    if (_suspended) {
+        return;
+    }
     if (_tempLabel == nullptr || _humLabel == nullptr || _pressLabel == nullptr
         || _batteryIcon == nullptr || _batteryLabel == nullptr) {
         return;
@@ -486,7 +506,7 @@ const char* TTNavigationBar::batteryIconPath(const TTSensorDataPayload& data) co
 }
 
 bool TTNavigationBar::updateTime() {
-    if (_timeLabel == nullptr) return false;
+    if (_suspended || _timeLabel == nullptr) return false;
 
     struct tm t;
     if (!TTInstanceOf<TTRtc>().getLocalTime(t)) {
