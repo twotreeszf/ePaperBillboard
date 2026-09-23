@@ -2,6 +2,7 @@
 
 #include "../Base/TTScreenPage.h"
 #include "../Base/TTNotificationPayloads.h"
+#include "../Service/TTOtaService.h"
 #include <EPDConfig.h>
 
 #define TT_UPDATE_PAD            16
@@ -27,6 +28,8 @@ protected:
 private:
     void applyOta(const TTOtaPayload& payload);
     void showInstalled();
+    void rememberTarget(const TTOtaPayload& payload);
+    void showTarget();
     void setStatus(const char* text);
     void showCheckButton(bool show);
     void setLocked(bool locked);
@@ -42,4 +45,6 @@ private:
     bool _visible = false;
     bool _loading = false;
     bool _locked = false;
+    char _targetVersion[TT_OTA_VER_MAX] = {};
+    char _targetNotes[TT_OTA_MSG_MAX] = {};
 };

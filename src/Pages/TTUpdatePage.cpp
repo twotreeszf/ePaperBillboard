@@ -7,6 +7,7 @@
 #include "../Base/TTTextButton.h"
 #include "../Base/Logger.h"
 #include "../Service/TTOtaService.h"
+#include <cstring>
 
 static void styleText(lv_obj_t* label, lv_font_t* font) {
     lv_obj_set_style_text_color(label, lv_color_black(), 0);
@@ -109,6 +110,33 @@ void TTUpdatePage::willAppear() {
     showCheckButton(true);
 }
 
+void TTUpdatePage::rememberTarget(const TTOtaPayload& payload) {
+    strncpy(_targetVersion, payload.version, sizeof(_targetVersion) - 1);
+    _targetVersion[sizeof(_targetVersion) - 1] = '\0';
+    _targetNotes[0] = '\0';
+    const char* text = payload.message;
+    const char* firstBreak = strchr(text, '\n');
+    const char* lastBreak = strrchr(text, '\n');
+    if (firstBreak == nullptr || lastBreak == nullptr || firstBreak == lastBreak) {
+        return;
+    }
+    size_t notesLen = (size_t)(lastBreak - firstBreak - 1);
+    if (notesLen >= sizeof(_targetNotes)) {
+        notesLen = sizeof(_targetNotes) - 1;
+    }
+    memcpy(_targetNotes, firstBreak + 1, notesLen);
+    _targetNotes[notesLen] = '\0';
+}
+
+void TTUpdatePage::showTarget() {
+    if (_versionValue != nullptr && _targetVersion[0] != '\0') {
+        lv_label_set_text(_versionValue, _targetVersion);
+    }
+    if (_notesValue != nullptr) {
+        lv_label_set_text(_notesValue, _targetNotes[0] != '\0' ? _targetNotes : "无");
+    }
+}
+
 void TTUpdatePage::showInstalled() {
     char version[TT_OTA_VER_MAX];
     char notes[TT_OTA_MSG_MAX];
@@ -185,7 +213,8 @@ void TTUpdatePage::startUpgrade() {
     _loading = true;
     setLocked(true);
     showCheckButton(false);
-    LOG_I("OTA page: upgrade");
+    showTarget();
+    LOG_I("OTA page: upgrade %s", _targetVersion);
     TTInstanceOf<TTPopupLayer>().showLoading(TT_OTA_UPDATING_HINT);
     TTInstanceOf<TTOtaService>().upgradeAsync();
 }
@@ -214,6 +243,7 @@ void TTUpdatePage::applyOta(const TTOtaPayload& payload) {
     case TT_OTA_PHASE_AVAILABLE:
         _loading = false;
         TTInstanceOf<TTPopupLayer>().dismissLoading();
+        rememberTarget(payload);
         setStatus("");
         TTInstanceOf<TTPopupLayer>().showDialog(
             payload.message,

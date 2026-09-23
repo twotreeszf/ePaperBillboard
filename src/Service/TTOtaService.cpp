@@ -665,10 +665,49 @@ bool manifestLists(size_t offset, size_t bodyLen, const char* localPath, bool* f
     return true;
 }
 
-bool writeExtras(const char* dirPath, size_t offset, size_t bodyLen, File& out) {
+struct TTOtaExtras {
+    size_t offset;
+    size_t bodyLen;
+    size_t total;
+    size_t index;
+    uint8_t lastPercent;
+};
+
+void reportLocalScan(const TTOtaExtras* scan) {
+    char detail[48];
+    snprintf(detail, sizeof(detail), "正在检查本地资源\n%u/%u",
+             (unsigned)scan->index, (unsigned)scan->total);
+    LOG_I("OTA: scan local %u/%u", (unsigned)scan->index, (unsigned)scan->total);
+    postUpdating(TT_OTA_PHASE_PROGRESS, detail);
+}
+
+bool localScanDue(TTOtaExtras* scan) {
+    if (scan->total == 0 || scan->index == 0) {
+        return false;
+    }
+    unsigned percent = (unsigned)((scan->index * 100) / scan->total);
+    if (percent > 100) {
+        percent = 100;
+    }
+    const bool last = scan->index == scan->total;
+    if (!last && scan->lastPercent != 255
+        && percent < (unsigned)scan->lastPercent + TT_OTA_PROGRESS_PERCENT) {
+        return false;
+    }
+    if (!last && percent == scan->lastPercent) {
+        return false;
+    }
+    scan->lastPercent = (uint8_t)percent;
+    return true;
+}
+
+bool countLocalRes(const char* dirPath, size_t* count) {
     File dir = LittleFS.open(dirPath);
     if (!dir || !dir.isDirectory()) {
         LOG_E("OTA: open dir %s failed", dirPath);
+        if (dir) {
+            dir.close();
+        }
         return false;
     }
     File child = dir.openNextFile();
@@ -685,25 +724,63 @@ bool writeExtras(const char* dirPath, size_t offset, size_t bodyLen, File& out) 
         memcpy(stored, path, strlen(path) + 1);
         child.close();
         if (isDir) {
-            if (!writeExtras(stored, offset, bodyLen, out)) {
+            if (!countLocalRes(stored, count)) {
+                dir.close();
+                return false;
+            }
+        } else if (strcmp(stored, TT_OTA_LOCAL_MANIFEST) != 0) {
+            *count += 1;
+        }
+        child = dir.openNextFile();
+    }
+    dir.close();
+    return true;
+}
+
+bool writeExtras(const char* dirPath, TTOtaExtras* extras, File& out) {
+    File dir = LittleFS.open(dirPath);
+    if (!dir || !dir.isDirectory()) {
+        LOG_E("OTA: open dir %s failed", dirPath);
+        if (dir) {
+            dir.close();
+        }
+        return false;
+    }
+    File child = dir.openNextFile();
+    while (child) {
+        const char* path = child.path();
+        const bool isDir = child.isDirectory();
+        char stored[TT_FILE_FULL_PATH_MAX];
+        if (path == nullptr || strlen(path) >= sizeof(stored)) {
+            LOG_E("OTA: dir entry too long");
+            child.close();
+            dir.close();
+            return false;
+        }
+        memcpy(stored, path, strlen(path) + 1);
+        child.close();
+        if (isDir) {
+            if (!writeExtras(stored, extras, out)) {
                 dir.close();
                 return false;
             }
         } else if (strcmp(stored, TT_OTA_LOCAL_MANIFEST) != 0) {
             bool listed = false;
-            if (!manifestLists(offset, bodyLen, stored, &listed)) {
+            if (!manifestLists(extras->offset, extras->bodyLen, stored, &listed)) {
                 dir.close();
                 return false;
             }
-            if (listed) {
-                child = dir.openNextFile();
-                continue;
+            if (!listed) {
+                LOG_I("OTA: pending delete %s", stored);
+                const size_t len = strlen(stored);
+                if (out.write((const uint8_t*)stored, len) != len || out.write((const uint8_t*)"\n", 1) != 1) {
+                    dir.close();
+                    return false;
+                }
             }
-            LOG_I("OTA: pending delete %s", stored);
-            const size_t len = strlen(stored);
-            if (out.write((const uint8_t*)stored, len) != len || out.write((const uint8_t*)"\n", 1) != 1) {
-                dir.close();
-                return false;
+            extras->index++;
+            if (localScanDue(extras)) {
+                reportLocalScan(extras);
             }
         }
         child = dir.openNextFile();
@@ -717,9 +794,19 @@ bool buildDeleteList(size_t offset, size_t bodyLen) {
     if (!out) {
         return false;
     }
+    TTOtaExtras extras = {};
+    extras.offset = offset;
+    extras.bodyLen = bodyLen;
+    extras.lastPercent = 255;
     bool ok = true;
     if (LittleFS.exists(TT_FS_RES_DIR)) {
-        ok = writeExtras(TT_FS_RES_DIR, offset, bodyLen, out);
+        ok = countLocalRes(TT_FS_RES_DIR, &extras.total);
+        if (ok && extras.total > 0) {
+            LOG_I("OTA: scan local resources=%u", (unsigned)extras.total);
+            reportLocalScan(&extras);
+            extras.lastPercent = 0;
+            ok = writeExtras(TT_FS_RES_DIR, &extras, out);
+        }
     }
     out.close();
     if (!ok) {
