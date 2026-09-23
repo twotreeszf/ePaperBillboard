@@ -569,13 +569,14 @@ void tt_gcm_update(TTGcmCtx* ctx, const uint8_t* input, uint8_t* output, size_t 
         aes_encrypt(ctx->rk, ctx->ctr, ks);
         inc32(ctx->ctr);
         const size_t take = (len - offset) < 16 ? (len - offset) : 16;
+        if (!ctx->encrypt) {
+            ghash_bytes(ctx, input + offset, take);
+        }
         for (size_t i = 0; i < take; ++i) {
             output[offset + i] = (uint8_t)(input[offset + i] ^ ks[i]);
         }
         if (ctx->encrypt) {
             ghash_bytes(ctx, output + offset, take);
-        } else {
-            ghash_bytes(ctx, input + offset, take);
         }
         ctx->ctBits += (uint64_t)take * 8;
         offset += take;

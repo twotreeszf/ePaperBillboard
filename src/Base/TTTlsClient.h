@@ -42,6 +42,8 @@ struct TTTlsSession {
     uint8_t leftover[TT_TLS_RECORD_RAM];
     size_t leftoverOff;
     size_t leftoverLen;
+    size_t plainFileOff;
+    size_t plainFileLen;
     uint8_t hsHdr[4];
     size_t hsHdrGot;
     uint8_t hsType;

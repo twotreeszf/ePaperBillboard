@@ -379,6 +379,24 @@ bool decryptFile(TTTlsSession* s, uint8_t type, size_t recLen, size_t* plainLen)
     return true;
 }
 
+int readPlainFile(TTTlsSession* s, uint8_t* data, size_t len) {
+    File plainFile = tt_file_open(TT_TLS_TMP_PLAIN, "r");
+    if (!plainFile) {
+        return -1;
+    }
+    const size_t take = s->plainFileLen < len ? s->plainFileLen : len;
+    if (!plainFile.seek((uint32_t)s->plainFileOff) || plainFile.read(data, take) != (int)take) {
+        LOG_E("TLS: plain file read failed off=%u len=%u",
+              (unsigned)s->plainFileOff, (unsigned)take);
+        plainFile.close();
+        return -1;
+    }
+    plainFile.close();
+    s->plainFileOff += take;
+    s->plainFileLen -= take;
+    return (int)take;
+}
+
 bool parseServerHello(TTTlsSession* s, const uint8_t* body, size_t len) {
     if (len < 38) {
         return false;
@@ -883,6 +901,9 @@ int tt_tls_read(TTTlsSession* session, uint8_t* data, size_t len) {
         session->leftoverLen -= take;
         return (int)take;
     }
+    if (session->plainFileLen > 0) {
+        return readPlainFile(session, data, len);
+    }
 
     while (true) {
         if (!timeLeft(session)) {
@@ -982,27 +1003,9 @@ int tt_tls_read(TTTlsSession* session, uint8_t* data, size_t len) {
         if (!decryptFile(session, type, recLen, &plainLen)) {
             return -1;
         }
-        File plainFile = tt_file_open(TT_TLS_TMP_PLAIN, "r");
-        if (!plainFile) {
-            return -1;
-        }
-        const size_t take = plainLen < len ? plainLen : len;
-        if (plainFile.read(data, take) != (int)take) {
-            plainFile.close();
-            return -1;
-        }
-        if (plainLen > take) {
-            const size_t rest = plainLen - take;
-            const size_t keep = rest < sizeof(session->leftover) ? rest : sizeof(session->leftover);
-            if (plainFile.read(session->leftover, keep) != (int)keep) {
-                plainFile.close();
-                return -1;
-            }
-            session->leftoverOff = 0;
-            session->leftoverLen = keep;
-        }
-        plainFile.close();
-        return (int)take;
+        session->plainFileOff = 0;
+        session->plainFileLen = plainLen;
+        return readPlainFile(session, data, len);
     }
 }
 
