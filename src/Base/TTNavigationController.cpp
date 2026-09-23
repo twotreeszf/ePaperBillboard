@@ -46,6 +46,10 @@ void TTNavigationController::pop() {
         return;
     }
     ITTScreenPage* leaving = _stack.back().get();
+    if (!leaving->allowPop()) {
+        LOG_I("Nav: pop blocked by %s", leaving->getName());
+        return;
+    }
     leaving->willDisappear();
     ITTScreenPage* prev = _stack[_stack.size() - 2].get();
     prev->willAppear();

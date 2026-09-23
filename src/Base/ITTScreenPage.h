@@ -31,6 +31,7 @@ public:
     virtual void requestRefresh(TTRefreshLevel level = TT_REFRESH_PARTIAL) = 0;
 
     virtual bool handleKeyAction(TTKeyId, TTKeyGesture) { return false; }
+    virtual bool allowPop() const { return true; }
 
     virtual void setup() {}
     virtual void willDestroy() {}

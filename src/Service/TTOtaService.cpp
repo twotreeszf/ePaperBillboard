@@ -890,6 +890,28 @@ void TTOtaService::readLocalVersion(char* out, size_t outLen) {
     file.close();
 }
 
+void TTOtaService::readLocalNotes(char* out, size_t outLen) {
+    if (out == nullptr || outLen == 0) {
+        return;
+    }
+    out[0] = '\0';
+    if (!tt_file_exists(TT_OTA_LOCAL_MANIFEST)) {
+        return;
+    }
+    File file = tt_file_open(TT_OTA_LOCAL_MANIFEST, "r");
+    if (!file) {
+        return;
+    }
+    char line[TT_OTA_LINE_MAX];
+    const size_t endPos = file.size();
+    while (readManifestLine(file, endPos, line, sizeof(line))) {
+        if (strstr(line, "\"notes\"") != nullptr && jsonQuoted(line, "\"notes\"", out, outLen, nullptr)) {
+            break;
+        }
+    }
+    file.close();
+}
+
 void TTOtaService::checkAsync() {
     TTInstanceOf<TTWiFiTask>().runWithRadio("ota", [this]() {
         checkNow();

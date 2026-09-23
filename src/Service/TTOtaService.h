@@ -21,6 +21,7 @@
 class TTOtaService {
 public:
     void readLocalVersion(char* out, size_t outLen);
+    void readLocalNotes(char* out, size_t outLen);
     void checkAsync();
     void upgradeAsync();
     void applyPending();
