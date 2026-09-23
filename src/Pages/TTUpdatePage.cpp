@@ -8,72 +8,86 @@
 #include "../Base/Logger.h"
 #include "../Service/TTOtaService.h"
 
+static void styleText(lv_obj_t* label, lv_font_t* font) {
+    lv_obj_set_style_text_color(label, lv_color_black(), 0);
+    lv_obj_set_style_text_font(label, font, 0);
+}
+
+static lv_obj_t* addTextBlock(lv_obj_t* parent, const char* title, lv_font_t* font, lv_obj_t** value) {
+    lv_obj_t* block = lv_obj_create(parent);
+    lv_obj_set_width(block, lv_pct(100));
+    lv_obj_set_height(block, LV_SIZE_CONTENT);
+    lv_obj_set_style_bg_opa(block, LV_OPA_TRANSP, 0);
+    lv_obj_set_style_border_width(block, 0, 0);
+    lv_obj_set_style_pad_all(block, 0, 0);
+    lv_obj_set_style_radius(block, 0, 0);
+    lv_obj_set_layout(block, LV_LAYOUT_FLEX);
+    lv_obj_set_flex_flow(block, LV_FLEX_FLOW_COLUMN);
+    lv_obj_set_style_pad_row(block, TT_UPDATE_TITLE_GAP, 0);
+    lv_obj_remove_flag(block, LV_OBJ_FLAG_SCROLLABLE);
+
+    lv_obj_t* titleLabel = lv_label_create(block);
+    lv_label_set_text(titleLabel, title);
+    lv_obj_set_width(titleLabel, lv_pct(100));
+    styleText(titleLabel, font);
+
+    *value = lv_label_create(block);
+    lv_label_set_long_mode(*value, LV_LABEL_LONG_WRAP);
+    lv_obj_set_width(*value, lv_pct(100));
+    styleText(*value, font);
+    return block;
+}
+
 void TTUpdatePage::buildContent(lv_obj_t* screen) {
     TTFontManager& fm = TTFontManager::instance();
     lv_font_t* font16 = fm.getFont(16);
-    lv_font_t* font12 = fm.getFont(12);
 
     lv_obj_set_style_bg_color(screen, lv_color_white(), 0);
     lv_obj_set_style_bg_opa(screen, LV_OPA_COVER, 0);
 
-    auto styleLabel = [](lv_obj_t* label, lv_font_t* font) {
-        lv_obj_set_style_text_color(label, lv_color_black(), 0);
-        lv_obj_set_style_text_font(label, font, 0);
-    };
+    lv_obj_t* column = lv_obj_create(screen);
+    lv_obj_set_width(column, TT_UPDATE_BODY_W);
+    lv_obj_set_height(column, LV_SIZE_CONTENT);
+    lv_obj_set_style_bg_opa(column, LV_OPA_TRANSP, 0);
+    lv_obj_set_style_border_width(column, 0, 0);
+    lv_obj_set_style_pad_all(column, 0, 0);
+    lv_obj_set_style_radius(column, 0, 0);
+    lv_obj_set_layout(column, LV_LAYOUT_FLEX);
+    lv_obj_set_flex_flow(column, LV_FLEX_FLOW_COLUMN);
+    lv_obj_set_style_pad_row(column, TT_UPDATE_SECTION_GAP, 0);
+    lv_obj_remove_flag(column, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_align(column, LV_ALIGN_TOP_MID, 0, TT_UPDATE_PAD);
 
-    lv_obj_t* row = lv_obj_create(screen);
-    lv_obj_set_size(row, lv_pct(88), LV_SIZE_CONTENT);
-    lv_obj_set_style_bg_opa(row, LV_OPA_TRANSP, 0);
-    lv_obj_set_style_border_width(row, 0, 0);
-    lv_obj_set_style_pad_all(row, 0, 0);
-    lv_obj_set_layout(row, LV_LAYOUT_FLEX);
-    lv_obj_set_flex_flow(row, LV_FLEX_FLOW_ROW);
-    lv_obj_set_flex_align(row, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_START);
-    lv_obj_set_style_pad_column(row, 8, 0);
-    lv_obj_align(row, LV_ALIGN_TOP_LEFT, TT_UPDATE_STATUS_LEFT, TT_UPDATE_STATUS_TOP);
-
-    lv_obj_t* versionTitle = lv_label_create(row);
-    lv_label_set_text(versionTitle, "版本");
-    lv_obj_set_width(versionTitle, TT_UPDATE_TITLE_W);
-    styleLabel(versionTitle, font16);
-
-    _versionValue = lv_label_create(row);
+    addTextBlock(column, "当前版本", font16, &_versionValue);
     lv_label_set_text(_versionValue, TT_FW_VERSION);
-    styleLabel(_versionValue, font16);
-    lv_obj_set_flex_grow(_versionValue, 1);
-
-    lv_obj_t* notesRow = lv_obj_create(screen);
-    lv_obj_set_size(notesRow, lv_pct(88), LV_SIZE_CONTENT);
-    lv_obj_set_style_bg_opa(notesRow, LV_OPA_TRANSP, 0);
-    lv_obj_set_style_border_width(notesRow, 0, 0);
-    lv_obj_set_style_pad_all(notesRow, 0, 0);
-    lv_obj_set_layout(notesRow, LV_LAYOUT_FLEX);
-    lv_obj_set_flex_flow(notesRow, LV_FLEX_FLOW_ROW);
-    lv_obj_set_flex_align(notesRow, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_START);
-    lv_obj_set_style_pad_column(notesRow, 8, 0);
-    lv_obj_align_to(notesRow, row, LV_ALIGN_OUT_BOTTOM_LEFT, 0, TT_UPDATE_ROW_GAP);
-
-    lv_obj_t* notesTitle = lv_label_create(notesRow);
-    lv_label_set_text(notesTitle, "说明");
-    lv_obj_set_width(notesTitle, TT_UPDATE_TITLE_W);
-    styleLabel(notesTitle, font16);
-
-    _notesValue = lv_label_create(notesRow);
+    addTextBlock(column, "更新说明", font16, &_notesValue);
     lv_label_set_text(_notesValue, "无");
-    lv_label_set_long_mode(_notesValue, LV_LABEL_LONG_WRAP);
-    lv_obj_set_width(_notesValue, TT_UPDATE_NOTES_W);
-    styleLabel(_notesValue, font12);
-
-    _statusLabel = lv_label_create(screen);
-    lv_label_set_text(_statusLabel, "");
-    lv_obj_set_width(_statusLabel, lv_pct(88));
-    styleLabel(_statusLabel, font12);
-    lv_obj_align_to(_statusLabel, notesRow, LV_ALIGN_OUT_BOTTOM_LEFT, 0, TT_UPDATE_ROW_GAP);
 
     _checkBtn = TTTextButton::create(screen, "检查更新", font16);
     lv_obj_align(_checkBtn, LV_ALIGN_BOTTOM_MID, 0, -10);
     lv_obj_add_event_cb(_checkBtn, onCheckEvent, LV_EVENT_CLICKED, this);
     addToFocusGroup(_checkBtn);
+
+    _statusBox = lv_obj_create(screen);
+    lv_obj_set_width(_statusBox, TT_UPDATE_STATUS_MAX_W);
+    lv_obj_set_height(_statusBox, LV_SIZE_CONTENT);
+    lv_obj_set_style_bg_color(_statusBox, lv_color_white(), 0);
+    lv_obj_set_style_bg_opa(_statusBox, LV_OPA_COVER, 0);
+    lv_obj_set_style_border_color(_statusBox, lv_color_black(), 0);
+    lv_obj_set_style_border_width(_statusBox, TT_UPDATE_STATUS_BORDER, 0);
+    lv_obj_set_style_radius(_statusBox, 0, 0);
+    lv_obj_set_style_pad_all(_statusBox, TT_UPDATE_STATUS_PAD, 0);
+    lv_obj_remove_flag(_statusBox, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_remove_flag(_statusBox, LV_OBJ_FLAG_CLICKABLE);
+    lv_obj_align(_statusBox, LV_ALIGN_CENTER, 0, TT_NAV_PAGE_INSET / 2);
+    lv_obj_add_flag(_statusBox, LV_OBJ_FLAG_HIDDEN);
+
+    _statusLabel = lv_label_create(_statusBox);
+    lv_label_set_text(_statusLabel, "");
+    lv_label_set_long_mode(_statusLabel, LV_LABEL_LONG_WRAP);
+    lv_obj_set_width(_statusLabel, TT_UPDATE_STATUS_MAX_W - (TT_UPDATE_STATUS_PAD * 2));
+    lv_obj_set_style_text_align(_statusLabel, LV_TEXT_ALIGN_CENTER, 0);
+    styleText(_statusLabel, font16);
 }
 
 void TTUpdatePage::setup() {
@@ -115,10 +129,17 @@ void TTUpdatePage::willDisappear() {
 }
 
 void TTUpdatePage::setStatus(const char* text) {
-    if (_statusLabel == nullptr) {
+    if (_statusLabel == nullptr || _statusBox == nullptr) {
         return;
     }
-    lv_label_set_text(_statusLabel, text != nullptr ? text : "");
+    const bool show = text != nullptr && text[0] != '\0';
+    lv_label_set_text(_statusLabel, show ? text : "");
+    if (show) {
+        lv_obj_remove_flag(_statusBox, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_move_foreground(_statusBox);
+    } else {
+        lv_obj_add_flag(_statusBox, LV_OBJ_FLAG_HIDDEN);
+    }
 }
 
 void TTUpdatePage::setLocked(bool locked) {

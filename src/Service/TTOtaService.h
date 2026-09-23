@@ -17,6 +17,10 @@
 #define TT_OTA_LINE_MAX         512
 #define TT_OTA_FW_MAX           (2 * 1024 * 1024)
 #define TT_OTA_URL_MAX          192
+#define TT_OTA_PROGRESS_PERCENT 10
+#define TT_OTA_PROGRESS_MIN_MS  1000
+#define TT_OTA_PROGRESS_DETAIL  (16 * 1024)
+#define TT_OTA_PROGRESS_NAME    48
 
 class TTOtaService {
 public:

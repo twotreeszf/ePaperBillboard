@@ -38,6 +38,11 @@ struct TTOtaWriteCtx {
     TTHttpsResult* result;
     mbedtls_sha256_context sha;
     size_t written;
+    uint32_t expect;
+    size_t fileIndex;
+    size_t fileTotal;
+    uint32_t lastProgressMs;
+    uint8_t lastPercent;
     bool opened;
     bool shaOn;
     bool useUpdate;
@@ -310,6 +315,70 @@ void dropHash(TTOtaWriteCtx* writer) {
     writer->shaOn = false;
 }
 
+void copyProgressName(const char* path, char* out, size_t outLen) {
+    if (outLen == 0) {
+        return;
+    }
+    out[0] = '\0';
+    if (path == nullptr) {
+        return;
+    }
+    const size_t len = strlen(path);
+    if (len < outLen) {
+        memcpy(out, path, len + 1);
+        return;
+    }
+    memcpy(out, path + len - (outLen - 1), outLen - 1);
+    out[outLen - 1] = '\0';
+}
+
+void reportWriteProgress(TTOtaWriteCtx* writer) {
+    if (writer->expect == 0) {
+        return;
+    }
+    if (!writer->useUpdate && writer->fileTotal == 0) {
+        return;
+    }
+    unsigned percent = (unsigned)(((uint64_t)writer->written * 100) / writer->expect);
+    if (percent > 100) {
+        percent = 100;
+    }
+    const bool detail = writer->useUpdate || writer->expect >= TT_OTA_PROGRESS_DETAIL;
+    if (!detail && writer->written > 0) {
+        return;
+    }
+    if (writer->lastPercent != 255) {
+        if (percent == writer->lastPercent) {
+            return;
+        }
+        if (percent < 100
+            && percent < (unsigned)writer->lastPercent + TT_OTA_PROGRESS_PERCENT) {
+            return;
+        }
+        if (percent < 100
+            && (uint32_t)(millis() - writer->lastProgressMs) < TT_OTA_PROGRESS_MIN_MS) {
+            return;
+        }
+    }
+    writer->lastPercent = (uint8_t)percent;
+    writer->lastProgressMs = millis();
+    char message[TT_OTA_MSG_MAX];
+    if (writer->useUpdate) {
+        snprintf(message, sizeof(message), "写入固件\n%u%%", percent);
+    } else if (detail) {
+        char name[TT_OTA_PROGRESS_NAME];
+        copyProgressName(writer->path, name, sizeof(name));
+        snprintf(message, sizeof(message), "更新 %u/%u\n%s\n%u%%",
+                 (unsigned)writer->fileIndex, (unsigned)writer->fileTotal, name, percent);
+    } else {
+        char name[TT_OTA_PROGRESS_NAME];
+        copyProgressName(writer->path, name, sizeof(name));
+        snprintf(message, sizeof(message), "更新 %u/%u\n%s",
+                 (unsigned)writer->fileIndex, (unsigned)writer->fileTotal, name);
+    }
+    postOta(TT_OTA_PHASE_PROGRESS, nullptr, message);
+}
+
 bool otaWriteBody(void* ctx, const uint8_t* data, size_t len) {
     TTOtaWriteCtx* writer = static_cast<TTOtaWriteCtx*>(ctx);
     if (writer == nullptr || writer->result == nullptr || writer->result->status != 200) {
@@ -349,6 +418,7 @@ bool otaWriteBody(void* ctx, const uint8_t* data, size_t len) {
     if (writer->useUpdate && (writer->written % (64 * 1024)) < len) {
         LOG_I("OTA: firmware wrote %u", (unsigned)writer->written);
     }
+    reportWriteProgress(writer);
     yield();
     return true;
 }
@@ -758,7 +828,7 @@ bool onScanEntry(const TTOtaEntry* entry, void* ctx) {
     return true;
 }
 
-bool downloadRes(const TTOtaEntry& entry);
+bool downloadRes(const TTOtaEntry& entry, size_t index, size_t total);
 
 struct TTOtaFetch {
     size_t total;
@@ -780,20 +850,14 @@ bool onFetchEntry(const TTOtaEntry* entry, void* ctx) {
     }
     TTOtaFetch* fetch = static_cast<TTOtaFetch*>(ctx);
     fetch->done++;
-    if (fetch->done == 1 || fetch->done == fetch->total || fetch->done % 10 == 0) {
-        char message[TT_OTA_MSG_MAX];
-        snprintf(message, sizeof(message), "正在更新资源 %u/%u",
-                 (unsigned)fetch->done, (unsigned)fetch->total);
-        postOta(TT_OTA_PHASE_PROGRESS, nullptr, message);
-    }
-    if (!downloadRes(*entry)) {
+    if (!downloadRes(*entry, fetch->done, fetch->total)) {
         fetch->failed = true;
         return false;
     }
     return true;
 }
 
-bool downloadRes(const TTOtaEntry& entry) {
+bool downloadRes(const TTOtaEntry& entry, size_t index, size_t total) {
     char local[TT_FILE_FULL_PATH_MAX];
     char url[TT_OTA_URL_MAX];
     if (!resLocalPath(entry.remote, local, sizeof(local))) {
@@ -808,6 +872,11 @@ bool downloadRes(const TTOtaEntry& entry) {
     TTOtaWriteCtx writer = {};
     writer.path = local;
     writer.result = &result;
+    writer.expect = entry.size;
+    writer.fileIndex = index;
+    writer.fileTotal = total;
+    writer.lastPercent = 255;
+    reportWriteProgress(&writer);
     const bool httpOk = tt_https_get_body(url, entry.size, otaWriteBody, &writer, &result);
     if (writer.file) {
         writer.file.flush();
@@ -848,6 +917,9 @@ bool flashFirmware(const TTOtaEntry& entry) {
     TTOtaWriteCtx writer = {};
     writer.useUpdate = true;
     writer.result = &result;
+    writer.expect = entry.size;
+    writer.lastPercent = 255;
+    reportWriteProgress(&writer);
     const bool httpOk = tt_https_get_body(url, entry.size, otaWriteBody, &writer, &result);
     const bool hashOk = httpOk && result.status == 200 && result.bodyLen == entry.size
         && finishHash(&writer, entry.sha);
@@ -1042,7 +1114,6 @@ void TTOtaService::upgradeNow() {
         return;
     }
 
-    postOta(TT_OTA_PHASE_PROGRESS, nullptr, "正在写入固件");
     if (!flashFirmware(firmwareCopy)) {
         discardPending();
         postOta(TT_OTA_PHASE_FAILED, nullptr, "固件升级失败");

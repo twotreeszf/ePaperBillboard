@@ -22,6 +22,12 @@
       "strokeWidth": 1.5
     },
     {
+      "id": "download",
+      "file": "update.i1",
+      "size": 48,
+      "strokeWidth": 1.5
+    },
+    {
       "id": "settings",
       "file": "settings.i1",
       "size": 48,

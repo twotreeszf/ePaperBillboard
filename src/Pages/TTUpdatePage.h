@@ -2,12 +2,15 @@
 
 #include "../Base/TTScreenPage.h"
 #include "../Base/TTNotificationPayloads.h"
+#include <EPDConfig.h>
 
-#define TT_UPDATE_STATUS_TOP   16
-#define TT_UPDATE_STATUS_LEFT  16
-#define TT_UPDATE_TITLE_W      48
-#define TT_UPDATE_ROW_GAP      8
-#define TT_UPDATE_NOTES_W      280
+#define TT_UPDATE_PAD            16
+#define TT_UPDATE_SECTION_GAP    16
+#define TT_UPDATE_TITLE_GAP      4
+#define TT_UPDATE_BODY_W         (EPD_WIDTH - (TT_UPDATE_PAD * 2))
+#define TT_UPDATE_STATUS_MAX_W   (EPD_WIDTH - 64)
+#define TT_UPDATE_STATUS_PAD     12
+#define TT_UPDATE_STATUS_BORDER  1
 
 class TTUpdatePage : public TTScreenPage {
 public:
@@ -33,6 +36,7 @@ private:
 
     lv_obj_t* _versionValue = nullptr;
     lv_obj_t* _notesValue = nullptr;
+    lv_obj_t* _statusBox = nullptr;
     lv_obj_t* _statusLabel = nullptr;
     lv_obj_t* _checkBtn = nullptr;
     bool _visible = false;

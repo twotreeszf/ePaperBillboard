@@ -103,7 +103,10 @@ void TTPopupLayer::showLoading(const char* text) {
     lv_obj_remove_flag(_loadingPanel, LV_OBJ_FLAG_SCROLLABLE);
 
     _loadingLabel = lv_label_create(_loadingPanel);
+    lv_label_set_long_mode(_loadingLabel, LV_LABEL_LONG_WRAP);
+    lv_obj_set_width(_loadingLabel, TT_POPUP_LOADING_TEXT_W);
     lv_label_set_text(_loadingLabel, (text != nullptr && text[0] != '\0') ? text : "加载中...");
+    lv_obj_set_style_text_align(_loadingLabel, LV_TEXT_ALIGN_CENTER, 0);
     lv_obj_set_style_text_color(_loadingLabel, lv_color_black(), 0);
     lv_font_t* font = TTFontManager::instance().getFont(12);
     if (font != nullptr) {

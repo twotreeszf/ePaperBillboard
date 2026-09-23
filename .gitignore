@@ -21,6 +21,8 @@ data/res/manifest.json
 *.swp
 *.swo
 *~
+__pycache__/
+*.pyc
 
 managed_components/
 .dummy/
