@@ -13,6 +13,7 @@
 #define TT_NAV_TITLE_MAX       32
 #define TT_NAV_TITLE_BRACKET_GAP 1
 #define TT_NAV_ARROW_W         14
+#define TT_NAV_ARROW_Y         (-1)
 #define TT_NAV_DIVIDER_H       1
 #define TT_NAV_BACK_ICON       TT_FS_RES_DIR "/icons/back.i1"
 #define TT_NAV_STATUS_ICON     12

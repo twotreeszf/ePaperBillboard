@@ -52,7 +52,7 @@ void TTNavigationBar::begin(lv_obj_t* parent, ITTNavigationController* nav) {
 
     lv_obj_t* arrow = tt_stream_image_create(_backBtn);
     tt_stream_image_set_src(arrow, TT_NAV_BACK_ICON);
-    lv_obj_center(arrow);
+    lv_obj_align(arrow, LV_ALIGN_CENTER, 0, TT_NAV_ARROW_Y);
 
     _titleBox = lv_obj_create(_bar);
     lv_obj_set_size(_titleBox, LV_SIZE_CONTENT, LV_SIZE_CONTENT);
