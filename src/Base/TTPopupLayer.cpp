@@ -241,11 +241,11 @@ void TTPopupLayer::showDialog(const char* msg, DialogCallback onOk, DialogCallba
         memcpy(notes, firstBreak + 1, (size_t)(lastBreak - firstBreak - 1));
         notes[lastBreak - firstBreak - 1] = '\0';
         memcpy(ask, lastBreak + 1, strlen(lastBreak + 1) + 1);
-        _dialogLabel = addDialogText(_dialogPanel, title, LV_TEXT_ALIGN_CENTER, font);
+        addDialogText(_dialogPanel, title, LV_TEXT_ALIGN_CENTER, font);
         if (notes[0] != '\0') {
             notesLabel = addDialogText(_dialogPanel, notes, LV_TEXT_ALIGN_LEFT, font);
         }
-        addDialogText(_dialogPanel, ask, LV_TEXT_ALIGN_CENTER, font);
+        _dialogLabel = addDialogText(_dialogPanel, ask, LV_TEXT_ALIGN_CENTER, font);
     } else {
         _dialogLabel = addDialogText(_dialogPanel, text, LV_TEXT_ALIGN_CENTER, font);
     }
