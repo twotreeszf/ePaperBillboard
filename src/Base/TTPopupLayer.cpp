@@ -233,6 +233,7 @@ void TTPopupLayer::showDialog(const char* msg, DialogCallback onOk, DialogCallba
         && (size_t)(firstBreak - text) < sizeof(title)
         && (size_t)(lastBreak - firstBreak - 1) < sizeof(notes)
         && strlen(lastBreak + 1) < sizeof(ask);
+    _dialogLabel = nullptr;
     lv_obj_t* notesLabel = nullptr;
     if (splitNotes) {
         memcpy(title, text, (size_t)(firstBreak - text));
@@ -240,7 +241,7 @@ void TTPopupLayer::showDialog(const char* msg, DialogCallback onOk, DialogCallba
         memcpy(notes, firstBreak + 1, (size_t)(lastBreak - firstBreak - 1));
         notes[lastBreak - firstBreak - 1] = '\0';
         memcpy(ask, lastBreak + 1, strlen(lastBreak + 1) + 1);
-        addDialogText(_dialogPanel, title, LV_TEXT_ALIGN_CENTER, font);
+        _dialogLabel = addDialogText(_dialogPanel, title, LV_TEXT_ALIGN_CENTER, font);
         if (notes[0] != '\0') {
             notesLabel = addDialogText(_dialogPanel, notes, LV_TEXT_ALIGN_LEFT, font);
         }
@@ -353,17 +354,23 @@ void TTPopupLayer::showConfirmKeep(const char* msg, DialogCallback onOk) {
 }
 
 void TTPopupLayer::setDialogMessage(const char* msg) {
-    if (_dialogLabel == nullptr) {
+    if (_dialogPanel == nullptr || _dialogLabel == nullptr) {
+        LOG_W("PopupLayer: dialog message not updated");
         return;
     }
     lv_label_set_text(_dialogLabel, msg != nullptr ? msg : "");
+    const uint32_t count = lv_obj_get_child_count(_dialogPanel);
+    for (uint32_t i = 0; i < count; i++) {
+        lv_obj_t* child = lv_obj_get_child(_dialogPanel, i);
+        if (child != _dialogLabel && child != _dialogActions) {
+            lv_obj_add_flag(child, LV_OBJ_FLAG_HIDDEN);
+        }
+    }
     if (_dialogActions != nullptr) {
         lv_obj_add_flag(_dialogActions, LV_OBJ_FLAG_HIDDEN);
     }
-    if (_dialogPanel != nullptr) {
-        lv_obj_update_layout(_dialogPanel);
-        lv_obj_align(_dialogPanel, LV_ALIGN_CENTER, 0, 0);
-    }
+    lv_obj_update_layout(_dialogPanel);
+    lv_obj_align(_dialogPanel, LV_ALIGN_CENTER, 0, 0);
 }
 
 void TTPopupLayer::dismissDialog() {
