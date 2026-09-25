@@ -6,7 +6,7 @@
 #define TT_WEATHER_CACHE_PATH        TT_FS_TMP_DIR "/weather.bin"
 #define TT_WEATHER_CACHE_MAGIC       0x52544857u
 #define TT_WEATHER_CACHE_VERSION     1
-#define TT_WEATHER_CACHE_MAX_AGE_SEC (60 * 60)
+#define TT_WEATHER_CACHE_MAX_AGE_SEC (30 * 60)
 #define TT_WEATHER_CACHE_COORD_EPS   0.0001f
 
 class TTWeatherService {

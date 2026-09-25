@@ -7,7 +7,7 @@
 #define TT_CAL_CACHE_PATH        TT_FS_TMP_DIR "/calendar.bin"
 #define TT_CAL_CACHE_MAGIC       0x444C4143u
 #define TT_CAL_CACHE_VERSION     1
-#define TT_CAL_CACHE_MAX_AGE_SEC (60 * 60)
+#define TT_CAL_CACHE_MAX_AGE_SEC (30 * 60)
 
 class TTCalendarService {
 public:
