@@ -21,6 +21,7 @@ public:
     bool tryConnectSaved();
     bool refreshSavedNetwork();
     bool sleepRadio();
+    bool isRadioParked() const;
     bool startProvisioning();
     bool stopProvisioning();
     void process();
@@ -33,6 +34,7 @@ public:
     TTWiFiLinkState linkState() const { return _state; }
 
 private:
+    bool resumeRadio();
     bool _startConnect(const String& ssid, const String& password);
     void _pollConnect();
     bool _startPreferredConnect();
@@ -68,6 +70,7 @@ private:
     bool _serverStarted = false;
     bool _applyPending = false;
     bool _fallbackScan = false;
+    bool _driverHeld = false;
     uint32_t _applyAt = 0;
     uint32_t _connectStartedAt = 0;
 };

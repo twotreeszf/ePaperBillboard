@@ -9,7 +9,6 @@
 #include "../Tasks/TTWiFiTask.h"
 #include "../Tasks/TTSensorTask.h"
 #include <Arduino.h>
-#include <WiFi.h>
 #include <cstring>
 #include <driver/gpio.h>
 #include <esp_sleep.h>
@@ -130,7 +129,7 @@ bool TTSleepService::canEnter() const {
     if (TTInstanceOf<TTWiFiTask>().isRadioActive() || isFetchPeriodDue()) {
         return false;
     }
-    if (WiFi.getMode() != WIFI_OFF) {
+    if (!TTInstanceOf<TTWiFiTask>().isRadioParked()) {
         return false;
     }
     return true;
@@ -174,8 +173,8 @@ bool TTSleepService::enterSleep(uint64_t sleepUs) {
     publishSleepState(TT_SLEEP_STATE_SLEEPING);
     TTInstanceOf<TTLvglEpdDriver>().requestOverlayRefresh();
     TTInstanceOf<TTLvglEpdDriver>().hibernate();
-    if (WiFi.getMode() != WIFI_OFF) {
-        WiFi.mode(WIFI_OFF);
+    if (!TTInstanceOf<TTWiFiTask>().isRadioParked()) {
+        TTInstanceOf<TTWiFiTask>().parkRadio();
     }
 
     esp_sleep_disable_wakeup_source(ESP_SLEEP_WAKEUP_ALL);

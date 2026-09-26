@@ -6,6 +6,7 @@
 #include "../Service/TTSleepService.h"
 #include "../Tasks/TTUITask.h"
 #include <EPDConfig.h>
+#include <memory>
 
 TTScreenPage::~TTScreenPage() {
     if (_group != nullptr) {
@@ -102,8 +103,34 @@ bool TTScreenPage::handleKeyAction(TTKeyId key, TTKeyGesture gesture) {
     return handled;
 }
 
+namespace {
+
+void dropTimer(std::vector<uint32_t>& handles, uint32_t handle) {
+    for (size_t i = 0; i < handles.size(); ++i) {
+        if (handles[i] == handle) {
+            handles.erase(handles.begin() + static_cast<std::ptrdiff_t>(i));
+            return;
+        }
+    }
+}
+
+std::function<void()> forgetOnFire(std::vector<uint32_t>* handles,
+                                   std::function<void()> callback, const std::shared_ptr<uint32_t>& id) {
+    return [handles, callback, id]() {
+        dropTimer(*handles, *id);
+        if (callback) {
+            callback();
+        }
+    };
+}
+
+}
+
 uint32_t TTScreenPage::runOnce(uint32_t delayMs, std::function<void()> callback) {
-    uint32_t handle = TTInstanceOf<TTUITask>().runOnce(delayMs, std::move(callback));
+    const auto id = std::make_shared<uint32_t>(0);
+    uint32_t handle = TTInstanceOf<TTUITask>().runOnce(
+        delayMs, forgetOnFire(&_timerHandles, std::move(callback), id));
+    *id = handle;
     if (handle != 0) {
         _timerHandles.push_back(handle);
     }
@@ -119,7 +146,10 @@ uint32_t TTScreenPage::runRepeat(uint32_t intervalMs, std::function<void()> call
 }
 
 uint32_t TTScreenPage::runOnceWall(uint32_t delayMs, std::function<void()> callback) {
-    uint32_t handle = TTInstanceOf<TTUITask>().runOnceWall(delayMs, std::move(callback));
+    const auto id = std::make_shared<uint32_t>(0);
+    uint32_t handle = TTInstanceOf<TTUITask>().runOnceWall(
+        delayMs, forgetOnFire(&_timerHandles, std::move(callback), id));
+    *id = handle;
     if (handle != 0) {
         _timerHandles.push_back(handle);
     }
@@ -144,10 +174,5 @@ void TTScreenPage::cancelLightSleep() {
 
 void TTScreenPage::cancelRepeat(uint32_t handle) {
     TTInstanceOf<TTUITask>().cancelRepeat(handle);
-    for (size_t i = 0; i < _timerHandles.size(); ++i) {
-        if (_timerHandles[i] == handle) {
-            _timerHandles.erase(_timerHandles.begin() + static_cast<std::ptrdiff_t>(i));
-            break;
-        }
-    }
+    dropTimer(_timerHandles, handle);
 }

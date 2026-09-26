@@ -29,6 +29,8 @@ public:
     void runWithRadio(const char* tag, std::function<void()> work,
                       std::function<void()> onFailed = {});
     bool isRadioActive() const;
+    bool isRadioParked() const;
+    void parkRadio();
 
 protected:
     void setup() override;

@@ -11,6 +11,7 @@
 #include <cstring>
 #include <cstdlib>
 #include <esp_random.h>
+#include <esp_wifi.h>
 
 namespace {
 
@@ -65,17 +66,49 @@ bool TTWiFiManager::refreshSavedNetwork() {
     return true;
 }
 
+bool TTWiFiManager::resumeRadio() {
+    if (!_driverHeld) {
+        return true;
+    }
+    const esp_err_t err = esp_wifi_start();
+    if (err != ESP_OK) {
+        LOG_E("WiFi: start err=%d", (int)err);
+        return false;
+    }
+    _driverHeld = false;
+    LOG_I("WiFi: radio resume heap=%u largest=%u",
+          (unsigned)ESP.getFreeHeap(), (unsigned)ESP.getMaxAllocHeap());
+    return true;
+}
+
+bool TTWiFiManager::isRadioParked() const {
+    return _driverHeld || WiFi.getMode() == WIFI_OFF;
+}
+
 bool TTWiFiManager::sleepRadio() {
     if (_state == TT_WIFI_LINK_PROVISIONING) {
         LOG_W("WiFi: sleep ignored, provisioning");
         return false;
     }
-    LOG_I("WiFi: radio off");
-    WiFi.disconnect(true, false);
-    WiFi.mode(WIFI_OFF);
     _state = TT_WIFI_LINK_IDLE;
     _connectStartedAt = 0;
     _fallbackScan = false;
+    if (_driverHeld || WiFi.getMode() == WIFI_OFF) {
+        return true;
+    }
+    LOG_I("WiFi: radio stop");
+    WiFi.disconnect(false, false);
+    const esp_err_t err = esp_wifi_stop();
+    if (err != ESP_OK && err != ESP_ERR_WIFI_NOT_STARTED && err != ESP_ERR_WIFI_NOT_INIT) {
+        LOG_W("WiFi: stop err=%d", (int)err);
+        return false;
+    }
+    if (err == ESP_OK || err == ESP_ERR_WIFI_NOT_STARTED) {
+        _driverHeld = true;
+    }
+    LOG_I("WiFi: radio stopped held=%d heap=%u largest=%u",
+          _driverHeld ? 1 : 0,
+          (unsigned)ESP.getFreeHeap(), (unsigned)ESP.getMaxAllocHeap());
     return true;
 }
 
@@ -192,7 +225,12 @@ bool TTWiFiManager::_startConnect(const String& ssid, const String& password) {
     _state = TT_WIFI_LINK_CONNECTING;
     _connectStartedAt = millis();
 
-    ERR_CHECK_RET(WiFi.mode(WIFI_STA));
+    if (!resumeRadio() || !WiFi.mode(WIFI_STA)) {
+        LOG_E("WiFi: sta start failed ssid=%s", ssid.c_str());
+        _state = TT_WIFI_LINK_IDLE;
+        _connectStartedAt = 0;
+        return false;
+    }
     WiFi.disconnect();
     delay(100);
     _applyTxPower();
@@ -301,6 +339,7 @@ void TTWiFiManager::_buildApSsid() {
 
 bool TTWiFiManager::_startAP() {
     _buildApSsid();
+    ERR_CHECK_RET(resumeRadio());
     ERR_CHECK_RET(WiFi.mode(WIFI_AP));
     delay(100);
     _applyTxPower();
@@ -316,6 +355,7 @@ void TTWiFiManager::_stopAP() {
     _server.stop();
     WiFi.softAPdisconnect(true);
     WiFi.mode(WIFI_OFF);
+    _driverHeld = false;
     delay(100);
 }
 
@@ -323,6 +363,7 @@ bool TTWiFiManager::_scanNearby(std::vector<String>& out) {
     out.clear();
     WiFi.scanDelete();
 
+    ERR_CHECK_RET(resumeRadio());
     ERR_CHECK_RET(WiFi.mode(WIFI_STA));
     WiFi.disconnect(false, false);
     delay(200);

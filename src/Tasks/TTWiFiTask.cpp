@@ -303,6 +303,14 @@ bool TTWiFiTask::isRadioActive() const {
         || _wifiManager.isConnected();
 }
 
+bool TTWiFiTask::isRadioParked() const {
+    return !isRadioActive() && _wifiManager.isRadioParked();
+}
+
+void TTWiFiTask::parkRadio() {
+    _wifiManager.sleepRadio();
+}
+
 void TTWiFiTask::publishStatus() {
     TTWiFiStatusPayload payload;
     _wifiManager.fillStatus(payload);
