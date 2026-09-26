@@ -1,5 +1,6 @@
 # PlatformIO build files
 .pio/
+compile_commands.json
 .pioenvs/
 .piolibdeps/
 
