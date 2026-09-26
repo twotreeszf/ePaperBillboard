@@ -12,6 +12,7 @@ compile_commands.json
 .DS_Store
 
 .ref/
+tools/comics/
 tools/icons/node_modules/
 /package-lock.json
 
