@@ -3,9 +3,12 @@
 #include <stddef.h>
 #include <stdint.h>
 
-#define PREF_WEATHER_CITY  "weather_city"
-#define PREF_WEATHER_LAT   "weather_lat"
-#define PREF_WEATHER_LON   "weather_lon"
+#define PREF_WEATHER_CITY    "weather_city"
+#define PREF_WEATHER_LAT     "weather_lat"
+#define PREF_WEATHER_LON     "weather_lon"
+#define PREF_WEATHER_REGION  "weather_region"
+#define TT_WEATHER_REGION_CN       "cn"
+#define TT_WEATHER_REGION_OVERSEAS "overseas"
 
 #define TT_WEATHER_CITY_MAX   32
 #define TT_WEATHER_MSG_MAX    48

@@ -482,6 +482,7 @@ void TTWiFiManager::_handleSave() {
     String weatherCity = _server.arg("weather_city");
     String weatherLat = _server.arg("weather_lat");
     String weatherLon = _server.arg("weather_lon");
+    String weatherRegion = _server.arg("weather_region");
     String calHost = _server.arg("caldav_host");
     String calUser = _server.arg("caldav_user");
     String calPass = _server.arg("caldav_pass");
@@ -494,6 +495,10 @@ void TTWiFiManager::_handleSave() {
     weatherCity.trim();
     weatherLat.trim();
     weatherLon.trim();
+    weatherRegion.trim();
+    if (weatherRegion != TT_WEATHER_REGION_OVERSEAS) {
+        weatherRegion = TT_WEATHER_REGION_CN;
+    }
     calHost.trim();
     calUser.trim();
     calPass.trim();
@@ -561,6 +566,8 @@ void TTWiFiManager::_handleSave() {
     }
 
     pref.set(PREF_WEATHER_CITY, weatherCity);
+    pref.set(PREF_WEATHER_REGION, weatherRegion);
+    LOG_I("Weather: save region=%s", weatherRegion.c_str());
     if (!weatherHasCoord) {
         pref.remove(PREF_WEATHER_LAT);
         pref.remove(PREF_WEATHER_LON);
@@ -620,6 +627,12 @@ void TTWiFiManager::_handleStatus() {
     pref.get(PREF_WEATHER_LAT, weatherLat, NAN);
     pref.get(PREF_WEATHER_LON, weatherLon, NAN);
     doc["weather_city"] = weatherCity;
+    String weatherRegion;
+    pref.get(PREF_WEATHER_REGION, weatherRegion, String(TT_WEATHER_REGION_CN));
+    if (weatherRegion != TT_WEATHER_REGION_OVERSEAS) {
+        weatherRegion = TT_WEATHER_REGION_CN;
+    }
+    doc["weather_region"] = weatherRegion;
     if (isfinite(weatherLat)) {
         doc["weather_lat"] = weatherLat;
     }
@@ -681,51 +694,70 @@ String TTWiFiManager::_getHTMLContent() {
         body { font-family: -apple-system, sans-serif; margin: 0; padding: 16px; background: #f4f4f4; }
         .box { max-width: 400px; margin: 0 auto; background: #fff; padding: 20px; border-radius: 8px; }
         h2 { margin: 0 0 8px; text-align: center; }
-        h3 { margin: 20px 0 8px; font-size: 16px; }
         label { display: block; margin: 12px 0 6px; }
         select, input { width: 100%; padding: 10px; font-size: 16px; box-sizing: border-box; }
-        button { width: 100%; margin-top: 20px; padding: 12px; font-size: 16px; background: #111; color: #fff; border: 0; border-radius: 6px; }
-        button:disabled { background: #999; }
-        .tip { color: #666; font-size: 13px; margin: 0 0 8px; }
+        .tabs { display: flex; gap: 6px; margin: 12px 0 4px; }
+        .tab { flex: 1; margin: 0; padding: 8px 4px; font-size: 14px; background: #eee; color: #111; border: 0; border-radius: 6px; }
+        .tab.on { background: #111; color: #fff; }
+        .panel { display: none; }
+        .panel.on { display: block; }
+        button.save { width: 100%; margin-top: 20px; padding: 12px; font-size: 16px; background: #111; color: #fff; border: 0; border-radius: 6px; }
+        button.save:disabled { background: #999; }
+        .tip { color: #666; font-size: 13px; margin: 8px 0; }
     </style>
 </head>
 <body>
     <div class="box">
         <h2>设备设置</h2>
-        <p class="tip">设置 Wi-Fi、时区、天气地点和日历账号，点击完成配置后设备将关闭热点并以 STA 模式连接。</p>
+        <p class="tip">按分类填写。完成配置后设备将关闭热点并以 STA 模式连接。</p>
         <form method="post" action="/save" onsubmit="return onSubmit()">
-            <h3>Wi-Fi</h3>
-            <label>名称</label>
-            <select id="ssid-select" onchange="document.getElementById('ssid').value=this.value">
-                <option value="">正在扫描...</option>
-            </select>
-            <input type="text" id="ssid" name="ssid" placeholder="或手动输入名称" required>
-            <label>密码</label>
-            <input type="text" id="password" name="password" placeholder="Wi-Fi 密码" autocomplete="off">
-            <h3>时区</h3>
-            <label>地区</label>
-            <select id="region" onchange="fillCities()"></select>
-            <label>城市</label>
-            <select id="city" onchange="applyCity()"></select>
-            <input type="hidden" id="timezone" name="timezone" value="CST-8">
-            <input type="hidden" id="timezone_label" name="timezone_label" value="上海">
-            <h3>天气</h3>
-            <p class="tip">城市名仅用于展示。纬度为负表示南纬，经度为负表示西经。</p>
-            <label>城市</label>
-            <input type="text" id="weather_city" name="weather_city" placeholder="例如 上海" maxlength="32">
-            <label>纬度</label>
-            <input type="text" id="weather_lat" name="weather_lat" placeholder="例如 31.2304" inputmode="decimal">
-            <label>经度</label>
-            <input type="text" id="weather_lon" name="weather_lon" placeholder="例如 121.4737" inputmode="decimal">
-            <h3>日历</h3>
-            <p class="tip">CalDAV 账号。密码留空则保留已保存的密码。三项都留空则清除日历配置。</p>
-            <label>服务器</label>
-            <input type="text" id="caldav_host" name="caldav_host" placeholder="例如 caldav.feishu.cn" maxlength="47" autocomplete="off">
-            <label>账号</label>
-            <input type="text" id="caldav_user" name="caldav_user" placeholder="CalDAV 用户名" maxlength="31" autocomplete="off">
-            <label>密码</label>
-            <input type="text" id="caldav_pass" name="caldav_pass" placeholder="CalDAV 密码" maxlength="31" autocomplete="off">
-            <button type="submit">完成配置</button>
+            <div class="tabs">
+                <button type="button" class="tab on" data-tab="wifi">Wi-Fi</button>
+                <button type="button" class="tab" data-tab="tz">时区</button>
+                <button type="button" class="tab" data-tab="weather">天气</button>
+                <button type="button" class="tab" data-tab="cal">日历</button>
+            </div>
+            <div class="panel on" id="panel-wifi">
+                <label>名称</label>
+                <select id="ssid-select" onchange="document.getElementById('ssid').value=this.value">
+                    <option value="">正在扫描...</option>
+                </select>
+                <input type="text" id="ssid" name="ssid" placeholder="或手动输入名称">
+                <label>密码</label>
+                <input type="text" id="password" name="password" placeholder="Wi-Fi 密码" autocomplete="off">
+            </div>
+            <div class="panel" id="panel-tz">
+                <label>地区</label>
+                <select id="region" onchange="fillCities()"></select>
+                <label>城市</label>
+                <select id="city" onchange="applyCity()"></select>
+                <input type="hidden" id="timezone" name="timezone" value="CST-8">
+                <input type="hidden" id="timezone_label" name="timezone_label" value="上海">
+            </div>
+            <div class="panel" id="panel-weather">
+                <p class="tip">大陆使用彩云天气，海外使用现有预报。城市名仅用于展示。纬度为负表示南纬，经度为负表示西经。</p>
+                <label>数据源</label>
+                <select id="weather_region" name="weather_region">
+                    <option value="cn" selected>大陆</option>
+                    <option value="overseas">海外</option>
+                </select>
+                <label>城市</label>
+                <input type="text" id="weather_city" name="weather_city" placeholder="例如 上海" maxlength="32">
+                <label>纬度</label>
+                <input type="text" id="weather_lat" name="weather_lat" placeholder="例如 31.2304" inputmode="decimal">
+                <label>经度</label>
+                <input type="text" id="weather_lon" name="weather_lon" placeholder="例如 121.4737" inputmode="decimal">
+            </div>
+            <div class="panel" id="panel-cal">
+                <p class="tip">CalDAV 账号。密码留空则保留已保存的密码。三项都留空则清除日历配置。</p>
+                <label>服务器</label>
+                <input type="text" id="caldav_host" name="caldav_host" placeholder="例如 caldav.feishu.cn" maxlength="47" autocomplete="off">
+                <label>账号</label>
+                <input type="text" id="caldav_user" name="caldav_user" placeholder="CalDAV 用户名" maxlength="31" autocomplete="off">
+                <label>密码</label>
+                <input type="text" id="caldav_pass" name="caldav_pass" placeholder="CalDAV 密码" maxlength="31" autocomplete="off">
+            </div>
+            <button class="save" type="submit">完成配置</button>
         </form>
     </div>
     <script>
@@ -811,6 +843,9 @@ String TTWiFiManager::_getHTMLContent() {
             if (status.timezone || status.label) {
                 selectCity(status.timezone || '', status.label || '');
             }
+            if (status.weather_region) {
+                document.getElementById('weather_region').value = status.weather_region;
+            }
             if (status.weather_city) {
                 document.getElementById('weather_city').value = status.weather_city;
             }
@@ -830,13 +865,32 @@ String TTWiFiManager::_getHTMLContent() {
                 document.getElementById('caldav_pass').value = status.caldav_pass;
             }
         }
+        function showTab(name) {
+            document.querySelectorAll('.tab').forEach(el => {
+                el.classList.toggle('on', el.dataset.tab === name);
+            });
+            document.querySelectorAll('.panel').forEach(el => {
+                el.classList.toggle('on', el.id === 'panel-' + name);
+            });
+        }
+        document.querySelectorAll('.tab').forEach(el => {
+            el.addEventListener('click', () => showTab(el.dataset.tab));
+        });
         function onSubmit() {
             applyCity();
             const ssid = document.getElementById('ssid').value.replace(/^\s+|\s+$/g, '');
             document.getElementById('ssid').value = ssid;
-            if (!ssid) { alert('请选择或输入 Wi-Fi 名称'); return false; }
-            if (!document.getElementById('timezone').value) { alert('请选择时区'); return false; }
-            const btn = document.querySelector('button');
+            if (!ssid) {
+                showTab('wifi');
+                alert('请选择或输入 Wi-Fi 名称');
+                return false;
+            }
+            if (!document.getElementById('timezone').value) {
+                showTab('tz');
+                alert('请选择时区');
+                return false;
+            }
+            const btn = document.querySelector('button.save');
             btn.disabled = true;
             btn.textContent = '保存中...';
             return true;
