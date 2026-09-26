@@ -5,6 +5,8 @@
 #include "TTCalendarTypes.h"
 #include "TTPreference.h"
 #include "TTRtc.h"
+#include "../Tasks/TTUITask.h"
+#include <EPDConfig.h>
 #include <ArduinoJson.h>
 #include <algorithm>
 #include <cmath>
@@ -164,6 +166,7 @@ bool TTWiFiManager::startProvisioning() {
 
 bool TTWiFiManager::stopProvisioning() {
     _applyPending = false;
+    _restartOnApply = false;
     _applyAt = 0;
     if (_state != TT_WIFI_LINK_PROVISIONING) {
         return true;
@@ -182,9 +185,14 @@ void TTWiFiManager::process() {
         if (_applyPending && (int32_t)(millis() - _applyAt) >= 0) {
             _applyPending = false;
             _applyAt = 0;
-            LOG_I("WiFi: apply portal result state=%d", (int)_state);
+            LOG_I("WiFi: apply portal result state=%d restart=%d", (int)_state, _restartOnApply ? 1 : 0);
             _stopAP();
             _state = TT_WIFI_LINK_IDLE;
+            if (_restartOnApply) {
+                _restartOnApply = false;
+                TTInstanceOf<TTUITask>().requestRestartAsync();
+                return;
+            }
             tryConnectSaved();
         }
         return;
@@ -486,6 +494,7 @@ void TTWiFiManager::_handleSave() {
     String calHost = _server.arg("caldav_host");
     String calUser = _server.arg("caldav_user");
     String calPass = _server.arg("caldav_pass");
+    String epdPanel = _server.arg("epd_panel");
     LOG_I("WiFi: portal save args=%d ssid_len=%u tz_len=%u label_len=%u city_len=%u cal_host_len=%u",
           _server.args(), (unsigned)ssid.length(), (unsigned)timezone.length(),
           (unsigned)label.length(), (unsigned)weatherCity.length(), (unsigned)calHost.length());
@@ -502,6 +511,10 @@ void TTWiFiManager::_handleSave() {
     calHost.trim();
     calUser.trim();
     calPass.trim();
+    epdPanel.trim();
+    if (epdPanel != TT_EPD_PANEL_B0) {
+        epdPanel = TT_EPD_PANEL_A0;
+    }
     if (ssid.isEmpty()) {
         _sendSaveResult(400, "保存失败", "Wi-Fi 名称不能为空");
         return;
@@ -590,9 +603,23 @@ void TTWiFiManager::_handleSave() {
         LOG_I("CalDAV: save host=%s user=%s pass_len=%u",
               calHost.c_str(), calUser.c_str(), (unsigned)calPass.length());
     }
+
+    String oldEpdPanel;
+    pref.get(PREF_EPD_PANEL, oldEpdPanel, String(TT_EPD_PANEL_DEFAULT));
+    if (oldEpdPanel != TT_EPD_PANEL_B0) {
+        oldEpdPanel = TT_EPD_PANEL_A0;
+    }
+    pref.set(PREF_EPD_PANEL, epdPanel);
+    _restartOnApply = epdPanel != oldEpdPanel;
+    LOG_I("Hardware: save epd_panel=%s old=%s restart=%d",
+          epdPanel.c_str(), oldEpdPanel.c_str(), _restartOnApply ? 1 : 0);
     pref.sync();
 
-    _sendSaveResult(200, "配置已保存", "热点即将关闭，设备正在连接 Wi-Fi。可以关闭此页面。");
+    if (_restartOnApply) {
+        _sendSaveResult(200, "配置已保存", "屏幕型号已更改，设备即将重启并连接 Wi-Fi。可以关闭此页面。");
+    } else {
+        _sendSaveResult(200, "配置已保存", "热点即将关闭，设备正在连接 Wi-Fi。可以关闭此页面。");
+    }
     _applyAt = millis() + TT_WIFI_APPLY_DELAY_MS;
     _applyPending = true;
 }
@@ -649,9 +676,16 @@ void TTWiFiManager::_handleStatus() {
     doc["caldav_host"] = calHost;
     doc["caldav_user"] = calUser;
     doc["caldav_pass"] = calPass;
-    LOG_I("WiFi: status fill ssid=%s password_len=%u tz=%s label=%s city=%s cal_host=%s cal_user=%s",
+
+    String epdPanel;
+    pref.get(PREF_EPD_PANEL, epdPanel, String(TT_EPD_PANEL_DEFAULT));
+    if (epdPanel != TT_EPD_PANEL_B0) {
+        epdPanel = TT_EPD_PANEL_A0;
+    }
+    doc["epd_panel"] = epdPanel;
+    LOG_I("WiFi: status fill ssid=%s password_len=%u tz=%s label=%s city=%s cal_host=%s cal_user=%s epd_panel=%s",
           ssid.c_str(), (unsigned)password.length(), tz, label, weatherCity.c_str(),
-          calHost.c_str(), calUser.c_str());
+          calHost.c_str(), calUser.c_str(), epdPanel.c_str());
     String result;
     serializeJson(doc, result);
     _server.send(200, "application/json", result);
@@ -716,6 +750,7 @@ String TTWiFiManager::_getHTMLContent() {
                 <button type="button" class="tab" data-tab="tz">时区</button>
                 <button type="button" class="tab" data-tab="weather">天气</button>
                 <button type="button" class="tab" data-tab="cal">日历</button>
+                <button type="button" class="tab" data-tab="hw">硬件</button>
             </div>
             <div class="panel on" id="panel-wifi">
                 <label>名称</label>
@@ -756,6 +791,14 @@ String TTWiFiManager::_getHTMLContent() {
                 <input type="text" id="caldav_user" name="caldav_user" placeholder="CalDAV 用户名" maxlength="31" autocomplete="off">
                 <label>密码</label>
                 <input type="text" id="caldav_pass" name="caldav_pass" placeholder="CalDAV 密码" maxlength="31" autocomplete="off">
+            </div>
+            <div class="panel" id="panel-hw">
+                <p class="tip">两款 4.2 寸屏排线型号相同，请按实际屏幕选择，选错会出现残影或噪点。更改后设备会自动重启。</p>
+                <label>屏幕型号</label>
+                <select id="epd_panel" name="epd_panel">
+                    <option value="a0" selected>HINK-E042A13 A0</option>
+                    <option value="b0">HINK-E042A13 B0</option>
+                </select>
             </div>
             <button class="save" type="submit">完成配置</button>
         </form>
@@ -863,6 +906,9 @@ String TTWiFiManager::_getHTMLContent() {
             }
             if (status.caldav_pass) {
                 document.getElementById('caldav_pass').value = status.caldav_pass;
+            }
+            if (status.epd_panel) {
+                document.getElementById('epd_panel').value = status.epd_panel;
             }
         }
         function showTab(name) {

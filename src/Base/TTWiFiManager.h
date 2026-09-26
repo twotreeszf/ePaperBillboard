@@ -69,6 +69,7 @@ private:
     bool _hasNetworks = false;
     bool _serverStarted = false;
     bool _applyPending = false;
+    bool _restartOnApply = false;
     bool _fallbackScan = false;
     bool _driverHeld = false;
     uint32_t _applyAt = 0;

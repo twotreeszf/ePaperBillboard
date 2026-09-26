@@ -13,7 +13,7 @@ ESP32-WROOM-32E weather and calendar billboard: LVGL 9, custom binary fonts, Lit
 
 | Macro | Panel | Size | Notes |
 |-------|--------|------|--------|
-| `EPD_PANEL_HINK_E042A13_A0` | HINK-E042A13-A0 4.2" | 400×300 | Current default |
+| `EPD_PANEL_HINK_E042A13` | HINK-E042A13 A0 / B0 4.2" | 400×300 | Current default; A0 or B0 is picked in the portal Hardware tab (default A0) |
 | `EPD_PANEL_HINK_E029A01_A1` | HINK-E029A01-A1 2.9" | 296×128 | Landscape `EPD_ROTATION 3` |
 
 A wrong panel macro applies the wrong waveform and scan count. Short tests usually only look wrong; leaving a mismatch running can ghost or damage the film.

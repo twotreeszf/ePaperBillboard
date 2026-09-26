@@ -22,12 +22,15 @@ public:
         _display(EPD_DRIVER_CLASS(TT_UI_EPD_CS, TT_UI_EPD_DC, TT_UI_EPD_RST, TT_UI_EPD_BUSY)) {}
 
     void requestDeepRefreshAsync();
+    void requestRestartAsync();
 
 protected:
     void setup() override;
     void loop() override;
 
 private:
+    void _selectPanel();
+
     EPaperDisplay _display;
     TTNavigationController _nav;
     TTKeypadInput _keypad;
