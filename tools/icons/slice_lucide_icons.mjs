@@ -112,7 +112,11 @@ function main() {
 
   console.log(`Lucide source: ${manifest.source}`);
   console.log(`lucide-static icons: ${LUCIDE_ICONS_DIR}`);
+  const only = process.argv[2];
   for (const entry of manifest.icons) {
+    if (only && entry.id !== only && entry.file !== only) {
+      continue;
+    }
     sliceIcon(entry, svgDir, outputDir);
   }
 }

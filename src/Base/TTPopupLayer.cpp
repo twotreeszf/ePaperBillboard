@@ -146,12 +146,14 @@ void TTPopupLayer::updateLoading(const char* text) {
     TTInstanceOf<TTLvglEpdDriver>().requestRefresh(TT_REFRESH_PARTIAL);
 }
 
-void TTPopupLayer::dismissLoading() {
+void TTPopupLayer::dismissLoading(bool refresh) {
     if (_loadingPanel != nullptr) {
         lv_obj_delete(_loadingPanel);
         _loadingPanel = nullptr;
         _loadingLabel = nullptr;
-        TTInstanceOf<TTLvglEpdDriver>().requestRefresh(TT_REFRESH_FULL);
+        if (refresh) {
+            TTInstanceOf<TTLvglEpdDriver>().requestRefresh(TT_REFRESH_FULL);
+        }
     }
 }
 

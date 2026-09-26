@@ -2,6 +2,7 @@
 #include "TTSettingsPage.h"
 #include "TTWeatherPage.h"
 #include "TTCalendarPage.h"
+#include "TTPictorialPage.h"
 #include "../Base/TTFontManager.h"
 #include "../Base/TTStreamImage.h"
 #include <memory>
@@ -98,6 +99,9 @@ void TTHomePage::buildContent(lv_obj_t* screen) {
     MenuItem::create(&_items[1], container, this, TT_FS_RES_DIR "/icons/calendar.i1", "日历", fontBtn,
         [this]() { getNavigationController()->pushPage(std::unique_ptr<TTScreenPage>(new TTCalendarPage())); });
 
-    MenuItem::create(&_items[2], container, this, TT_FS_RES_DIR "/icons/settings.i1", "设置", fontBtn,
+    MenuItem::create(&_items[2], container, this, TT_FS_RES_DIR "/icons/pictorial.i1", "艺术画报", fontBtn,
+        [this]() { getNavigationController()->pushPage(std::unique_ptr<TTScreenPage>(new TTPictorialPage())); });
+
+    MenuItem::create(&_items[3], container, this, TT_FS_RES_DIR "/icons/settings.i1", "设置", fontBtn,
         [this]() { getNavigationController()->pushPage(std::unique_ptr<TTScreenPage>(new TTSettingsPage())); });
 }

@@ -13,6 +13,7 @@
 #define TT_NOTIFICATION_SLEEP_STATE        "TTNotify.SleepState"
 #define TT_NOTIFICATION_TIME_TICK          "TTNotify.TimeTick"
 #define TT_NOTIFICATION_CALENDAR           "TTNotify.Calendar"
+#define TT_NOTIFICATION_PICTORIAL          "TTNotify.Pictorial"
 #define TT_NOTIFICATION_OTA                "TTNotify.Ota"
 
 #define TT_OTA_MSG_MAX     192

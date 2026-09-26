@@ -32,7 +32,7 @@ public:
 
     void showLoading(const char* text = "加载中...");
     void updateLoading(const char* text);
-    void dismissLoading();
+    void dismissLoading(bool refresh = true);
 
     void showDialog(const char* msg, DialogCallback onOk, DialogCallback onCancel);
     void showConfirm(const char* msg, DialogCallback onOk);
