@@ -7,6 +7,8 @@
 // OTP or partials stop drawing. The whole panel scans during a partial, so the
 // DC VCOM biases every unchanged pixel. OTP VCOM speckles white; -0.2V fades
 // black. Partial VCOM sits between. Full refresh reloads the OTP VCOM.
+// Unchanged black pixels get a short VSH1 hold pulse so they do not fade;
+// unchanged white pixels stay undriven.
 // Do not use 0xFC.
 
 #ifndef _GxEPD2_420_HinkE042A13B0_H_
@@ -19,12 +21,14 @@
 #define EPD_UPDATE_PART 0xC7
 #define EPD_LUT_PARTIAL_BYTES 70
 #define EPD_LUT_ACTIVE_BYTES 84
-#define EPD_VCOM_PARTIAL 0x40
+#define EPD_VCOM_PARTIAL 0x30
 #define EPD_LUT_PARTIAL_PHASE_A 0x80
 #define EPD_LUT_PARTIAL_PHASE_B 0x40
 #define EPD_LUT_PARTIAL_REPEAT_A 0x80
 #define EPD_LUT_PARTIAL_REPEAT_B 0x40
 #define EPD_LUT_PARTIAL_REPEAT_C 0x08
+#define EPD_LUT_BLACK_HOLD_PHASE 0x40
+#define EPD_LUT_BLACK_HOLD_FRAMES 0x04
 
 class GxEPD2_420_HinkE042A13B0 : public GxEPD2_EPD
 {
