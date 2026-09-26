@@ -10,7 +10,7 @@
 
 class TTPictorialPage : public TTScreenPage {
 public:
-    TTPictorialPage() : TTScreenPage("艺术画报") {}
+    TTPictorialPage() : TTScreenPage("画报") {}
 
     void setup() override;
     void willAppear() override;
@@ -27,7 +27,6 @@ private:
     void onSleepWake(const TTSleepWakePayload& wake);
     void onTimeTick();
     void layoutSide();
-    void layoutAge();
     void setStatusTimeVisible(bool visible);
     void updateClock(bool refreshIfChanged);
     void showArt(const char* path);
@@ -43,8 +42,6 @@ private:
     lv_obj_t* _tempLabel = nullptr;
     lv_obj_t* _tempUnit = nullptr;
     lv_obj_t* _condLabel = nullptr;
-    lv_obj_t* _ageIcon = nullptr;
-    lv_obj_t* _ageLabel = nullptr;
     lv_obj_t* _dateLabel = nullptr;
     lv_obj_t* _weekLabel = nullptr;
     lv_obj_t* _clockLabel = nullptr;
@@ -62,10 +59,8 @@ private:
     char _artPath[TT_STREAM_IMAGE_PATH_MAX] = {};
     bool _artFetching = false;
     bool _picking = false;
-    bool _ageOk = true;
     int _weatherCode = 0;
     bool _weatherDay = true;
-    uint32_t _fetchedAt = 0;
     uint32_t _dayHandle = 0;
     uint32_t _inputIdleSleepHandle = 0;
     bool _sleepAfterTimeTick = false;

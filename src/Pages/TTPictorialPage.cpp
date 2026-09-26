@@ -35,25 +35,6 @@ lv_obj_t* createLabel(lv_obj_t* parent, const lv_font_t* font, lv_color_t color,
     return label;
 }
 
-void formatAge(uint32_t fetchedAt, char* buf, size_t bufLen) {
-    if (buf == nullptr || bufLen == 0) {
-        return;
-    }
-    if (fetchedAt == 0) {
-        snprintf(buf, bufLen, "--");
-        return;
-    }
-    const time_t now = time(nullptr);
-    const int minutes = (now > 0 && (uint32_t)now >= fetchedAt)
-        ? (int)(((uint32_t)now - fetchedAt) / 60u)
-        : 0;
-    if (minutes <= 0) {
-        snprintf(buf, bufLen, "刚刚");
-    } else {
-        snprintf(buf, bufLen, "%d分钟前", minutes);
-    }
-}
-
 uint32_t msUntilDaySwitch() {
     struct timeval tv;
     memset(&tv, 0, sizeof(tv));
@@ -157,18 +138,6 @@ void TTPictorialPage::buildContent(lv_obj_t* screen) {
     lv_obj_set_style_bg_opa(_status, LV_OPA_COVER, 0);
     lv_obj_set_style_pad_all(_status, 4, 0);
     lv_obj_align(_status, LV_ALIGN_CENTER, TT_CAL_SIDE_W / 2, 0);
-
-    _ageIcon = tt_stream_image_create(screen);
-    lv_obj_set_size(_ageIcon, TT_CAL_AGE_ICON, TT_CAL_AGE_ICON);
-    tt_stream_image_set_src(_ageIcon, TT_CAL_AGE_OK_SRC);
-    lv_font_t* font10 = fonts.getFont(TT_CAL_PAGE_FONT);
-    if (font10 == nullptr) {
-        font10 = font16;
-    }
-    _ageLabel = createLabel(screen, font10, lv_color_black(), "");
-    lv_label_set_long_mode(_ageLabel, LV_LABEL_LONG_CLIP);
-    lv_obj_add_flag(_ageLabel, LV_OBJ_FLAG_HIDDEN);
-    lv_obj_add_flag(_ageIcon, LV_OBJ_FLAG_HIDDEN);
 
     _hit = lv_btn_create(screen);
     lv_obj_set_pos(_hit, 0, 0);
@@ -300,7 +269,6 @@ void TTPictorialPage::applyWeather(const TTWeatherPayload& payload) {
         return;
     }
     if (payload.state != TT_WEATHER_OK) {
-        _ageOk = false;
         layoutSide();
         LOG_I("Pictorial page: weather failed");
         if (_visible) {
@@ -310,7 +278,6 @@ void TTPictorialPage::applyWeather(const TTWeatherPayload& payload) {
         return;
     }
     _haveWeather = true;
-    _ageOk = true;
     _weatherCode = payload.current.weatherCode;
     _weatherDay = payload.current.isDay;
     char path[TT_WEATHER_ICON_PATH_MAX];
@@ -320,13 +287,6 @@ void TTPictorialPage::applyWeather(const TTWeatherPayload& payload) {
     snprintf(buf, sizeof(buf), "%.0f", payload.current.temp);
     lv_label_set_text(_tempLabel, buf);
     lv_label_set_text(_condLabel, tt_weather_condition_text(_weatherCode));
-    _fetchedAt = payload.fetchedAt;
-    if (_fetchedAt == 0) {
-        const time_t now = time(nullptr);
-        _fetchedAt = (now > 0) ? (uint32_t)now : 1;
-    }
-    formatAge(_fetchedAt, buf, sizeof(buf));
-    lv_label_set_text(_ageLabel, buf);
     layoutSide();
     if (_visible) {
         requestRefresh(TT_REFRESH_FULL);
@@ -469,7 +429,6 @@ void TTPictorialPage::layoutSide() {
     if (_weekLabel != nullptr) {
         lv_obj_set_width(_weekLabel, LV_SIZE_CONTENT);
     }
-    layoutAge();
     if (_tempLabel == nullptr || _tempUnit == nullptr || _condLabel == nullptr) {
         return;
     }
@@ -527,31 +486,6 @@ void TTPictorialPage::layoutSide() {
     lv_obj_align(_weekLabel, LV_ALIGN_TOP_MID, 0, weekY);
 }
 
-void TTPictorialPage::layoutAge() {
-    if (_ageLabel == nullptr) {
-        return;
-    }
-    if (_fetchedAt == 0) {
-        lv_obj_add_flag(_ageLabel, LV_OBJ_FLAG_HIDDEN);
-        if (_ageIcon != nullptr) {
-            lv_obj_add_flag(_ageIcon, LV_OBJ_FLAG_HIDDEN);
-        }
-        return;
-    }
-    lv_obj_remove_flag(_ageLabel, LV_OBJ_FLAG_HIDDEN);
-    if (_ageIcon != nullptr) {
-        lv_obj_remove_flag(_ageIcon, LV_OBJ_FLAG_HIDDEN);
-    }
-    lv_obj_align(_ageLabel, LV_ALIGN_TOP_RIGHT, -TT_CAL_AGE_PAD, TT_CAL_AGE_PAD);
-    lv_obj_move_foreground(_ageLabel);
-    if (_ageIcon != nullptr) {
-        tt_stream_image_set_src(_ageIcon, _ageOk ? TT_CAL_AGE_OK_SRC : TT_CAL_AGE_FAIL_SRC);
-        lv_obj_align_to(_ageIcon, _ageLabel, LV_ALIGN_OUT_LEFT_TOP,
-                        -TT_CAL_AGE_ICON_GAP, TT_CAL_AGE_ICON_DY);
-        lv_obj_move_foreground(_ageIcon);
-    }
-}
-
 void TTPictorialPage::updateClock(bool refreshIfChanged) {
     if (_clockLabel == nullptr) {
         return;
@@ -573,11 +507,6 @@ void TTPictorialPage::updateClock(bool refreshIfChanged) {
     snprintf(buf, sizeof(buf), "%d-%d", local.tm_mon + 1, local.tm_mday);
     lv_label_set_text(_dateLabel, buf);
     lv_label_set_text(_weekLabel, weekEn(local.tm_wday));
-    if (_ageLabel != nullptr && _fetchedAt != 0) {
-        char age[24];
-        formatAge(_fetchedAt, age, sizeof(age));
-        lv_label_set_text(_ageLabel, age);
-    }
     layoutSide();
     if (refreshIfChanged && _visible) {
         requestRefresh(TT_REFRESH_PARTIAL);
@@ -614,7 +543,6 @@ void TTPictorialPage::showArt(const char* path) {
     if (_hit != nullptr) {
         lv_obj_move_foreground(_hit);
     }
-    layoutAge();
 }
 
 void TTPictorialPage::scheduleDaySwitch() {
