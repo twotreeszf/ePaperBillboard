@@ -2,7 +2,11 @@
 #include "Logger.h"
 #include <cstring>
 
+#if __has_include("image/lv_image_decoder_private.h")
+#include "image/lv_image_decoder_private.h"
+#else
 #include "draw/lv_image_decoder_private.h"
+#endif
 #include "draw/lv_draw_buf.h"
 #include "draw/lv_draw_buf_private.h"
 
