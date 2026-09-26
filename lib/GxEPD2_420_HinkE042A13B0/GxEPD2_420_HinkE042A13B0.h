@@ -1,14 +1,14 @@
 // Panel: HINK-E042A13 current film, 4.2" 400x300 BW. Controller: SSD1683.
 // Same flex as A0, different waveform. Full refresh uses the internal-temperature
-// OTP. The 110C fast OTP leaves black specks on this film. Border stays Hi-Z
-// (slightly gray): a GS border flashes with the full waveform, and a fixed VSL
-// border rebounds dark and speckles over later partials.
+// OTP. The 110C fast OTP leaves black specks on this film. Border is Hi-Z during
+// full refresh so it does not flash with the OTP waveform; during partial it
+// follows the white-to-white row.
 // Partial writes the 70-byte head over the OTP LUT; bytes past 83 must stay on
 // OTP or partials stop drawing. The whole panel scans during a partial, so the
 // DC VCOM biases every unchanged pixel. OTP VCOM speckles white; -0.2V fades
 // black. Partial VCOM sits between. Full refresh reloads the OTP VCOM.
 // Unchanged black pixels get a short VSH1 hold pulse so they do not fade;
-// unchanged white pixels stay undriven.
+// unchanged white pixels and the border get a matching short VSL pulse.
 // Do not use 0xFC.
 
 #ifndef _GxEPD2_420_HinkE042A13B0_H_
@@ -17,6 +17,7 @@
 #include <GxEPD2_EPD.h>
 
 #define EPD_BORDER_HIZ 0xC0
+#define EPD_BORDER_FOLLOW_WW 0x03
 #define EPD_UPDATE_FULL 0xF7
 #define EPD_UPDATE_PART 0xC7
 #define EPD_LUT_PARTIAL_BYTES 70
@@ -29,6 +30,7 @@
 #define EPD_LUT_PARTIAL_REPEAT_C 0x08
 #define EPD_LUT_BLACK_HOLD_PHASE 0x40
 #define EPD_LUT_BLACK_HOLD_FRAMES 0x04
+#define EPD_LUT_WHITE_HOLD_PHASE 0x80
 
 class GxEPD2_420_HinkE042A13B0 : public GxEPD2_EPD
 {

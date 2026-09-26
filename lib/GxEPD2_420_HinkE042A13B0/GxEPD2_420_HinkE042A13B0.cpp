@@ -1,5 +1,5 @@
 // Panel: HINK-E042A13-A0, 4.2" 400x300 BW. Controller: SSD1683.
-// Full: internal-temperature OTP, border Hi-Z. Partial: 70-byte head, reduced VCOM.
+// Full: internal-temperature OTP, border Hi-Z. Partial: 70-byte head, reduced VCOM, border follows white-to-white.
 
 #include "GxEPD2_420_HinkE042A13B0.h"
 
@@ -379,7 +379,7 @@ void GxEPD2_420_HinkE042A13B0::_Update_Part()
     0x00, 0x00, EPD_LUT_BLACK_HOLD_PHASE, 0x00, 0x00, 0x00, 0x00,
     EPD_LUT_PARTIAL_REPEAT_A, EPD_LUT_PARTIAL_PHASE_A, 0x00, 0x00, 0x00, 0x00, 0x00,
     EPD_LUT_PARTIAL_REPEAT_B, EPD_LUT_PARTIAL_PHASE_B, 0x00, 0x00, 0x00, 0x00, 0x00,
-    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    0x00, 0x00, EPD_LUT_WHITE_HOLD_PHASE, 0x00, 0x00, 0x00, 0x00,
     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
     EPD_LUT_PARTIAL_REPEAT_C, 0x00, 0x00, 0x00, 0x00,
     EPD_LUT_PARTIAL_REPEAT_C, 0x00, 0x00, 0x00, 0x00,
@@ -391,7 +391,7 @@ void GxEPD2_420_HinkE042A13B0::_Update_Part()
   };
   for (uint8_t i = 0; i < EPD_LUT_PARTIAL_BYTES; i++) lut[i] = head[i];
   _writeCommand(0x3C);
-  _writeData(EPD_BORDER_HIZ);
+  _writeData(EPD_BORDER_FOLLOW_WW);
   _writeCommand(0x21);
   _writeData(0x00);
   _writeData(0x00);
