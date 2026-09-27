@@ -346,6 +346,19 @@ bool TTPictorialService::downloadIndex(const TTPicSeries& series, uint16_t index
 }
 
 void TTPictorialService::runJob(TTPicJob job, uint8_t seriesIndex) {
+    if (job == TT_PIC_JOB_MANIFEST) {
+        if (!loadManifest()) {
+            _busy = false;
+            LOG_W("Pictorial: manifest reload failed");
+            publish(TT_PIC_FAILED, "找不到漫画列表", "", "");
+            return;
+        }
+        _selected = (uint8_t)resolveSelected();
+        _busy = false;
+        LOG_I("Pictorial: manifest reloaded series=%u", (unsigned)_seriesCount);
+        publish(TT_PIC_MANIFEST, "", "", "");
+        return;
+    }
     if (!ensureManifest()) {
         _busy = false;
         publish(TT_PIC_FAILED, "找不到漫画列表", "", "");
@@ -435,4 +448,9 @@ void TTPictorialService::requestDaily() {
 
 void TTPictorialService::requestSeries(uint8_t index) {
     enqueue(TT_PIC_JOB_SERIES, index);
+}
+
+void TTPictorialService::requestManifest() {
+    LOG_I("Pictorial: reload manifest");
+    enqueue(TT_PIC_JOB_MANIFEST, 0);
 }

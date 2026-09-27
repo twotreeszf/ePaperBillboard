@@ -7,6 +7,7 @@ enum TTPicJob {
     TT_PIC_JOB_ANOTHER,
     TT_PIC_JOB_DAILY,
     TT_PIC_JOB_SERIES,
+    TT_PIC_JOB_MANIFEST,
 };
 
 class TTPictorialService {
@@ -15,6 +16,7 @@ public:
     void requestAnother();
     void requestDaily();
     void requestSeries(uint8_t index);
+    void requestManifest();
 
     uint8_t seriesCount() const { return _seriesCount; }
     uint8_t selectedIndex() const { return _selected; }

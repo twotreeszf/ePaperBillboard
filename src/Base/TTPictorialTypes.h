@@ -24,6 +24,7 @@ enum TTPicState {
     TT_PIC_FETCHING = 0,
     TT_PIC_OK,
     TT_PIC_FAILED,
+    TT_PIC_MANIFEST,
 };
 
 struct TTPicSeries {

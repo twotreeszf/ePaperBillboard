@@ -315,6 +315,26 @@ void TTPictorialPage::applyPictorial(const TTPicPayload& payload) {
     }
     const bool updating = _artFetching;
     _artFetching = false;
+    if (payload.state == TT_PIC_MANIFEST) {
+        auto& service = TTInstanceOf<TTPictorialService>();
+        LOG_I("Pictorial page: manifest series=%u", (unsigned)service.seriesCount());
+        if (service.seriesCount() == 0) {
+            if (updating) {
+                TTInstanceOf<TTPopupLayer>().dismissLoading();
+            }
+            tryRequestLightSleep();
+            return;
+        }
+        _picking = true;
+        _pickIndex = service.selectedIndex();
+        showPicker();
+        if (updating) {
+            TTInstanceOf<TTPopupLayer>().dismissLoading();
+        } else if (_visible) {
+            requestRefresh(TT_REFRESH_PARTIAL);
+        }
+        return;
+    }
     if (payload.state != TT_PIC_OK) {
         LOG_W("Pictorial page: %s", payload.message);
         if (_artPath[0] != '\0') {
@@ -564,20 +584,14 @@ void TTPictorialPage::scheduleDaySwitch() {
 
 void TTPictorialPage::openPicker() {
     auto& service = TTInstanceOf<TTPictorialService>();
-    if (service.busy() || service.seriesCount() == 0) {
-        LOG_I("Pictorial page: picker waiting for manifest");
-        service.requestToday();
+    if (service.busy()) {
+        LOG_I("Pictorial page: picker ignored, busy");
         return;
     }
-    _picking = true;
-    _pickIndex = service.selectedIndex();
     cancelLightSleep();
     _sleepAfterTimeTick = false;
     cancelInputIdleSleep();
-    showPicker();
-    if (_visible) {
-        requestRefresh(TT_REFRESH_PARTIAL);
-    }
+    service.requestManifest();
 }
 
 void TTPictorialPage::closePicker(bool apply) {
