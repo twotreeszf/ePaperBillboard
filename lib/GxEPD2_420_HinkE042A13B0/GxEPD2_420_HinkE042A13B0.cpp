@@ -1,5 +1,5 @@
 // Panel: HINK-E042A13-A0, 4.2" 400x300 BW. Controller: SSD1683.
-// Full: internal-temperature OTP, border Hi-Z. Partial: 70-byte head, reduced VCOM, border follows white-to-white.
+// Full: internal-temperature OTP, border Hi-Z. Partial: short white hold then black hold, border Hi-Z.
 
 #include "GxEPD2_420_HinkE042A13B0.h"
 
@@ -391,7 +391,7 @@ void GxEPD2_420_HinkE042A13B0::_Update_Part()
   };
   for (uint8_t i = 0; i < EPD_LUT_PARTIAL_BYTES; i++) lut[i] = head[i];
   _writeCommand(0x3C);
-  _writeData(EPD_BORDER_FOLLOW_WW);
+  _writeData(EPD_BORDER_HIZ);
   _writeCommand(0x21);
   _writeData(0x00);
   _writeData(0x00);
