@@ -1,5 +1,5 @@
 // Panel: HINK-E042A13-A0, 4.2" 400x300 BW. Controller: SSD1683.
-// Full: internal-temperature OTP, border Hi-Z. Partial: short white hold then black hold, border Hi-Z.
+// Full: internal-temperature OTP, border follows waveform. Partial: short white hold then black hold, border Hi-Z.
 
 #include "GxEPD2_420_HinkE042A13B0.h"
 
@@ -340,7 +340,7 @@ void GxEPD2_420_HinkE042A13B0::_InitDisplay()
   _writeData(0x01);
   _writeData(0x00);
   _writeCommand(0x3C);
-  _writeData(EPD_BORDER_HIZ);
+  _writeData(EPD_BORDER_FOLLOW_WAVEFORM);
   _writeCommand(0x18);
   _writeData(0x80);
   _setPartialRamArea(0, 0, WIDTH, HEIGHT);
@@ -350,7 +350,7 @@ void GxEPD2_420_HinkE042A13B0::_InitDisplay()
 void GxEPD2_420_HinkE042A13B0::_Update_Full()
 {
   _writeCommand(0x3C);
-  _writeData(EPD_BORDER_HIZ);
+  _writeData(EPD_BORDER_FOLLOW_WAVEFORM);
   _writeCommand(0x21);
   _writeData(0x40);
   _writeData(0x00);

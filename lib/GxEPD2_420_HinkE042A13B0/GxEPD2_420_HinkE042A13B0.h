@@ -1,7 +1,8 @@
 // Panel: HINK-E042A13 current film, 4.2" 400x300 BW. Controller: SSD1683.
 // Same flex as A0, different waveform. Full refresh uses the internal-temperature
-// OTP. The 110C fast OTP leaves black specks on this film. Border stays Hi-Z
-// so it does not flash with the partial white hold. A short white hold on
+// OTP. The 110C fast OTP leaves black specks on this film. Full refresh drives
+// the border with the OTP waveform so it ends white; partials leave it Hi-Z
+// so it does not flash with the white hold. A short white hold on
 // unchanged white clears VCOM speckles that otherwise accumulate across
 // partials; black hold runs after it so stroke edges end on a black push.
 // Partial writes the 70-byte head over the OTP LUT; bytes past 83 must stay on
@@ -16,6 +17,7 @@
 #include <GxEPD2_EPD.h>
 
 #define EPD_BORDER_HIZ 0xC0
+#define EPD_BORDER_FOLLOW_WAVEFORM 0x05
 #define EPD_UPDATE_FULL 0xF7
 #define EPD_UPDATE_PART 0xC7
 #define EPD_LUT_PARTIAL_BYTES 70

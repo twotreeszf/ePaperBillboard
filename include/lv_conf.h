@@ -14,8 +14,8 @@
    COLOR SETTINGS
  *====================*/
 
-/* Color depth: 1 for monochrome E-Paper */
-#define LV_COLOR_DEPTH 1
+/* 1-bit indexed color for monochrome E-Paper */
+#define LV_COLOR_FORMAT_DEFAULT LV_COLOR_FORMAT_I1
 
 /* Swap the 2 bytes of RGB565 color. Not used for 1-bit */
 #define LV_COLOR_16_SWAP 0
