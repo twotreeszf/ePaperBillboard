@@ -139,6 +139,35 @@ void TTPictorialPage::buildContent(lv_obj_t* screen) {
     lv_obj_set_style_pad_all(_status, 4, 0);
     lv_obj_align(_status, LV_ALIGN_CENTER, TT_CAL_SIDE_W / 2, 0);
 
+    _pickPanel = lv_obj_create(screen);
+    lv_obj_set_size(_pickPanel, artW - 24,
+                    TT_PIC_PICK_ROWS * TT_PIC_PICK_ROW_H + TT_PIC_PICK_INSET * 2 + TT_PIC_PICK_BORDER * 2);
+    lv_obj_align(_pickPanel, LV_ALIGN_CENTER, TT_CAL_SIDE_W / 2, 0);
+    lv_obj_set_style_bg_color(_pickPanel, lv_color_white(), 0);
+    lv_obj_set_style_bg_opa(_pickPanel, LV_OPA_COVER, 0);
+    lv_obj_set_style_border_width(_pickPanel, TT_PIC_PICK_BORDER, 0);
+    lv_obj_set_style_border_color(_pickPanel, lv_color_black(), 0);
+    lv_obj_set_style_border_opa(_pickPanel, LV_OPA_COVER, 0);
+    lv_obj_set_style_border_side(_pickPanel, LV_BORDER_SIDE_FULL, 0);
+    lv_obj_set_style_border_post(_pickPanel, true, 0);
+    lv_obj_set_style_radius(_pickPanel, 0, 0);
+    lv_obj_set_style_pad_all(_pickPanel, TT_PIC_PICK_INSET, 0);
+    lv_obj_set_style_pad_row(_pickPanel, 0, 0);
+    lv_obj_set_layout(_pickPanel, LV_LAYOUT_FLEX);
+    lv_obj_set_flex_flow(_pickPanel, LV_FLEX_FLOW_COLUMN);
+    lv_obj_set_scrollable(_pickPanel, false);
+    lv_obj_set_clickable(_pickPanel, false);
+    lv_obj_set_hidden(_pickPanel, true);
+    for (int i = 0; i < TT_PIC_PICK_ROWS; i++) {
+        _pickRows[i] = createLabel(_pickPanel, font16, lv_color_black(), "");
+        lv_obj_set_width(_pickRows[i], LV_PCT(100));
+        lv_obj_set_height(_pickRows[i], TT_PIC_PICK_ROW_H);
+        lv_obj_set_style_pad_left(_pickRows[i], 8, 0);
+        lv_obj_set_style_pad_top(_pickRows[i], (TT_PIC_PICK_ROW_H - TT_CAL_TEXT_FONT) / 2, 0);
+        lv_label_set_long_mode(_pickRows[i], LV_LABEL_LONG_CLIP);
+        lv_obj_set_clickable(_pickRows[i], false);
+    }
+
     _hit = lv_btn_create(screen);
     lv_obj_set_pos(_hit, 0, 0);
     lv_obj_set_size(_hit, EPD_WIDTH, height);
@@ -205,6 +234,9 @@ void TTPictorialPage::willAppear() {
 void TTPictorialPage::willDisappear() {
     _visible = false;
     _picking = false;
+    if (_pickPanel != nullptr) {
+        lv_obj_set_hidden(_pickPanel, true);
+    }
     _sleepAfterTimeTick = false;
     cancelInputIdleSleep();
     if (_artFetching) {
@@ -597,6 +629,9 @@ void TTPictorialPage::openPicker() {
 void TTPictorialPage::closePicker(bool apply) {
     const uint8_t index = _pickIndex;
     _picking = false;
+    if (_pickPanel != nullptr) {
+        lv_obj_set_hidden(_pickPanel, true);
+    }
     if (_status != nullptr && _artReady) {
         lv_obj_set_hidden(_status, true);
     }
@@ -612,20 +647,50 @@ void TTPictorialPage::closePicker(bool apply) {
 }
 
 void TTPictorialPage::showPicker() {
-    TTPicSeries series = {};
-    if (!TTInstanceOf<TTPictorialService>().seriesAt(_pickIndex, &series)) {
+    auto& service = TTInstanceOf<TTPictorialService>();
+    const uint8_t count = service.seriesCount();
+    if (count == 0 || _pickPanel == nullptr) {
         return;
     }
-    char text[96];
-    snprintf(text, sizeof(text), "%u/%u  %s",
-             (unsigned)(_pickIndex + 1),
-             (unsigned)TTInstanceOf<TTPictorialService>().seriesCount(),
-             series.name);
-    if (_status != nullptr) {
-        lv_label_set_text(_status, text);
-        lv_obj_set_hidden(_status, false);
-        lv_obj_move_foreground(_status);
+    if (_pickIndex >= count) {
+        _pickIndex = 0;
     }
+    uint8_t window = 0;
+    if (count > TT_PIC_PICK_ROWS) {
+        const int centered = (int)_pickIndex - TT_PIC_PICK_ROWS / 2;
+        window = centered < 0 ? 0 : (uint8_t)centered;
+        if (window + TT_PIC_PICK_ROWS > count) {
+            window = (uint8_t)(count - TT_PIC_PICK_ROWS);
+        }
+    }
+    for (int row = 0; row < TT_PIC_PICK_ROWS; row++) {
+        const uint8_t index = (uint8_t)(window + row);
+        if (index >= count) {
+            lv_obj_set_hidden(_pickRows[row], true);
+            continue;
+        }
+        TTPicSeries series = {};
+        if (!service.seriesAt(index, &series)) {
+            lv_obj_set_hidden(_pickRows[row], true);
+            continue;
+        }
+        const bool selected = index == _pickIndex;
+        lv_label_set_text(_pickRows[row], series.name);
+        lv_obj_set_style_bg_color(_pickRows[row], selected ? lv_color_black() : lv_color_white(), 0);
+        lv_obj_set_style_bg_opa(_pickRows[row], LV_OPA_COVER, 0);
+        lv_obj_set_style_text_color(_pickRows[row], selected ? lv_color_white() : lv_color_black(), 0);
+        lv_obj_set_hidden(_pickRows[row], false);
+    }
+    if (_status != nullptr) {
+        lv_obj_set_hidden(_status, true);
+    }
+    lv_obj_set_hidden(_pickPanel, false);
+    lv_obj_move_foreground(_pickPanel);
+    if (_hit != nullptr) {
+        lv_obj_move_foreground(_hit);
+    }
+    LOG_I("Pictorial page: picker index=%u window=%u count=%u",
+          (unsigned)_pickIndex, (unsigned)window, (unsigned)count);
 }
 
 void TTPictorialPage::cancelInputIdleSleep() {

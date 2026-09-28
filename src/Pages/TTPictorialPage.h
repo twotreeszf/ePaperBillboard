@@ -7,6 +7,10 @@
 #include "../Base/TTWeatherTypes.h"
 
 #define TT_PIC_UPDATING_TEXT  "正在更新"
+#define TT_PIC_PICK_ROWS      3
+#define TT_PIC_PICK_ROW_H     28
+#define TT_PIC_PICK_BORDER    2
+#define TT_PIC_PICK_INSET     12
 
 class TTPictorialPage : public TTScreenPage {
 public:
@@ -49,6 +53,8 @@ private:
     lv_obj_t* _clockMin = nullptr;
     lv_obj_t* _art = nullptr;
     lv_obj_t* _status = nullptr;
+    lv_obj_t* _pickPanel = nullptr;
+    lv_obj_t* _pickRows[TT_PIC_PICK_ROWS] = {};
     lv_obj_t* _hit = nullptr;
 
     int _lastMinute = -1;
