@@ -1,5 +1,5 @@
-// Panel: HINK-E042A13-A0, 4.2" 400x300 BW. Controller: SSD1683-compatible.
-// OTP 0xFC full-flashes this panel; partial uses a register LUT and 0x22 0xC7.
+// Panel: HINK-E042A13-A0, 4.2" 400x300 BW. Controller: SSD1619 (OPM42).
+// Full and partial both use a 70-byte register LUT, then 0x22 0xC7. OTP is not loaded.
 
 #ifndef _GxEPD2_420_HinkE042A13_H_
 #define _GxEPD2_420_HinkE042A13_H_
@@ -16,11 +16,11 @@ public:
     static const bool hasColor = false;
     static const bool hasPartialUpdate = true;
     static const bool hasFastPartialUpdate = true;
-    static const bool useFastFullUpdate = true;
+    static const bool useFastFullUpdate = false;
     static const uint16_t power_on_time = 100;
     static const uint16_t power_off_time = 300;
-    static const uint16_t full_refresh_time = 1200;
-    static const uint16_t partial_refresh_time = 350;
+    static const uint16_t full_refresh_time = 4000;
+    static const uint16_t partial_refresh_time = 400;
 
     GxEPD2_420_HinkE042A13(int16_t cs, int16_t dc, int16_t rst, int16_t busy);
 
@@ -66,8 +66,7 @@ private:
     void _Update_Full();
     void _Update_Part();
 
-private:
-    bool _use_fast_update;
+    bool _partial_lut_loaded;
 };
 
 #endif

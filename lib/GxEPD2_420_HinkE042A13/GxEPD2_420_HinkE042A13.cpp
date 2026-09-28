@@ -1,23 +1,37 @@
-// Panel: HINK-E042A13-A0, 4.2" 400x300 BW. Controller: SSD1683-compatible.
-// Partial: 0x21 0x00 0x00 + 70-byte LUT (0x32) + reduced VCOM (0x2C) + 0x22 0xC7. Do not use 0xFC; OTP flashes the full panel.
+// Panel: HINK-E042A13-A0, 4.2" 400x300 BW. Controller: SSD1619 (OPM42).
+// LUTs are LUTDefault_full_opm42 and LUTDefault_part_opm42. Update is 0x22 0xC7, not OTP.
 
 #include "GxEPD2_420_HinkE042A13.h"
 
-#define LUT_PARTIAL_BYTES 70U
-#define EPD_BORDER_WHITE  0x05
-#define EPD_BORDER_HIZ    0xC0
-#define EPD_LUT_BLACK_HOLD_PHASE  0x40
-#define EPD_LUT_BLACK_HOLD_FRAMES 0x04
-#define EPD_VCOM_PARTIAL          0x30
+#define EPD_LUT_BYTES              70U
+#define EPD_BORDER_OPM42           0x03
+#define EPD_UPDATE_DISPLAY         0xC7
+#define EPD_LUT_BLACK_HOLD_PHASE   0x40
+#define EPD_LUT_BLACK_HOLD_FRAMES  0x04
 
-static const uint8_t LUT_PARTIAL[LUT_PARTIAL_BYTES] = {
+static const uint8_t LUT_FULL_SSD1619[EPD_LUT_BYTES] = {
+    0x08, 0x00, 0x48, 0x40, 0x00, 0x00, 0x00,
+    0x20, 0x00, 0x12, 0x20, 0x00, 0x00, 0x00,
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    0x05, 0x20, 0x20, 0x05, 0x00,
+    0x0F, 0x00, 0x00, 0x00, 0x00,
+    0x20, 0x40, 0x20, 0x20, 0x00,
+    0x20, 0x00, 0x00, 0x00, 0x00,
+    0x05, 0x00, 0x00, 0x00, 0x01,
+    0x00, 0x00, 0x00, 0x00, 0x00,
+    0x00, 0x00, 0x00, 0x00, 0x00,
+};
+
+static const uint8_t LUT_PARTIAL_SSD1619[EPD_LUT_BYTES] = {
     0x00, 0x00, EPD_LUT_BLACK_HOLD_PHASE, 0x00, 0x00, 0x00, 0x00,
-    0x80, 0x80, 0x00, 0x00, 0x00, 0x00, 0x00,
-    0x40, 0x40, 0x00, 0x00, 0x00, 0x00, 0x00,
+    0x82, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    0x50, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-    0x08, 0x00, 0x00, 0x00, 0x00,
-    0x08, 0x00, 0x00, 0x00, 0x00,
+    0x08, 0x08, 0x00, 0x08, 0x01,
+    0x00, 0x00, 0x00, 0x00, 0x01,
     EPD_LUT_BLACK_HOLD_FRAMES, 0x00, 0x00, 0x00, 0x00,
     0x00, 0x00, 0x00, 0x00, 0x00,
     0x00, 0x00, 0x00, 0x00, 0x00,
@@ -28,12 +42,12 @@ static const uint8_t LUT_PARTIAL[LUT_PARTIAL_BYTES] = {
 GxEPD2_420_HinkE042A13::GxEPD2_420_HinkE042A13(int16_t cs, int16_t dc, int16_t rst, int16_t busy) :
   GxEPD2_EPD(cs, dc, rst, busy, HIGH, 10000000, WIDTH, HEIGHT, panel, hasColor, hasPartialUpdate, hasFastPartialUpdate)
 {
-  _use_fast_update = useFastFullUpdate;
+  _partial_lut_loaded = false;
 }
 
 void GxEPD2_420_HinkE042A13::selectFastFullUpdate(bool ff)
 {
-  _use_fast_update = ff;
+  (void)ff;
 }
 
 void GxEPD2_420_HinkE042A13::clearScreen(uint8_t value)
@@ -349,63 +363,78 @@ void GxEPD2_420_HinkE042A13::_PowerOff()
   }
   _power_is_on = false;
   _using_partial_mode = false;
+  _partial_lut_loaded = false;
 }
 
 void GxEPD2_420_HinkE042A13::_InitDisplay()
 {
   if (_hibernating) _reset();
   delay(10);
-  _writeCommand(0x12);
-  delay(10);
+  _writeCommand(0x74);
+  _writeData(0x54);
+  _writeCommand(0x7E);
+  _writeData(0x3B);
   _writeCommand(0x01);
   _writeData(0x2B);
   _writeData(0x01);
   _writeData(0x00);
+  _writeCommand(0x0C);
+  _writeData(0x8B);
+  _writeData(0x9C);
+  _writeData(0xD6);
+  _writeData(0x0F);
+  _writeCommand(0x3A);
+  _writeData(0x21);
+  _writeCommand(0x3B);
+  _writeData(0x06);
   _writeCommand(0x3C);
-  _writeData(EPD_BORDER_WHITE);
-  _writeCommand(0x18);
+  _writeData(EPD_BORDER_OPM42);
+  _writeCommand(0x2C);
+  _writeData(0x00);
+  _writeCommand(0x37);
+  _writeData(0x00);
+  _writeData(0x00);
+  _writeData(0x00);
+  _writeData(0x00);
   _writeData(0x80);
+  _writeCommand(0x21);
+  _writeData(0x40);
+  _writeCommand(0x22);
+  _writeData(EPD_UPDATE_DISPLAY);
   _setPartialRamArea(0, 0, WIDTH, HEIGHT);
+  _partial_lut_loaded = false;
   _init_display_done = true;
 }
 
 void GxEPD2_420_HinkE042A13::_Update_Full()
 {
   _writeCommand(0x3C);
-  _writeData(EPD_BORDER_WHITE);
+  _writeData(EPD_BORDER_OPM42);
   _writeCommand(0x21);
   _writeData(0x40);
   _writeData(0x00);
-  if (_use_fast_update)
-  {
-    _writeCommand(0x1A);
-    _writeData(0x6E);
-    _writeCommand(0x22);
-    _writeData(0xd7);
-  }
-  else
-  {
-    _writeCommand(0x22);
-    _writeData(0xf7);
-  }
+  _writeCommand(0x32);
+  _writeData(LUT_FULL_SSD1619, EPD_LUT_BYTES);
+  _writeCommand(0x22);
+  _writeData(EPD_UPDATE_DISPLAY);
   _writeCommand(0x20);
   _waitWhileBusy("_Update_Full", full_refresh_time);
   _power_is_on = false;
+  _partial_lut_loaded = false;
 }
 
 void GxEPD2_420_HinkE042A13::_Update_Part()
 {
-  _writeCommand(0x3C);
-  _writeData(EPD_BORDER_HIZ);
-  _writeCommand(0x21);
-  _writeData(0x00);
-  _writeData(0x00);
-  _writeCommand(0x32);
-  _writeData(LUT_PARTIAL, LUT_PARTIAL_BYTES);
-  _writeCommand(0x2C);
-  _writeData(EPD_VCOM_PARTIAL);
+  if (!_partial_lut_loaded)
+  {
+    _writeCommand(0x21);
+    _writeData(0x00);
+    _writeCommand(0x32);
+    _writeData(LUT_PARTIAL_SSD1619, EPD_LUT_BYTES);
+    _partial_lut_loaded = true;
+  }
   _writeCommand(0x22);
-  _writeData(0xC7);
+  _writeData(EPD_UPDATE_DISPLAY);
   _writeCommand(0x20);
   _waitWhileBusy("_Update_Part", partial_refresh_time);
   _power_is_on = true;
