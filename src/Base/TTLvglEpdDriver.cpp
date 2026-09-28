@@ -109,13 +109,17 @@ void TTLvglEpdDriver::_flushCallback(lv_display_t* disp, const lv_area_t* area, 
     int32_t y2 = area->y2;
 
     const int32_t navTop = EPD_HEIGHT - TT_NAV_PAGE_INSET;
-    if (!pThis->_needDeepRefresh && !pThis->_flushingOverlay && y2 >= navTop) {
-        pThis->_navTouched = true;
-        if (y1 >= navTop) {
-            LOG_I("Flush: skip page paint in nav bar region");
-            lv_display_flush_ready(disp);
-            return;
+    if (!pThis->_flushingOverlay && y1 >= navTop) {
+        if (!pThis->_needDeepRefresh) {
+            pThis->_navTouched = true;
+        } else {
+            LOG_I("Flush: defer nav until page deep refresh");
         }
+        LOG_I("Flush: skip page paint in nav bar region");
+        lv_display_flush_ready(disp);
+        return;
+    }
+    if (!pThis->_needDeepRefresh && !pThis->_flushingOverlay && y2 >= navTop) {
         y2 = navTop - 1;
         LOG_I("Flush: clip page above nav bar y<%d", navTop);
     }
@@ -131,7 +135,12 @@ void TTLvglEpdDriver::_flushCallback(lv_display_t* disp, const lv_area_t* area, 
     uint32_t flushStart = millis();
 
     pThis->_epd->setRotation(EPD_ROTATION);
-    const bool doDeepFull = pThis->_needDeepRefresh && !pThis->_flushingOverlay;
+    const int32_t pageBottom = navTop - 1;
+    const bool coversPage = x1 <= 0 && y1 <= 0 && x2 >= EPD_WIDTH - 1 && y2 >= pageBottom;
+    const bool doDeepFull = pThis->_needDeepRefresh && !pThis->_flushingOverlay && coversPage;
+    if (pThis->_needDeepRefresh && !pThis->_flushingOverlay && !coversPage) {
+        LOG_I("Flush: hold deep refresh for the page");
+    }
     if (doDeepFull) {
         pThis->_epd->setFullWindow();
         pThis->_needDeepRefresh = false;

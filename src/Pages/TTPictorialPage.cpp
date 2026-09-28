@@ -1,5 +1,6 @@
 #include "TTPictorialPage.h"
 #include "../Base/Logger.h"
+#include "../Base/TTFile.h"
 #include "../Base/TTFontManager.h"
 #include "../Base/TTInstance.h"
 #include "../Base/TTLvglEpdDriver.h"
@@ -575,11 +576,21 @@ void TTPictorialPage::showArt(const char* path) {
     if (_art == nullptr || path == nullptr || path[0] == '\0') {
         return;
     }
+    char dropped[TT_STREAM_IMAGE_PATH_MAX];
+    dropped[0] = '\0';
+    if (path != _artPath && _artPath[0] != '\0' && strcmp(path, _artPath) != 0) {
+        strncpy(dropped, _artPath, sizeof(dropped) - 1);
+        dropped[sizeof(dropped) - 1] = '\0';
+    }
     if (path != _artPath) {
         strncpy(_artPath, path, sizeof(_artPath) - 1);
         _artPath[sizeof(_artPath) - 1] = '\0';
     }
     tt_stream_image_set_src(_art, _artPath);
+    if (dropped[0] != '\0') {
+        LOG_I("Pictorial page: drop %s", dropped);
+        tt_file_remove(dropped);
+    }
     lv_obj_update_layout(_art);
     const int paneW = EPD_WIDTH - TT_CAL_SIDE_W;
     const int paneH = EPD_HEIGHT - TT_NAV_PAGE_INSET;

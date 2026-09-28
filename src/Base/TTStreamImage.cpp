@@ -53,6 +53,7 @@ static void cache_release(tt_stream_image_cache_entry_t* entry);
 static void image_clear_src(tt_stream_image_t* img);
 static void image_free_invert(tt_stream_image_t* img);
 static void image_refresh_invert(tt_stream_image_t* img);
+static void stream_blit(lv_event_t* e, tt_stream_image_t* img);
 
 const lv_obj_class_t tt_stream_image_class = {
     .base_class = &lv_obj_class,
@@ -105,6 +106,17 @@ void tt_stream_image_set_src(lv_obj_t* obj, const char* path) {
     f.close();
     if (w <= 0 || w > TT_STREAM_IMAGE_MAX_W || h <= 0 || h > TT_STREAM_IMAGE_MAX_H) {
         LOG_E("TTStreamImage: size %" LV_PRId32 "x%" LV_PRId32 " out of range", w, h);
+        lv_obj_invalidate(obj);
+        return;
+    }
+
+    const size_t bytes = (size_t)((w + 7) / 8) * (size_t)h;
+    if (bytes > TT_STREAM_IMAGE_FILE_RENDER_MIN) {
+        img->img_w = w;
+        img->img_h = h;
+        lv_obj_set_size(obj, img->img_w, img->img_h);
+        LOG_I("TTStreamImage: stream %s %" LV_PRId32 "x%" LV_PRId32 " %u bytes",
+              path, w, h, (unsigned)bytes);
         lv_obj_invalidate(obj);
         return;
     }
@@ -377,9 +389,93 @@ static void cache_release(tt_stream_image_cache_entry_t* entry) {
     cache_destroy_entry(entry);
 }
 
+static uint8_t i1_get(const uint8_t* buf, int32_t bit_idx) {
+    return (buf[bit_idx / 8] >> (7 - (bit_idx % 8))) & 1;
+}
+
+static void i1_put(uint8_t* buf, int32_t bit_idx, uint8_t bit) {
+    const int32_t byte = bit_idx / 8;
+    const uint8_t mask = (uint8_t)(1u << (7 - (bit_idx % 8)));
+    if (bit) {
+        buf[byte] |= mask;
+    } else {
+        buf[byte] &= (uint8_t)~mask;
+    }
+}
+
+static void stream_blit(lv_event_t* e, tt_stream_image_t* img) {
+    lv_obj_t* obj = (lv_obj_t*)lv_event_get_current_target(e);
+    lv_layer_t* layer = lv_event_get_layer(e);
+    if (layer == nullptr || layer->draw_buf == nullptr || layer->draw_buf->data == nullptr) {
+        return;
+    }
+    if (layer->color_format != LV_COLOR_FORMAT_I1) {
+        LOG_E("TTStreamImage: stream needs I1 layer, cf=%d", (int)layer->color_format);
+        return;
+    }
+
+    lv_area_t coords;
+    lv_obj_get_coords(obj, &coords);
+    lv_area_t clip;
+    if (!lv_area_intersect(&clip, &coords, &layer->_clip_area)) {
+        return;
+    }
+    if (!lv_area_intersect(&clip, &clip, &layer->buf_area)) {
+        return;
+    }
+
+    const int32_t src_stride = (img->img_w + 7) / 8;
+    if (src_stride <= 0 || src_stride > TT_STREAM_IMAGE_ROW_BYTES) {
+        LOG_E("TTStreamImage: stream stride %d", (int)src_stride);
+        return;
+    }
+
+    File file = tt_file_open(img->path, "r");
+    if (!file) {
+        LOG_E("TTStreamImage: stream open failed %s", img->path);
+        return;
+    }
+
+    const uint32_t palette = LV_COLOR_INDEXED_PALETTE_SIZE(LV_COLOR_FORMAT_I1) * sizeof(lv_color32_t);
+    uint8_t* pixels = layer->draw_buf->data + palette;
+    const uint32_t dest_stride = layer->draw_buf->header.stride;
+    uint8_t row[TT_STREAM_IMAGE_ROW_BYTES];
+
+    for (int32_t y = clip.y1; y <= clip.y2; y++) {
+        const int32_t src_y = y - coords.y1;
+        if (src_y < 0 || src_y >= img->img_h) {
+            continue;
+        }
+        const uint32_t offset = (uint32_t)TT_I1_HEADER_SIZE + (uint32_t)src_y * (uint32_t)src_stride;
+        if (!file.seek(offset) || file.read(row, (size_t)src_stride) != (size_t)src_stride) {
+            LOG_E("TTStreamImage: stream read failed %s y=%d", img->path, (int)src_y);
+            break;
+        }
+        uint8_t* dest = pixels + (uint32_t)(y - layer->buf_area.y1) * dest_stride;
+        for (int32_t x = clip.x1; x <= clip.x2; x++) {
+            const int32_t src_x = x - coords.x1;
+            if (src_x < 0 || src_x >= img->img_w) {
+                continue;
+            }
+            uint8_t bit = i1_get(row, src_x);
+            if (img->invert) {
+                bit ^= 1;
+            }
+            i1_put(dest, x - layer->buf_area.x1, bit);
+        }
+    }
+    file.close();
+}
+
 static void draw_main(lv_event_t* e) {
     lv_obj_t* obj = (lv_obj_t*)lv_event_get_current_target(e);
     tt_stream_image_t* img = (tt_stream_image_t*)obj;
+    if (img->entry == nullptr) {
+        if (img->path[0] != '\0' && img->img_w > 0 && img->img_h > 0) {
+            stream_blit(e, img);
+        }
+        return;
+    }
     tt_stream_image_cache_entry_t* entry = img->entry;
     if (entry == nullptr || entry->i1_data == nullptr || img->img_w <= 0 || img->img_h <= 0) {
         return;

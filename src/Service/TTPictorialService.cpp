@@ -185,7 +185,7 @@ void TTPictorialService::remember(const char* pinyin, uint16_t index, int dayKey
     _imageIndex = index;
 }
 
-void TTPictorialService::removeStale(const char* keep) {
+void TTPictorialService::removeStale(const char* keep, const char* alsoKeep) {
     File dir = LittleFS.open(TT_FS_TMP_DIR);
     if (!dir) {
         return;
@@ -208,8 +208,9 @@ void TTPictorialService::removeStale(const char* keep) {
             snprintf(full, sizeof(full), "%s/%s", TT_FS_TMP_DIR, base);
         }
         file.close();
-        if (full[0] != '\0' && strstr(full, ".i1") != nullptr
-            && (keep == nullptr || strcmp(full, keep) != 0)) {
+        const bool kept = (keep != nullptr && strcmp(full, keep) == 0)
+            || (alsoKeep != nullptr && alsoKeep[0] != '\0' && strcmp(full, alsoKeep) == 0);
+        if (full[0] != '\0' && strstr(full, ".i1") != nullptr && !kept) {
             copyText(stale[staleCount], sizeof(stale[staleCount]), full);
             staleCount++;
         }
@@ -341,7 +342,7 @@ bool TTPictorialService::downloadIndex(const TTPicSeries& series, uint16_t index
     if (previous.length() > 0 && previous != nextPath) {
         LOG_I("Pictorial: replace %s -> %s", previous.c_str(), nextPath);
     }
-    removeStale(nextPath);
+    removeStale(nextPath, previous.c_str());
     return true;
 }
 

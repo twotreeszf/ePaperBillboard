@@ -35,7 +35,7 @@ private:
     uint16_t pickIndex(uint16_t count, uint16_t avoid, bool avoidCurrent) const;
     void publish(TTPicState state, const char* message, const char* path, const char* name);
     void remember(const char* pinyin, uint16_t index, int dayKey, const char* path);
-    void removeStale(const char* keep);
+    void removeStale(const char* keep, const char* alsoKeep);
     int todayKey() const;
 
     TTPicSeries _series[TT_PIC_SERIES_MAX];
