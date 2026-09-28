@@ -39,4 +39,5 @@ using EPaperDisplay = GxEPD2_BW<GxEPD2_420_HinkE042A13Select, GxEPD2_420_HinkE04
 #define PREF_EPD_PANEL "epd_panel"
 #define TT_EPD_PANEL_A0 "a0"
 #define TT_EPD_PANEL_B0 "b0"
+#define TT_EPD_PANEL_C0 "c0"
 #define TT_EPD_PANEL_DEFAULT TT_EPD_PANEL_A0

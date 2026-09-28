@@ -1,38 +1,28 @@
-// HINK-E042A13 4.2" 400x300 BW with a runtime waveform choice.
-// A0, B0, and C0 share the flex marking but need different drivers; the choice
-// must be made before init() and stays fixed until the next boot.
+// Panel: HINK-E042A13-C0, 4.2" 400x300 BW. Controller: SSD1683-compatible.
+// OTP 0xFC full-flashes this panel; partial uses a register LUT and 0x22 0xC7.
 
-#ifndef _GxEPD2_420_HinkE042A13Select_H_
-#define _GxEPD2_420_HinkE042A13Select_H_
+#ifndef _GxEPD2_420_HinkE042A13C0_H_
+#define _GxEPD2_420_HinkE042A13C0_H_
 
-#include <GxEPD2_420_HinkE042A13.h>
-#include <GxEPD2_420_HinkE042A13B0.h>
-#include <GxEPD2_420_HinkE042A13C0.h>
+#include <GxEPD2_EPD.h>
 
-#define EPD_HINK_E042A13_A0 0
-#define EPD_HINK_E042A13_B0 1
-#define EPD_HINK_E042A13_C0 2
-
-class GxEPD2_420_HinkE042A13Select
+class GxEPD2_420_HinkE042A13C0 : public GxEPD2_EPD
 {
 public:
-    static const uint16_t WIDTH = GxEPD2_420_HinkE042A13::WIDTH;
-    static const uint16_t WIDTH_VISIBLE = GxEPD2_420_HinkE042A13::WIDTH_VISIBLE;
-    static const uint16_t HEIGHT = GxEPD2_420_HinkE042A13::HEIGHT;
-    static const GxEPD2::Panel panel = GxEPD2_420_HinkE042A13::panel;
-    static const bool hasColor = GxEPD2_420_HinkE042A13::hasColor;
-    static const bool hasPartialUpdate = GxEPD2_420_HinkE042A13::hasPartialUpdate;
-    static const bool hasFastPartialUpdate = GxEPD2_420_HinkE042A13::hasFastPartialUpdate;
+    static const uint16_t WIDTH = 400;
+    static const uint16_t WIDTH_VISIBLE = WIDTH;
+    static const uint16_t HEIGHT = 300;
+    static const GxEPD2::Panel panel = GxEPD2::GDEY042T81;
+    static const bool hasColor = false;
+    static const bool hasPartialUpdate = true;
+    static const bool hasFastPartialUpdate = true;
+    static const bool useFastFullUpdate = true;
+    static const uint16_t power_on_time = 100;
+    static const uint16_t power_off_time = 300;
+    static const uint16_t full_refresh_time = 1200;
+    static const uint16_t partial_refresh_time = 350;
 
-    GxEPD2_420_HinkE042A13Select(int16_t cs, int16_t dc, int16_t rst, int16_t busy);
-
-    void selectPanel(uint8_t variant);
-    uint8_t selectedPanel() const { return _variant; }
-
-    void init(uint32_t serial_diag_bitrate = 0);
-    void init(uint32_t serial_diag_bitrate, bool initial, uint16_t reset_duration = 10, bool pulldown_rst_mode = false);
-    void end();
-    void selectSPI(SPIClass& spi, SPISettings spi_settings);
+    GxEPD2_420_HinkE042A13C0(int16_t cs, int16_t dc, int16_t rst, int16_t busy);
 
     void clearScreen(uint8_t value = 0xFF);
     void writeScreenBuffer(uint8_t value = 0xFF);
@@ -40,7 +30,6 @@ public:
 
     void writeImage(const uint8_t bitmap[], int16_t x, int16_t y, int16_t w, int16_t h, bool invert = false, bool mirror_y = false, bool pgm = false);
     void writeImageForFullRefresh(const uint8_t bitmap[], int16_t x, int16_t y, int16_t w, int16_t h, bool invert = false, bool mirror_y = false, bool pgm = false);
-    void writeImageToPrevious(const uint8_t bitmap[], int16_t x, int16_t y, int16_t w, int16_t h, bool invert = false, bool mirror_y = false, bool pgm = false);
     void writeImagePart(const uint8_t bitmap[], int16_t x_part, int16_t y_part, int16_t w_bitmap, int16_t h_bitmap,
                         int16_t x, int16_t y, int16_t w, int16_t h, bool invert = false, bool mirror_y = false, bool pgm = false);
     void writeImage(const uint8_t* black, const uint8_t* color, int16_t x, int16_t y, int16_t w, int16_t h, bool invert = false, bool mirror_y = false, bool pgm = false);
@@ -63,15 +52,22 @@ public:
     void refresh(int16_t x, int16_t y, int16_t w, int16_t h);
     void powerOff();
     void hibernate();
-    void selectFastFullUpdate(bool ff);
+    void selectFastFullUpdate(bool);
 
 private:
-    GxEPD2_EPD& _active();
+    void _writeScreenBuffer(uint8_t command, uint8_t value);
+    void _writeImage(uint8_t command, const uint8_t bitmap[], int16_t x, int16_t y, int16_t w, int16_t h, bool invert = false, bool mirror_y = false, bool pgm = false);
+    void _writeImagePart(uint8_t command, const uint8_t bitmap[], int16_t x_part, int16_t y_part, int16_t w_bitmap, int16_t h_bitmap,
+                         int16_t x, int16_t y, int16_t w, int16_t h, bool invert = false, bool mirror_y = false, bool pgm = false);
+    void _setPartialRamArea(uint16_t x, uint16_t y, uint16_t w, uint16_t h);
+    void _PowerOn();
+    void _PowerOff();
+    void _InitDisplay();
+    void _Update_Full();
+    void _Update_Part();
 
-    GxEPD2_420_HinkE042A13 _a0;
-    GxEPD2_420_HinkE042A13B0 _b0;
-    GxEPD2_420_HinkE042A13C0 _c0;
-    uint8_t _variant;
+private:
+    bool _use_fast_update;
 };
 
 #endif

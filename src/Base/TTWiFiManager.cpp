@@ -39,6 +39,13 @@ bool parseCoord(const String& text, float& out, float minV, float maxV) {
     return true;
 }
 
+String normalizeEpdPanel(const String& panel) {
+    if (panel == TT_EPD_PANEL_B0 || panel == TT_EPD_PANEL_C0) {
+        return panel;
+    }
+    return String(TT_EPD_PANEL_A0);
+}
+
 }
 
 void TTWiFiManager::_rememberSsid(const String& ssid) {
@@ -512,9 +519,7 @@ void TTWiFiManager::_handleSave() {
     calUser.trim();
     calPass.trim();
     epdPanel.trim();
-    if (epdPanel != TT_EPD_PANEL_B0) {
-        epdPanel = TT_EPD_PANEL_A0;
-    }
+    epdPanel = normalizeEpdPanel(epdPanel);
     if (ssid.isEmpty()) {
         _sendSaveResult(400, "保存失败", "Wi-Fi 名称不能为空");
         return;
@@ -606,9 +611,7 @@ void TTWiFiManager::_handleSave() {
 
     String oldEpdPanel;
     pref.get(PREF_EPD_PANEL, oldEpdPanel, String(TT_EPD_PANEL_DEFAULT));
-    if (oldEpdPanel != TT_EPD_PANEL_B0) {
-        oldEpdPanel = TT_EPD_PANEL_A0;
-    }
+    oldEpdPanel = normalizeEpdPanel(oldEpdPanel);
     pref.set(PREF_EPD_PANEL, epdPanel);
     _restartOnApply = epdPanel != oldEpdPanel;
     LOG_I("Hardware: save epd_panel=%s old=%s restart=%d",
@@ -679,9 +682,7 @@ void TTWiFiManager::_handleStatus() {
 
     String epdPanel;
     pref.get(PREF_EPD_PANEL, epdPanel, String(TT_EPD_PANEL_DEFAULT));
-    if (epdPanel != TT_EPD_PANEL_B0) {
-        epdPanel = TT_EPD_PANEL_A0;
-    }
+    epdPanel = normalizeEpdPanel(epdPanel);
     doc["epd_panel"] = epdPanel;
     LOG_I("WiFi: status fill ssid=%s password_len=%u tz=%s label=%s city=%s cal_host=%s cal_user=%s epd_panel=%s",
           ssid.c_str(), (unsigned)password.length(), tz, label, weatherCity.c_str(),
@@ -793,11 +794,12 @@ String TTWiFiManager::_getHTMLContent() {
                 <input type="text" id="caldav_pass" name="caldav_pass" placeholder="CalDAV 密码" maxlength="31" autocomplete="off">
             </div>
             <div class="panel" id="panel-hw">
-                <p class="tip">两款 4.2 寸屏排线型号相同，请按实际屏幕选择，选错会出现残影或噪点。更改后设备会自动重启。</p>
+                <p class="tip">同一排线有三种波形。A0 是当前默认。C0 是最初的 A0 驱动。B0 是另一款膜。选错会出现残影或噪点。更改后设备会自动重启。</p>
                 <label>屏幕型号</label>
                 <select id="epd_panel" name="epd_panel">
                     <option value="a0" selected>HINK-E042A13 A0</option>
                     <option value="b0">HINK-E042A13 B0</option>
+                    <option value="c0">HINK-E042A13 C0</option>
                 </select>
             </div>
             <button class="save" type="submit">完成配置</button>

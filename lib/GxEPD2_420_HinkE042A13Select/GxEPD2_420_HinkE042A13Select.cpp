@@ -1,21 +1,30 @@
 #include "GxEPD2_420_HinkE042A13Select.h"
 
 #define EPD_HINK_DISPATCH(call) \
-  do { if (_variant == EPD_HINK_E042A13_B0) _b0.call; else _a0.call; } while (0)
+  do { \
+    if (_variant == EPD_HINK_E042A13_B0) _b0.call; \
+    else if (_variant == EPD_HINK_E042A13_C0) _c0.call; \
+    else _a0.call; \
+  } while (0)
 
 GxEPD2_420_HinkE042A13Select::GxEPD2_420_HinkE042A13Select(int16_t cs, int16_t dc, int16_t rst, int16_t busy) :
-  _a0(cs, dc, rst, busy), _b0(cs, dc, rst, busy), _variant(EPD_HINK_E042A13_A0)
+  _a0(cs, dc, rst, busy), _b0(cs, dc, rst, busy), _c0(cs, dc, rst, busy), _variant(EPD_HINK_E042A13_A0)
 {
 }
 
 void GxEPD2_420_HinkE042A13Select::selectPanel(uint8_t variant)
 {
-  _variant = variant == EPD_HINK_E042A13_B0 ? EPD_HINK_E042A13_B0 : EPD_HINK_E042A13_A0;
+  if (variant == EPD_HINK_E042A13_B0 || variant == EPD_HINK_E042A13_C0) {
+    _variant = variant;
+    return;
+  }
+  _variant = EPD_HINK_E042A13_A0;
 }
 
 GxEPD2_EPD& GxEPD2_420_HinkE042A13Select::_active()
 {
   if (_variant == EPD_HINK_E042A13_B0) return _b0;
+  if (_variant == EPD_HINK_E042A13_C0) return _c0;
   return _a0;
 }
 
