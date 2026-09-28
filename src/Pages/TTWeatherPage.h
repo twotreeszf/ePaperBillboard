@@ -4,6 +4,7 @@
 #include <lvgl.h>
 #include "../Base/TTScreenPage.h"
 #include "../Base/TTNotificationPayloads.h"
+#include "../Service/TTSleepService.h"
 
 #define TT_WEATHER_TEMP_FONT      48
 #define TT_WEATHER_TEMP_LINE_H    49

@@ -5,6 +5,7 @@
 #include "../Base/TTCalendarTypes.h"
 #include "../Base/TTNotificationPayloads.h"
 #include "../Base/TTWeatherTypes.h"
+#include "../Service/TTSleepService.h"
 
 #define TT_CAL_CLOCK_GLYPHS    5
 #define TT_CAL_AGE_ICON        8

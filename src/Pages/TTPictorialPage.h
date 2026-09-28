@@ -5,6 +5,7 @@
 #include "../Base/TTPictorialTypes.h"
 #include "../Base/TTNotificationPayloads.h"
 #include "../Base/TTWeatherTypes.h"
+#include "../Service/TTSleepService.h"
 
 #define TT_PIC_UPDATING_TEXT  "正在更新"
 #define TT_PIC_PICK_ROWS      3
