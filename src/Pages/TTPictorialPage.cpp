@@ -94,7 +94,7 @@ void TTPictorialPage::buildContent(lv_obj_t* screen) {
     lv_obj_set_style_border_width(_side, 0, 0);
     lv_obj_set_style_pad_all(_side, 0, 0);
     lv_obj_set_style_radius(_side, 0, 0);
-    lv_obj_remove_flag(_side, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_set_scrollable(_side, false);
 
     _weatherIcon = tt_stream_image_create(_side);
     lv_obj_set_size(_weatherIcon, TT_CAL_ICON, TT_CAL_ICON);
@@ -102,7 +102,7 @@ void TTPictorialPage::buildContent(lv_obj_t* screen) {
 
     _tempLabel = createLabel(_side, fontTemp, lv_color_black(), "");
     lv_obj_set_pos(_tempLabel, TT_CAL_TEMP_X, TT_CAL_TEMP_Y);
-    lv_obj_add_flag(_tempLabel, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_set_hidden(_tempLabel, true);
 
     _tempUnit = lv_obj_create(_side);
     lv_obj_set_size(_tempUnit, TT_CAL_DOT_LG, TT_CAL_DOT_LG);
@@ -112,9 +112,9 @@ void TTPictorialPage::buildContent(lv_obj_t* screen) {
     lv_obj_set_style_border_color(_tempUnit, lv_color_black(), 0);
     lv_obj_set_style_border_opa(_tempUnit, LV_OPA_COVER, 0);
     lv_obj_set_style_pad_all(_tempUnit, 0, 0);
-    lv_obj_remove_flag(_tempUnit, LV_OBJ_FLAG_SCROLLABLE);
-    lv_obj_remove_flag(_tempUnit, LV_OBJ_FLAG_CLICKABLE);
-    lv_obj_add_flag(_tempUnit, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_set_scrollable(_tempUnit, false);
+    lv_obj_set_clickable(_tempUnit, false);
+    lv_obj_set_hidden(_tempUnit, true);
 
     _condLabel = createLabel(_side, fontCond, lv_color_black(), "");
     lv_label_set_long_mode(_condLabel, LV_LABEL_LONG_CLIP);
@@ -129,7 +129,7 @@ void TTPictorialPage::buildContent(lv_obj_t* screen) {
 
     _art = tt_stream_image_create(screen);
     lv_obj_set_pos(_art, TT_CAL_SIDE_W, 0);
-    lv_obj_add_flag(_art, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_set_hidden(_art, true);
 
     _status = createLabel(screen, font16, lv_color_black(), "正在获取画报");
     lv_obj_set_width(_status, artW - 16);
@@ -305,7 +305,7 @@ void TTPictorialPage::applyPictorial(const TTPicPayload& payload) {
         cancelInputIdleSleep();
         if (!_artReady && _status != nullptr) {
             lv_label_set_text(_status, payload.message);
-            lv_obj_remove_flag(_status, LV_OBJ_FLAG_HIDDEN);
+            lv_obj_set_hidden(_status, false);
         }
         LOG_I("Pictorial page: fetching");
         if (_visible) {
@@ -343,7 +343,7 @@ void TTPictorialPage::applyPictorial(const TTPicPayload& payload) {
             LOG_I("Pictorial page: keep %s", _artPath);
         } else if (_status != nullptr) {
             lv_label_set_text(_status, payload.message[0] != '\0' ? payload.message : "画报下载失败");
-            lv_obj_remove_flag(_status, LV_OBJ_FLAG_HIDDEN);
+            lv_obj_set_hidden(_status, false);
         }
         if (updating) {
             TTInstanceOf<TTPopupLayer>().dismissLoading();
@@ -453,11 +453,11 @@ void TTPictorialPage::layoutSide() {
         return;
     }
     if (_haveWeather) {
-        lv_obj_remove_flag(_tempLabel, LV_OBJ_FLAG_HIDDEN);
-        lv_obj_remove_flag(_tempUnit, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_set_hidden(_tempLabel, false);
+        lv_obj_set_hidden(_tempUnit, false);
     } else {
-        lv_obj_add_flag(_tempLabel, LV_OBJ_FLAG_HIDDEN);
-        lv_obj_add_flag(_tempUnit, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_set_hidden(_tempLabel, true);
+        lv_obj_set_hidden(_tempUnit, true);
     }
     lv_obj_update_layout(_tempLabel);
     lv_obj_update_layout(_tempUnit);
@@ -556,9 +556,9 @@ void TTPictorialPage::showArt(const char* path) {
         y = 0;
     }
     lv_obj_set_pos(_art, x, y);
-    lv_obj_remove_flag(_art, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_set_hidden(_art, false);
     if (_status != nullptr && !_picking) {
-        lv_obj_add_flag(_status, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_set_hidden(_status, true);
     }
     if (_hit != nullptr) {
         lv_obj_move_foreground(_hit);
@@ -598,7 +598,7 @@ void TTPictorialPage::closePicker(bool apply) {
     const uint8_t index = _pickIndex;
     _picking = false;
     if (_status != nullptr && _artReady) {
-        lv_obj_add_flag(_status, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_set_hidden(_status, true);
     }
     if (!apply) {
         if (_visible) {
@@ -623,7 +623,7 @@ void TTPictorialPage::showPicker() {
              series.name);
     if (_status != nullptr) {
         lv_label_set_text(_status, text);
-        lv_obj_remove_flag(_status, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_set_hidden(_status, false);
         lv_obj_move_foreground(_status);
     }
 }

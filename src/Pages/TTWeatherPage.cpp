@@ -71,8 +71,8 @@ static lv_obj_t* createPlainBox(lv_obj_t* parent) {
     lv_obj_set_style_border_width(obj, 0, 0);
     lv_obj_set_style_pad_all(obj, 0, 0);
     lv_obj_set_style_radius(obj, 0, 0);
-    lv_obj_remove_flag(obj, LV_OBJ_FLAG_SCROLLABLE);
-    lv_obj_remove_flag(obj, LV_OBJ_FLAG_CLICKABLE);
+    lv_obj_set_scrollable(obj, false);
+    lv_obj_set_clickable(obj, false);
     return obj;
 }
 
@@ -85,8 +85,8 @@ static lv_obj_t* createTempDot(lv_obj_t* parent) {
     lv_obj_set_style_border_color(dot, lv_color_black(), 0);
     lv_obj_set_style_border_opa(dot, LV_OPA_COVER, 0);
     lv_obj_set_style_pad_all(dot, 0, 0);
-    lv_obj_remove_flag(dot, LV_OBJ_FLAG_SCROLLABLE);
-    lv_obj_remove_flag(dot, LV_OBJ_FLAG_CLICKABLE);
+    lv_obj_set_scrollable(dot, false);
+    lv_obj_set_clickable(dot, false);
     return dot;
 }
 
@@ -246,7 +246,7 @@ void TTWeatherPage::buildContent(lv_obj_t* screen) {
     lv_obj_set_style_pad_all(_empty, 0, 0);
     lv_obj_set_style_radius(_empty, 0, 0);
     lv_obj_align(_empty, LV_ALIGN_CENTER, 0, 0);
-    lv_obj_remove_flag(_empty, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_set_scrollable(_empty, false);
 
     _message = createPlainLabel(_empty, font16, "");
     lv_obj_set_width(_message, EPD_WIDTH - 16);
@@ -263,13 +263,13 @@ void TTWeatherPage::buildContent(lv_obj_t* screen) {
     lv_obj_set_flex_align(_btnRow, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
     lv_obj_set_style_pad_column(_btnRow, TT_WEATHER_BTN_GAP, 0);
     lv_obj_align(_btnRow, LV_ALIGN_BOTTOM_MID, 0, TT_WEATHER_BTN_BOTTOM);
-    lv_obj_remove_flag(_btnRow, LV_OBJ_FLAG_SCROLLABLE);
-    lv_obj_add_flag(_btnRow, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_set_scrollable(_btnRow, false);
+    lv_obj_set_hidden(_btnRow, true);
 
     _retryBtn = TTTextButton::create(_btnRow, "重试", font16);
     lv_obj_add_event_cb(_retryBtn, onRetryEvent, LV_EVENT_CLICKED, this);
     addToFocusGroup(_retryBtn);
-    lv_obj_add_flag(_retryBtn, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_set_hidden(_retryBtn, true);
 
     _webBtn = TTTextButton::create(_btnRow, "Web 设置", font16);
     lv_obj_add_event_cb(_webBtn, onWebSettingsEvent, LV_EVENT_CLICKED, this);
@@ -286,7 +286,7 @@ void TTWeatherPage::buildContent(lv_obj_t* screen) {
     lv_obj_set_style_border_width(_content, 0, 0);
     lv_obj_set_style_pad_all(_content, 0, 0);
     lv_obj_set_style_radius(_content, 0, 0);
-    lv_obj_remove_flag(_content, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_set_scrollable(_content, false);
 
     _currentIcon = tt_stream_image_create(_content);
     lv_obj_set_pos(_currentIcon, TT_WEATHER_CURRENT_X, TT_WEATHER_CURRENT_Y);
@@ -358,8 +358,8 @@ void TTWeatherPage::buildContent(lv_obj_t* screen) {
     lv_obj_set_style_border_width(forecastDiv, 0, 0);
     lv_obj_set_style_pad_all(forecastDiv, 0, 0);
     lv_obj_set_style_radius(forecastDiv, 0, 0);
-    lv_obj_remove_flag(forecastDiv, LV_OBJ_FLAG_SCROLLABLE);
-    lv_obj_remove_flag(forecastDiv, LV_OBJ_FLAG_CLICKABLE);
+    lv_obj_set_scrollable(forecastDiv, false);
+    lv_obj_set_clickable(forecastDiv, false);
     lv_obj_add_event_cb(forecastDiv, drawForecastDiv, LV_EVENT_DRAW_MAIN, nullptr);
 
     _modeDetail = createPlainBox(_content);
@@ -427,8 +427,8 @@ void TTWeatherPage::buildContent(lv_obj_t* screen) {
         lv_obj_set_style_border_width(detailDiv, 0, 0);
         lv_obj_set_style_pad_all(detailDiv, 0, 0);
         lv_obj_set_style_radius(detailDiv, 0, 0);
-        lv_obj_remove_flag(detailDiv, LV_OBJ_FLAG_SCROLLABLE);
-        lv_obj_remove_flag(detailDiv, LV_OBJ_FLAG_CLICKABLE);
+        lv_obj_set_scrollable(detailDiv, false);
+        lv_obj_set_clickable(detailDiv, false);
         lv_obj_add_event_cb(detailDiv, drawDetailDiv, LV_EVENT_DRAW_MAIN, nullptr);
     }
 
@@ -439,7 +439,7 @@ void TTWeatherPage::buildContent(lv_obj_t* screen) {
     lv_obj_set_style_border_width(_graph, 0, 0);
     lv_obj_set_style_pad_all(_graph, 0, 0);
     lv_obj_set_style_radius(_graph, 0, 0);
-    lv_obj_remove_flag(_graph, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_set_scrollable(_graph, false);
     lv_obj_add_event_cb(_graph, onGraphDraw, LV_EVENT_DRAW_MAIN, this);
 
     _tempLine = lv_line_create(_graph);
@@ -482,7 +482,7 @@ void TTWeatherPage::buildContent(lv_obj_t* screen) {
     _clockTempLabel = createPlainLabel(tempValue, fontMetric, "--.-");
     lv_obj_set_style_pad_top(_clockTempLabel, TT_WEATHER_CLOCK_ICON_NUDGE_Y, 0);
     _clockTempUnit = createTempDot(tempValue);
-    lv_obj_add_flag(_clockTempUnit, LV_OBJ_FLAG_FLOATING);
+    lv_obj_set_floating(_clockTempUnit, true);
     alignTempDot(_clockTempUnit, _clockTempLabel);
 
     lv_obj_t* humRow = createClockMetric(_modeClock);
@@ -538,7 +538,7 @@ void TTWeatherPage::setup() {
 }
 
 TTRefreshLevel TTWeatherPage::enterRefreshLevel() const {
-    if (_content != nullptr && !lv_obj_has_flag(_content, LV_OBJ_FLAG_HIDDEN)) {
+    if (_content != nullptr && !lv_obj_is_hidden(_content)) {
         return TT_REFRESH_DEEP;
     }
     return TT_REFRESH_FULL;
@@ -576,9 +576,9 @@ void TTWeatherPage::showContent(bool show) {
         return;
     }
     if (show) {
-        lv_obj_remove_flag(_content, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_set_hidden(_content, false);
     } else {
-        lv_obj_add_flag(_content, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_set_hidden(_content, true);
     }
 }
 
@@ -587,9 +587,9 @@ void TTWeatherPage::showEmpty(bool show) {
         return;
     }
     if (show) {
-        lv_obj_remove_flag(_empty, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_set_hidden(_empty, false);
     } else {
-        lv_obj_add_flag(_empty, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_set_hidden(_empty, true);
     }
 }
 
@@ -599,20 +599,20 @@ void TTWeatherPage::showEmptyActions(bool showWeb, bool showRetry) {
     }
     if (_retryBtn != nullptr) {
         if (showRetry) {
-            lv_obj_remove_flag(_retryBtn, LV_OBJ_FLAG_HIDDEN);
+            lv_obj_set_hidden(_retryBtn, false);
         } else {
-            lv_obj_add_flag(_retryBtn, LV_OBJ_FLAG_HIDDEN);
+            lv_obj_set_hidden(_retryBtn, true);
         }
     }
     if (_webBtn != nullptr) {
         if (showWeb) {
-            lv_obj_remove_flag(_webBtn, LV_OBJ_FLAG_HIDDEN);
+            lv_obj_set_hidden(_webBtn, false);
         } else {
-            lv_obj_add_flag(_webBtn, LV_OBJ_FLAG_HIDDEN);
+            lv_obj_set_hidden(_webBtn, true);
         }
     }
     if (showWeb || showRetry) {
-        lv_obj_remove_flag(_btnRow, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_set_hidden(_btnRow, false);
         if (_group != nullptr) {
             if (showRetry && _retryBtn != nullptr) {
                 lv_group_focus_obj(_retryBtn);
@@ -621,7 +621,7 @@ void TTWeatherPage::showEmptyActions(bool showWeb, bool showRetry) {
             }
         }
     } else {
-        lv_obj_add_flag(_btnRow, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_set_hidden(_btnRow, true);
     }
 }
 
@@ -727,7 +727,7 @@ void TTWeatherPage::bindCityLine() {
         snprintf(cityLine, sizeof(cityLine), "%s", dateBuf);
     }
     lv_label_set_text(_cityLabel, cityLine);
-    lv_obj_remove_flag(_cityLabel, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_set_hidden(_cityLabel, false);
     lv_obj_align(_cityLabel, LV_ALIGN_TOP_RIGHT, 0, TT_WEATHER_CITY_Y);
     LOG_I("Weather page: city %s", cityLine);
 }
@@ -1103,7 +1103,7 @@ void TTWeatherPage::updateAge(bool refreshIfChanged) {
         return;
     }
     const bool contentHidden = _content == nullptr
-        || lv_obj_has_flag(_content, LV_OBJ_FLAG_HIDDEN);
+        || lv_obj_is_hidden(_content);
     if (refreshIfChanged && contentHidden) {
         return;
     }
@@ -1145,7 +1145,7 @@ void TTWeatherPage::updateClock(bool refreshIfChanged) {
         return;
     }
     const bool contentHidden = _content == nullptr
-        || lv_obj_has_flag(_content, LV_OBJ_FLAG_HIDDEN);
+        || lv_obj_is_hidden(_content);
     if (refreshIfChanged && contentHidden) {
         return;
     }
@@ -1241,7 +1241,7 @@ void TTWeatherPage::bindIndoor(const TTSensorDataPayload& data, bool refreshIfCh
     const bool clockShown = _visible
         && _displayMode == TT_WEATHER_MODE_CLOCK
         && _content != nullptr
-        && !lv_obj_has_flag(_content, LV_OBJ_FLAG_HIDDEN);
+        && !lv_obj_is_hidden(_content);
     if (refreshIfChanged && clockShown) {
         requestRefresh(TT_REFRESH_PARTIAL);
     }
@@ -1337,19 +1337,19 @@ void TTWeatherPage::applyDisplayMode() {
     const bool clock = _displayMode == TT_WEATHER_MODE_CLOCK;
     if (_modeDetail != nullptr) {
         if (clock) {
-            lv_obj_add_flag(_modeDetail, LV_OBJ_FLAG_HIDDEN);
+            lv_obj_set_hidden(_modeDetail, true);
         } else {
-            lv_obj_remove_flag(_modeDetail, LV_OBJ_FLAG_HIDDEN);
+            lv_obj_set_hidden(_modeDetail, false);
         }
     }
     if (_modeClock != nullptr) {
         if (clock) {
-            lv_obj_remove_flag(_modeClock, LV_OBJ_FLAG_HIDDEN);
+            lv_obj_set_hidden(_modeClock, false);
             syncIndoor(false);
             applyIndoorLabels();
             layoutClockMetrics();
         } else {
-            lv_obj_add_flag(_modeClock, LV_OBJ_FLAG_HIDDEN);
+            lv_obj_set_hidden(_modeClock, true);
         }
     }
     applyChrome(clock);
@@ -1374,7 +1374,7 @@ void TTWeatherPage::cycleDisplayMode(int delta) {
 bool TTWeatherPage::handleKeyAction(TTKeyId key, TTKeyGesture gesture) {
     if (gesture == TT_KEY_CLICK && (key == TT_KEY_LEFT || key == TT_KEY_RIGHT)) {
         const bool contentShown = _content != nullptr
-            && !lv_obj_has_flag(_content, LV_OBJ_FLAG_HIDDEN);
+            && !lv_obj_is_hidden(_content);
         if (!contentShown) {
             return false;
         }
@@ -1468,7 +1468,7 @@ void TTWeatherPage::tryRequestLightSleep() {
         return;
     }
     const bool contentHidden = _content == nullptr
-        || lv_obj_has_flag(_content, LV_OBJ_FLAG_HIDDEN);
+        || lv_obj_is_hidden(_content);
     if (contentHidden) {
         LOG_I("Weather page: skip sleep, no weather content");
         return;
@@ -1513,7 +1513,7 @@ bool TTWeatherPage::applyWeather(const TTWeatherPayload& payload) {
     }
     _forceRefreshing = false;
     const bool hadContent = _content != nullptr
-        && !lv_obj_has_flag(_content, LV_OBJ_FLAG_HIDDEN);
+        && !lv_obj_is_hidden(_content);
     if (hadContent) {
         _ageOk = false;
         LOG_I("Weather page: refresh failed, keep content");

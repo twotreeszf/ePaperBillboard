@@ -41,7 +41,7 @@ void TTWiFiConfigPage::buildContent(lv_obj_t* screen) {
     lv_obj_set_style_text_color(_qrHint, lv_color_black(), 0);
     lv_obj_set_style_text_font(_qrHint, font12, 0);
     lv_obj_align_to(_qrHint, _qr, LV_ALIGN_OUT_BOTTOM_MID, 0, TT_WIFI_QR_HINT_GAP);
-    lv_obj_add_flag(_qrHint, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_set_hidden(_qrHint, true);
 
     _actionBtn = TTTextButton::create(screen, "取消配置", font16);
     lv_obj_align(_actionBtn, LV_ALIGN_BOTTOM_MID, 0, -10);
@@ -100,7 +100,7 @@ void TTWiFiConfigPage::applyStatus(const TTWiFiStatusPayload& status) {
         snprintf(line, sizeof(line), "正在连接  %s", status.ssid);
         lv_label_set_text(_statusLabel, line);
         lv_label_set_text(_stepsLabel, "请稍候...");
-        lv_obj_add_flag(_actionBtn, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_set_hidden(_actionBtn, true);
         hideProvisionQr();
         return;
     }
@@ -113,14 +113,14 @@ void TTWiFiConfigPage::applyStatus(const TTWiFiStatusPayload& status) {
                  status.apSsid, status.portalUrl);
         lv_label_set_text(_stepsLabel, line);
         TTTextButton::setText(_actionBtn, "取消配置");
-        lv_obj_remove_flag(_actionBtn, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_set_hidden(_actionBtn, false);
         showProvisionQr(status.apSsid);
         return;
     }
     lv_label_set_text(_statusLabel, "连接失败");
     lv_label_set_text(_stepsLabel, "配置可能已保存，但未能连上 Wi-Fi。请检查名称和密码后重新配置。");
     TTTextButton::setText(_actionBtn, "重新配置");
-    lv_obj_remove_flag(_actionBtn, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_set_hidden(_actionBtn, false);
     hideProvisionQr();
 }
 
@@ -135,20 +135,20 @@ void TTWiFiConfigPage::showProvisionQr(const char* apSsid) {
     lv_obj_set_width(_stepsLabel, TT_WIFI_STEPS_W_WITH_QR);
     lv_obj_align(_stepsLabel, LV_ALIGN_TOP_LEFT, 8, 40);
     lv_obj_align(_qr, LV_ALIGN_RIGHT_MID, -TT_WIFI_QR_RIGHT_PAD, -8);
-    lv_obj_remove_flag(_qr, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_set_hidden(_qr, false);
     if (_qrHint != nullptr) {
         lv_obj_align_to(_qrHint, _qr, LV_ALIGN_OUT_BOTTOM_MID, 0, TT_WIFI_QR_HINT_GAP);
-        lv_obj_remove_flag(_qrHint, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_set_hidden(_qrHint, false);
     }
     LOG_I("WiFi page: show AP QR ssid=%s", apSsid != nullptr ? apSsid : "");
 }
 
 void TTWiFiConfigPage::hideProvisionQr() {
     if (_qr != nullptr) {
-        lv_obj_add_flag(_qr, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_set_hidden(_qr, true);
     }
     if (_qrHint != nullptr) {
-        lv_obj_add_flag(_qrHint, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_set_hidden(_qrHint, true);
     }
     if (_stepsLabel != nullptr) {
         lv_obj_set_width(_stepsLabel, lv_pct(92));

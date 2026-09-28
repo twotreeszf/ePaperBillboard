@@ -44,7 +44,7 @@ void MenuItem::create(MenuItem* item, lv_obj_t* parent, TTScreenPage* page, cons
     lv_obj_set_style_pad_all(item->underline, 0, 0);
     lv_obj_set_style_radius(item->underline, TT_HOME_INDICATOR_RADIUS, 0);
     lv_obj_set_style_margin_top(item->underline, TT_HOME_INDICATOR_GAP, 0);
-    lv_obj_remove_flag(item->underline, LV_OBJ_FLAG_CLICKABLE);
+    lv_obj_set_clickable(item->underline, false);
 
     lv_obj_add_event_cb(item->btn, MenuItem::onEntryClicked, LV_EVENT_CLICKED, item);
     lv_obj_add_event_cb(item->btn, MenuItem::onFocusChanged, LV_EVENT_FOCUSED, item);

@@ -31,7 +31,7 @@ static lv_obj_t* addTextBlock(lv_obj_t* parent, const char* title,
     lv_obj_set_layout(block, LV_LAYOUT_FLEX);
     lv_obj_set_flex_flow(block, LV_FLEX_FLOW_COLUMN);
     lv_obj_set_style_pad_row(block, TT_UPDATE_TITLE_GAP, 0);
-    lv_obj_remove_flag(block, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_set_scrollable(block, false);
 
     lv_obj_t* titleLabel = lv_label_create(block);
     lv_label_set_text(titleLabel, title);
@@ -66,7 +66,7 @@ void TTUpdatePage::buildContent(lv_obj_t* screen) {
     lv_obj_set_layout(column, LV_LAYOUT_FLEX);
     lv_obj_set_flex_flow(column, LV_FLEX_FLOW_COLUMN);
     lv_obj_set_style_pad_row(column, TT_UPDATE_SECTION_GAP, 0);
-    lv_obj_remove_flag(column, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_set_scrollable(column, false);
     lv_obj_align(column, LV_ALIGN_TOP_MID, 0, TT_UPDATE_PAD);
 
     addTextBlock(column, "当前版本", font16, font12, &_versionValue, &_versionTitle);
@@ -88,10 +88,10 @@ void TTUpdatePage::buildContent(lv_obj_t* screen) {
     lv_obj_set_style_border_width(_statusBox, TT_UPDATE_STATUS_BORDER, 0);
     lv_obj_set_style_radius(_statusBox, 0, 0);
     lv_obj_set_style_pad_all(_statusBox, TT_UPDATE_STATUS_PAD, 0);
-    lv_obj_remove_flag(_statusBox, LV_OBJ_FLAG_SCROLLABLE);
-    lv_obj_remove_flag(_statusBox, LV_OBJ_FLAG_CLICKABLE);
+    lv_obj_set_scrollable(_statusBox, false);
+    lv_obj_set_clickable(_statusBox, false);
     lv_obj_align(_statusBox, LV_ALIGN_CENTER, 0, TT_NAV_PAGE_INSET / 2);
-    lv_obj_add_flag(_statusBox, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_set_hidden(_statusBox, true);
 
     _statusLabel = lv_label_create(_statusBox);
     lv_label_set_text(_statusLabel, "");
@@ -184,10 +184,10 @@ void TTUpdatePage::setStatus(const char* text) {
     lv_obj_update_layout(_statusBox);
     lv_obj_align(_statusBox, LV_ALIGN_CENTER, 0, TT_NAV_PAGE_INSET / 2);
     if (show) {
-        lv_obj_remove_flag(_statusBox, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_set_hidden(_statusBox, false);
         lv_obj_move_foreground(_statusBox);
     } else {
-        lv_obj_add_flag(_statusBox, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_set_hidden(_statusBox, true);
     }
 }
 
@@ -214,9 +214,9 @@ void TTUpdatePage::showCheckButton(bool show) {
         return;
     }
     if (show) {
-        lv_obj_remove_flag(_checkBtn, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_set_hidden(_checkBtn, false);
     } else {
-        lv_obj_add_flag(_checkBtn, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_set_hidden(_checkBtn, true);
     }
 }
 

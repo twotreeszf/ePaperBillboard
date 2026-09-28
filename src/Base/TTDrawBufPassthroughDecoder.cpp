@@ -7,7 +7,6 @@
 #else
 #include "draw/lv_image_decoder_private.h"
 #endif
-#include "draw/lv_draw_buf.h"
 #include "draw/lv_draw_buf_private.h"
 
 #define DECODER_NAME "TTDrawBufPassthrough"

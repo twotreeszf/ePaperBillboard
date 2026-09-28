@@ -40,7 +40,7 @@ lv_obj_t* TTTextButton::create(lv_obj_t* parent, const char* text, lv_font_t* fo
     lv_obj_set_style_border_width(dot, 0, 0);
     lv_obj_set_style_pad_all(dot, 0, 0);
     lv_obj_set_style_radius(dot, LV_RADIUS_CIRCLE, 0);
-    lv_obj_remove_flag(dot, LV_OBJ_FLAG_CLICKABLE);
+    lv_obj_set_clickable(dot, false);
 
     lv_obj_t* label = lv_label_create(btn);
     lv_obj_set_width(label, LV_SIZE_CONTENT);

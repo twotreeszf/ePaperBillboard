@@ -224,7 +224,7 @@ void TTCalendarPage::buildContent(lv_obj_t* screen) {
     lv_obj_set_style_border_width(_side, 0, 0);
     lv_obj_set_style_pad_all(_side, 0, 0);
     lv_obj_set_style_radius(_side, 0, 0);
-    lv_obj_remove_flag(_side, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_set_scrollable(_side, false);
 
     _weatherIcon = tt_stream_image_create(_side);
     lv_obj_set_size(_weatherIcon, TT_CAL_ICON, TT_CAL_ICON);
@@ -232,7 +232,7 @@ void TTCalendarPage::buildContent(lv_obj_t* screen) {
 
     _tempLabel = createLabel(_side, fontTemp, lv_color_black(), "");
     lv_obj_set_pos(_tempLabel, TT_CAL_TEMP_X, TT_CAL_TEMP_Y);
-    lv_obj_add_flag(_tempLabel, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_set_hidden(_tempLabel, true);
 
     _tempUnit = lv_obj_create(_side);
     lv_obj_set_size(_tempUnit, TT_CAL_DOT_LG, TT_CAL_DOT_LG);
@@ -242,9 +242,9 @@ void TTCalendarPage::buildContent(lv_obj_t* screen) {
     lv_obj_set_style_border_color(_tempUnit, lv_color_black(), 0);
     lv_obj_set_style_border_opa(_tempUnit, LV_OPA_COVER, 0);
     lv_obj_set_style_pad_all(_tempUnit, 0, 0);
-    lv_obj_remove_flag(_tempUnit, LV_OBJ_FLAG_SCROLLABLE);
-    lv_obj_remove_flag(_tempUnit, LV_OBJ_FLAG_CLICKABLE);
-    lv_obj_add_flag(_tempUnit, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_set_scrollable(_tempUnit, false);
+    lv_obj_set_clickable(_tempUnit, false);
+    lv_obj_set_hidden(_tempUnit, true);
 
     _condLabel = createLabel(_side, fontCond, lv_color_black(), "");
     lv_label_set_long_mode(_condLabel, LV_LABEL_LONG_CLIP);
@@ -266,7 +266,7 @@ void TTCalendarPage::buildContent(lv_obj_t* screen) {
     lv_obj_set_style_border_width(_list, 0, 0);
     lv_obj_set_style_pad_all(_list, 0, 0);
     lv_obj_set_style_radius(_list, 0, 0);
-    lv_obj_remove_flag(_list, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_set_scrollable(_list, false);
     lv_obj_add_event_cb(_list, onListDraw, LV_EVENT_DRAW_MAIN, this);
 
     const int textW = listW - TT_CAL_TEXT_X - TT_CAL_PAD;
@@ -279,13 +279,13 @@ void TTCalendarPage::buildContent(lv_obj_t* screen) {
         lv_obj_set_width(_eventTimes[i], TT_CAL_EVENT_TIME_W);
         lv_obj_set_style_text_align(_eventTimes[i], LV_TEXT_ALIGN_CENTER, 0);
         lv_label_set_long_mode(_eventTimes[i], LV_LABEL_LONG_CLIP);
-        lv_obj_add_flag(_eventTimes[i], LV_OBJ_FLAG_HIDDEN);
+        lv_obj_set_hidden(_eventTimes[i], true);
 
         _rows[i] = createLabel(_list, font16, lv_color_black(), "");
         lv_obj_set_width(_rows[i], textW);
         lv_label_set_long_mode(_rows[i], LV_LABEL_LONG_CLIP);
         lv_obj_set_pos(_rows[i], TT_CAL_TEXT_X, TT_CAL_PAD + i * TT_CAL_ROW_H);
-        lv_obj_add_flag(_rows[i], LV_OBJ_FLAG_HIDDEN);
+        lv_obj_set_hidden(_rows[i], true);
     }
 
     _status = createLabel(_list, font16, lv_color_black(), "正在同步日历");
@@ -295,15 +295,15 @@ void TTCalendarPage::buildContent(lv_obj_t* screen) {
 
     _pageLabel = createLabel(_list, font10, lv_color_black(), "");
     lv_obj_align(_pageLabel, LV_ALIGN_BOTTOM_RIGHT, -4, -2);
-    lv_obj_add_flag(_pageLabel, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_set_hidden(_pageLabel, true);
 
     _ageIcon = tt_stream_image_create(screen);
     lv_obj_set_size(_ageIcon, TT_CAL_AGE_ICON, TT_CAL_AGE_ICON);
     tt_stream_image_set_src(_ageIcon, TT_CAL_AGE_OK_SRC);
     _ageLabel = createLabel(screen, font10, lv_color_black(), "");
     lv_label_set_long_mode(_ageLabel, LV_LABEL_LONG_CLIP);
-    lv_obj_add_flag(_ageLabel, LV_OBJ_FLAG_HIDDEN);
-    lv_obj_add_flag(_ageIcon, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_set_hidden(_ageLabel, true);
+    lv_obj_set_hidden(_ageIcon, true);
     layoutSide();
 }
 
@@ -366,7 +366,7 @@ void TTCalendarPage::requestCalendar(bool extend, bool force) {
     _calendarFetching = true;
     if (!extend && !_calendarReady && !_forceRefreshing) {
         lv_label_set_text(_status, "正在同步日历");
-        lv_obj_remove_flag(_status, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_set_hidden(_status, false);
     }
     if (extend) {
         _extendLoading = true;
@@ -589,7 +589,7 @@ void TTCalendarPage::layoutSide() {
                     continue;
                 }
                 const bool timed = _eventTimes[i] != nullptr
-                    && !lv_obj_has_flag(_eventTimes[i], LV_OBJ_FLAG_HIDDEN);
+                    && !lv_obj_is_hidden(_eventTimes[i]);
                 lv_obj_set_width(_rows[i], timed ? titleW : textW);
             }
         }
@@ -609,11 +609,11 @@ void TTCalendarPage::layoutSide() {
         return;
     }
     if (_haveWeather) {
-        lv_obj_remove_flag(_tempLabel, LV_OBJ_FLAG_HIDDEN);
-        lv_obj_remove_flag(_tempUnit, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_set_hidden(_tempLabel, false);
+        lv_obj_set_hidden(_tempUnit, false);
     } else {
-        lv_obj_add_flag(_tempLabel, LV_OBJ_FLAG_HIDDEN);
-        lv_obj_add_flag(_tempUnit, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_set_hidden(_tempLabel, true);
+        lv_obj_set_hidden(_tempUnit, true);
     }
     lv_obj_update_layout(_tempLabel);
     lv_obj_update_layout(_tempUnit);
@@ -667,19 +667,19 @@ void TTCalendarPage::layoutAge() {
         return;
     }
     if (_fetchedAt == 0) {
-        lv_obj_add_flag(_ageLabel, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_set_hidden(_ageLabel, true);
         if (_ageIcon != nullptr) {
-            lv_obj_add_flag(_ageIcon, LV_OBJ_FLAG_HIDDEN);
+            lv_obj_set_hidden(_ageIcon, true);
         }
         return;
     }
-    lv_obj_remove_flag(_ageLabel, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_set_hidden(_ageLabel, false);
     if (_ageIcon != nullptr) {
-        lv_obj_remove_flag(_ageIcon, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_set_hidden(_ageIcon, false);
     }
     int ageY = TT_CAL_AGE_PAD;
     if (_visibleSlots > 0 && _rows[0] != nullptr && _list != nullptr
-        && !lv_obj_has_flag(_rows[0], LV_OBJ_FLAG_HIDDEN)) {
+        && !lv_obj_is_hidden(_rows[0])) {
         lv_obj_update_layout(_rows[0]);
         lv_obj_update_layout(_ageLabel);
         const int rowY = lv_obj_get_y(_list) + lv_obj_get_y(_rows[0]);
@@ -829,14 +829,14 @@ void TTCalendarPage::showPage() {
     if (_pageCount == 0) {
         _visibleSlots = 0;
         for (int i = 0; i < TT_CAL_PAGE_SLOTS; i++) {
-            lv_obj_add_flag(_rows[i], LV_OBJ_FLAG_HIDDEN);
-            lv_obj_add_flag(_eventTimes[i], LV_OBJ_FLAG_HIDDEN);
+            lv_obj_set_hidden(_rows[i], true);
+            lv_obj_set_hidden(_eventTimes[i], true);
             _slotMark[i] = TT_CAL_MARK_NONE;
             _slotCapsule[i] = 0;
             _slotRule[i] = 0;
         }
-        lv_obj_remove_flag(_status, LV_OBJ_FLAG_HIDDEN);
-        lv_obj_add_flag(_pageLabel, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_set_hidden(_status, false);
+        lv_obj_set_hidden(_pageLabel, true);
         layoutAge();
         lv_obj_invalidate(_list);
         return;
@@ -869,7 +869,7 @@ void TTCalendarPage::showPage() {
     }
 
     _visibleSlots = 0;
-    lv_obj_add_flag(_status, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_set_hidden(_status, true);
     int cursor = TT_CAL_PAD;
     bool prevDay = false;
     for (uint16_t row = begin; row < end && _visibleSlots < TT_CAL_PAGE_SLOTS; row++) {
@@ -962,18 +962,18 @@ void TTCalendarPage::showPage() {
             lv_obj_set_style_text_font(_eventTimes[slot], font, 0);
             lv_label_set_text(_eventTimes[slot], timeText);
             lv_obj_set_pos(_eventTimes[slot], TT_CAL_TEXT_X, y);
-            lv_obj_remove_flag(_eventTimes[slot], LV_OBJ_FLAG_HIDDEN);
+            lv_obj_set_hidden(_eventTimes[slot], false);
         } else {
-            lv_obj_add_flag(_eventTimes[slot], LV_OBJ_FLAG_HIDDEN);
+            lv_obj_set_hidden(_eventTimes[slot], true);
         }
-        lv_obj_remove_flag(_rows[slot], LV_OBJ_FLAG_HIDDEN);
+        lv_obj_set_hidden(_rows[slot], false);
         cursor += dayRow ? TT_CAL_ROW_H : rowH;
         prevDay = dayRow;
         _visibleSlots++;
     }
     for (uint8_t slot = _visibleSlots; slot < TT_CAL_PAGE_SLOTS; slot++) {
-        lv_obj_add_flag(_rows[slot], LV_OBJ_FLAG_HIDDEN);
-        lv_obj_add_flag(_eventTimes[slot], LV_OBJ_FLAG_HIDDEN);
+        lv_obj_set_hidden(_rows[slot], true);
+        lv_obj_set_hidden(_eventTimes[slot], true);
         _slotMark[slot] = TT_CAL_MARK_NONE;
         _slotCapsule[slot] = 0;
         _slotRule[slot] = 0;
@@ -982,9 +982,9 @@ void TTCalendarPage::showPage() {
         char pageText[12];
         snprintf(pageText, sizeof(pageText), "%u/%u", (unsigned)_page + 1, (unsigned)_pageCount);
         lv_label_set_text(_pageLabel, pageText);
-        lv_obj_remove_flag(_pageLabel, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_set_hidden(_pageLabel, false);
     } else {
-        lv_obj_add_flag(_pageLabel, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_set_hidden(_pageLabel, true);
     }
     layoutAge();
     lv_obj_invalidate(_list);

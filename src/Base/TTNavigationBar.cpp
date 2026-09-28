@@ -26,8 +26,8 @@ void TTNavigationBar::begin(lv_obj_t* parent, ITTNavigationController* nav) {
     lv_font_t* font = TTFontManager::instance().getFont(TT_NAV_BAR_FONT);
 
     _bar = lv_obj_create(parent);
-    lv_obj_add_flag(_bar, LV_OBJ_FLAG_IGNORE_LAYOUT);
-    lv_obj_add_flag(_bar, LV_OBJ_FLAG_FLOATING);
+    lv_obj_set_ignore_layout(_bar, true);
+    lv_obj_set_floating(_bar, true);
     lv_obj_set_size(_bar, EPD_WIDTH, TT_NAV_BAR_HEIGHT);
     lv_obj_align(_bar, LV_ALIGN_BOTTOM_LEFT, 0, 0);
     lv_obj_set_style_bg_color(_bar, TT_NAV_BAR_BG_COLOR, 0);
@@ -35,8 +35,8 @@ void TTNavigationBar::begin(lv_obj_t* parent, ITTNavigationController* nav) {
     lv_obj_set_style_border_width(_bar, 0, 0);
     lv_obj_set_style_pad_all(_bar, 0, 0);
     lv_obj_set_style_radius(_bar, 0, 0);
-    lv_obj_remove_flag(_bar, LV_OBJ_FLAG_SCROLLABLE);
-    lv_obj_add_flag(_bar, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_set_scrollable(_bar, false);
+    lv_obj_set_hidden(_bar, true);
 
     _backBtn = lv_btn_create(_bar);
     lv_obj_set_size(_backBtn, TT_NAV_ARROW_W, TT_NAV_BAR_HEIGHT - TT_NAV_DIVIDER_H);
@@ -64,7 +64,7 @@ void TTNavigationBar::begin(lv_obj_t* parent, ITTNavigationController* nav) {
     lv_obj_set_flex_flow(_titleBox, LV_FLEX_FLOW_ROW);
     lv_obj_set_flex_align(_titleBox, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
     lv_obj_set_style_pad_column(_titleBox, TT_NAV_TITLE_BRACKET_GAP, 0);
-    lv_obj_remove_flag(_titleBox, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_set_scrollable(_titleBox, false);
 
     lv_obj_t* leftBracket = lv_label_create(_titleBox);
     lv_label_set_text(leftBracket, "[");
@@ -116,7 +116,7 @@ void TTNavigationBar::beginStatus(lv_font_t* font) {
     lv_obj_set_flex_flow(_statusRow, LV_FLEX_FLOW_ROW);
     lv_obj_set_flex_align(_statusRow, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
     lv_obj_set_style_pad_column(_statusRow, TT_NAV_STATUS_GAP, 0);
-    lv_obj_remove_flag(_statusRow, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_set_scrollable(_statusRow, false);
 
     createWifiStatus(_statusRow);
     _tempLabel = createSensorItem(_statusRow, font, TT_NAV_ICON_TEMP, TT_NAV_TEMP_ICON_W, "",
@@ -148,7 +148,7 @@ lv_obj_t* TTNavigationBar::createSensorItem(lv_obj_t* parent, lv_font_t* font, c
     lv_obj_set_flex_flow(group, LV_FLEX_FLOW_ROW);
     lv_obj_set_flex_align(group, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
     lv_obj_set_style_pad_column(group, TT_NAV_SENSOR_ICON_GAP, 0);
-    lv_obj_remove_flag(group, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_set_scrollable(group, false);
 
     if (prefix != nullptr && prefix[0] != '\0') {
         lv_font_t* prefixFont = TTFontManager::instance().getFont(TT_NAV_TEMP_PREFIX_FONT);
@@ -191,7 +191,7 @@ void TTNavigationBar::createBatteryStatus(lv_obj_t* parent, lv_font_t* font) {
     lv_obj_set_flex_align(group, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
     lv_obj_set_style_pad_column(group, TT_NAV_WIFI_ICON_GAP, 0);
     lv_obj_set_style_translate_y(group, TT_NAV_BATTERY_Y, 0);
-    lv_obj_remove_flag(group, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_set_scrollable(group, false);
 
     _batteryIcon = createIcon(group, TT_NAV_ICON_BATTERY_EMPTY, TT_NAV_BATTERY_ICON_W, TT_NAV_BATTERY_ICON_H);
     lv_obj_set_style_pad_all(_batteryIcon, 0, 0);
@@ -252,12 +252,12 @@ void TTNavigationBar::show(const char* title, bool showBack) {
     if (_bar == nullptr) return;
     lv_label_set_text(_title, title != nullptr ? title : "");
     if (showBack) {
-        lv_obj_remove_flag(_backBtn, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_set_hidden(_backBtn, false);
     } else {
-        lv_obj_add_flag(_backBtn, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_set_hidden(_backBtn, true);
     }
     layoutTitle(showBack);
-    lv_obj_remove_flag(_bar, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_set_hidden(_bar, false);
     _visible = true;
     updateTime();
     LOG_I("NavBar: show title=%s back=%d", title != nullptr ? title : "", showBack ? 1 : 0);
@@ -301,14 +301,14 @@ bool setHidden(lv_obj_t* obj, bool hidden) {
     if (obj == nullptr) {
         return false;
     }
-    const bool wasHidden = lv_obj_has_flag(obj, LV_OBJ_FLAG_HIDDEN);
+    const bool wasHidden = lv_obj_is_hidden(obj);
     if (wasHidden == hidden) {
         return false;
     }
     if (hidden) {
-        lv_obj_add_flag(obj, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_set_hidden(obj, true);
     } else {
-        lv_obj_remove_flag(obj, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_set_hidden(obj, false);
     }
     return true;
 }
@@ -343,13 +343,13 @@ void TTNavigationBar::applyStatusVisibility() {
     const bool showTime = _timeAllowed && _metricsAllowed && _lastMinute >= 0;
     changed |= setHidden(_timeLabel, !showTime);
     if (changed && _visible && _backBtn != nullptr) {
-        layoutTitle(!lv_obj_has_flag(_backBtn, LV_OBJ_FLAG_HIDDEN));
+        layoutTitle(!lv_obj_is_hidden(_backBtn));
     }
 }
 
 void TTNavigationBar::hide() {
     if (_bar == nullptr) return;
-    lv_obj_add_flag(_bar, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_set_hidden(_bar, true);
     _visible = false;
     LOG_I("NavBar: hide");
 }
@@ -465,7 +465,7 @@ void TTNavigationBar::applySensor(const TTSensorDataPayload& data) {
           _batteryMv, (unsigned)_batteryPercent, _batteryUsb ? 1 : 0, _batteryCharging ? 1 : 0);
     applyStatusVisibility();
     if (_visible) {
-        layoutTitle(!lv_obj_has_flag(_backBtn, LV_OBJ_FLAG_HIDDEN));
+        layoutTitle(!lv_obj_is_hidden(_backBtn));
     }
     requestRedraw();
 }

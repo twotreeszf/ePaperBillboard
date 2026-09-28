@@ -40,8 +40,8 @@ lv_obj_t* TTQrCode::create(lv_obj_t* parent) {
     lv_obj_set_style_border_width(qr, 0, 0);
     lv_obj_set_style_pad_all(qr, 0, 0);
     lv_obj_set_style_radius(qr, 0, 0);
-    lv_obj_remove_flag(qr, LV_OBJ_FLAG_SCROLLABLE);
-    lv_obj_add_flag(qr, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_set_scrollable(qr, false);
+    lv_obj_set_hidden(qr, true);
 
     TTQrCodeData* data = (TTQrCodeData*)heap_caps_malloc(sizeof(TTQrCodeData), MALLOC_CAP_8BIT);
     if (data == nullptr) {

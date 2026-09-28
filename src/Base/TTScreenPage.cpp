@@ -26,7 +26,7 @@ void TTScreenPage::createScreen() {
     lv_obj_set_style_bg_color(_screen, lv_color_white(), 0);
     lv_obj_set_style_bg_opa(_screen, LV_OPA_COVER, 0);
     lv_obj_set_style_pad_all(_screen, 0, 0);
-    lv_obj_remove_flag(_screen, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_set_scrollable(_screen, false);
 
     lv_obj_t* content = lv_obj_create(_screen);
     lv_obj_set_pos(content, 0, 0);
@@ -35,7 +35,7 @@ void TTScreenPage::createScreen() {
     lv_obj_set_style_border_width(content, 0, 0);
     lv_obj_set_style_pad_all(content, 0, 0);
     lv_obj_set_style_radius(content, 0, 0);
-    lv_obj_remove_flag(content, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_set_scrollable(content, false);
 
     buildContent(content);
     setup();

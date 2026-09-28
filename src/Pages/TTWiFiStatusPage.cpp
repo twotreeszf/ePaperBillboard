@@ -82,12 +82,12 @@ void TTWiFiStatusPage::buildContent(lv_obj_t* screen) {
     _reconnectBtn = TTTextButton::create(_btnRow, "重连", font16);
     lv_obj_add_event_cb(_reconnectBtn, onReconnectEvent, LV_EVENT_CLICKED, this);
     addToFocusGroup(_reconnectBtn);
-    lv_obj_add_flag(_reconnectBtn, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_set_hidden(_reconnectBtn, true);
 
     _actionBtn = TTTextButton::create(_btnRow, "去 Web 设置", font16);
     lv_obj_add_event_cb(_actionBtn, onActionEvent, LV_EVENT_CLICKED, this);
     addToFocusGroup(_actionBtn);
-    lv_obj_add_flag(_actionBtn, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_set_hidden(_actionBtn, true);
 
     _backBtn = TTTextButton::create(_btnRow, "返回", font16);
     lv_obj_add_event_cb(_backBtn, onBackEvent, LV_EVENT_CLICKED, this);
@@ -169,17 +169,17 @@ void TTWiFiStatusPage::applyStatus(const TTWiFiStatusPayload& status) {
     lv_label_set_text(_hintLabel, hint);
 
     if (showReconnect) {
-        lv_obj_remove_flag(_reconnectBtn, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_set_hidden(_reconnectBtn, false);
     } else {
-        lv_obj_add_flag(_reconnectBtn, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_set_hidden(_reconnectBtn, true);
     }
     if (showWeb) {
-        lv_obj_remove_flag(_actionBtn, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_set_hidden(_actionBtn, false);
         if (_group != nullptr) {
             lv_group_focus_obj(showReconnect ? _reconnectBtn : _actionBtn);
         }
     } else {
-        lv_obj_add_flag(_actionBtn, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_set_hidden(_actionBtn, true);
         if (_group != nullptr) {
             lv_group_focus_obj(_backBtn);
         }

@@ -1,7 +1,6 @@
 #pragma once
 
 #include <lvgl.h>
-#include "draw/lv_draw_buf.h"
 
 #define TT_DRAW_BUF_PASSTHROUGH_FLAG  LV_IMAGE_FLAGS_USER1
 

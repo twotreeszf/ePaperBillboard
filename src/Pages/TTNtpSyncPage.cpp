@@ -77,7 +77,7 @@ void TTNtpSyncPage::buildContent(lv_obj_t* screen) {
     lv_obj_set_flex_align(_btnRow, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
     lv_obj_set_style_pad_column(_btnRow, TT_NTP_BTN_GAP, 0);
     lv_obj_align(_btnRow, LV_ALIGN_BOTTOM_MID, 0, -10);
-    lv_obj_add_flag(_btnRow, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_set_hidden(_btnRow, true);
 
     _retryBtn = TTTextButton::create(_btnRow, "重新校时", font16);
     lv_obj_add_event_cb(_retryBtn, onRetryEvent, LV_EVENT_CLICKED, this);
@@ -139,19 +139,19 @@ void TTNtpSyncPage::applyTimeRows(const TTTimeSyncPayload& status) {
 
 void TTNtpSyncPage::hideButtons() {
     if (_btnRow != nullptr) {
-        lv_obj_add_flag(_btnRow, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_set_hidden(_btnRow, true);
     }
 }
 
 void TTNtpSyncPage::showActionOnly() {
     if (_btnRow != nullptr) {
-        lv_obj_remove_flag(_btnRow, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_set_hidden(_btnRow, false);
     }
     if (_backBtn != nullptr) {
-        lv_obj_add_flag(_backBtn, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_set_hidden(_backBtn, true);
     }
     if (_retryBtn != nullptr) {
-        lv_obj_remove_flag(_retryBtn, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_set_hidden(_retryBtn, false);
         if (_group != nullptr) {
             lv_group_focus_obj(_retryBtn);
         }
@@ -160,14 +160,14 @@ void TTNtpSyncPage::showActionOnly() {
 
 void TTNtpSyncPage::showDoneButtons() {
     if (_btnRow != nullptr) {
-        lv_obj_remove_flag(_btnRow, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_set_hidden(_btnRow, false);
     }
     if (_retryBtn != nullptr) {
         TTTextButton::setText(_retryBtn, "重新校时");
-        lv_obj_remove_flag(_retryBtn, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_set_hidden(_retryBtn, false);
     }
     if (_backBtn != nullptr) {
-        lv_obj_remove_flag(_backBtn, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_set_hidden(_backBtn, false);
         if (_group != nullptr) {
             lv_group_focus_obj(_backBtn);
         }

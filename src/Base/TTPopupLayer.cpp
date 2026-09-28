@@ -33,7 +33,7 @@ void TTPopupLayer::begin(lv_display_t* display) {
     }
     lv_obj_set_size(_topLayer, EPD_WIDTH, EPD_HEIGHT);
     lv_obj_set_style_bg_opa(_topLayer, LV_OPA_TRANSP, 0);
-    lv_obj_remove_flag(_topLayer, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_set_scrollable(_topLayer, false);
     LOG_I("PopupLayer: top layer ready");
 }
 
@@ -42,7 +42,7 @@ void TTPopupLayer::showToast(const char* text, uint32_t durationMs) {
     dismissToast();
 
     _toastPanel = lv_obj_create(_topLayer);
-    lv_obj_add_flag(_toastPanel, LV_OBJ_FLAG_IGNORE_LAYOUT);
+    lv_obj_set_ignore_layout(_toastPanel, true);
     lv_obj_set_size(_toastPanel, LV_SIZE_CONTENT, LV_SIZE_CONTENT);
     lv_obj_set_style_bg_color(_toastPanel, lv_color_white(), 0);
     lv_obj_set_style_bg_opa(_toastPanel, LV_OPA_COVER, 0);
@@ -50,7 +50,7 @@ void TTPopupLayer::showToast(const char* text, uint32_t durationMs) {
     lv_obj_set_style_border_width(_toastPanel, 1, 0);
     lv_obj_set_style_radius(_toastPanel, 1, 0);
     lv_obj_set_style_pad_all(_toastPanel, 6, 0);
-    lv_obj_remove_flag(_toastPanel, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_set_scrollable(_toastPanel, false);
 
     lv_obj_t* label = lv_label_create(_toastPanel);
     lv_label_set_text(label, text != nullptr ? text : "");
@@ -106,7 +106,7 @@ void TTPopupLayer::showLoading(const char* text) {
     dismissLoading();
 
     _loadingPanel = lv_obj_create(_topLayer);
-    lv_obj_add_flag(_loadingPanel, LV_OBJ_FLAG_IGNORE_LAYOUT);
+    lv_obj_set_ignore_layout(_loadingPanel, true);
     lv_obj_set_size(_loadingPanel, LV_SIZE_CONTENT, LV_SIZE_CONTENT);
     lv_obj_set_style_bg_color(_loadingPanel, lv_color_white(), 0);
     lv_obj_set_style_bg_opa(_loadingPanel, LV_OPA_COVER, 0);
@@ -114,7 +114,7 @@ void TTPopupLayer::showLoading(const char* text) {
     lv_obj_set_style_border_width(_loadingPanel, 1, 0);
     lv_obj_set_style_radius(_loadingPanel, 1, 0);
     lv_obj_set_style_pad_all(_loadingPanel, 12, 0);
-    lv_obj_remove_flag(_loadingPanel, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_set_scrollable(_loadingPanel, false);
 
     _loadingLabel = lv_label_create(_loadingPanel);
     lv_label_set_long_mode(_loadingLabel, LV_LABEL_LONG_WRAP);
@@ -162,9 +162,9 @@ void TTPopupLayer::dialogBtnFocusChanged(lv_event_t* e) {
     if (underline == nullptr) return;
     uint32_t code = lv_event_get_code(e);
     if (code == LV_EVENT_FOCUSED) {
-        lv_obj_clear_flag(underline, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_set_hidden(underline, false);
     } else if (code == LV_EVENT_DEFOCUSED) {
-        lv_obj_add_flag(underline, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_set_hidden(underline, true);
     }
 }
 
@@ -205,7 +205,7 @@ void TTPopupLayer::showDialog(const char* msg, DialogCallback onOk, DialogCallba
 
     _dialogPanel = lv_obj_create(_topLayer);
     lv_obj_set_user_data(_dialogPanel, this);
-    lv_obj_add_flag(_dialogPanel, LV_OBJ_FLAG_IGNORE_LAYOUT);
+    lv_obj_set_ignore_layout(_dialogPanel, true);
     lv_obj_set_size(_dialogPanel, LV_SIZE_CONTENT, LV_SIZE_CONTENT);
     lv_obj_set_style_bg_color(_dialogPanel, lv_color_white(), 0);
     lv_obj_set_style_bg_opa(_dialogPanel, LV_OPA_COVER, 0);
@@ -213,7 +213,7 @@ void TTPopupLayer::showDialog(const char* msg, DialogCallback onOk, DialogCallba
     lv_obj_set_style_border_width(_dialogPanel, 1, 0);
     lv_obj_set_style_radius(_dialogPanel, 1, 0);
     lv_obj_set_style_pad_all(_dialogPanel, 8, 0);
-    lv_obj_remove_flag(_dialogPanel, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_set_scrollable(_dialogPanel, false);
     lv_obj_set_layout(_dialogPanel, LV_LAYOUT_FLEX);
     lv_obj_set_flex_flow(_dialogPanel, LV_FLEX_FLOW_COLUMN);
     lv_obj_set_flex_align(_dialogPanel, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
@@ -291,7 +291,7 @@ void TTPopupLayer::showDialog(const char* msg, DialogCallback onOk, DialogCallba
     lv_obj_set_style_pad_all(cancelUnderline, 0, 0);
     lv_obj_set_style_radius(cancelUnderline, 0, 0);
     lv_obj_align_to(cancelUnderline, cancelLabel, LV_ALIGN_OUT_BOTTOM_MID, 0, 0);
-    lv_obj_add_flag(cancelUnderline, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_set_hidden(cancelUnderline, true);
     lv_group_add_obj(_dialogGroup, cancelBtn);
     lv_obj_add_event_cb(cancelBtn, dialogBtnClicked, LV_EVENT_CLICKED, (void*)0);
     lv_obj_add_event_cb(cancelBtn, dialogBtnFocusChanged, LV_EVENT_FOCUSED, cancelUnderline);
@@ -323,7 +323,7 @@ void TTPopupLayer::showDialog(const char* msg, DialogCallback onOk, DialogCallba
     lv_obj_set_style_pad_all(okUnderline, 0, 0);
     lv_obj_set_style_radius(okUnderline, 0, 0);
     lv_obj_align_to(okUnderline, okLabel, LV_ALIGN_OUT_BOTTOM_MID, 0, 0);
-    lv_obj_add_flag(okUnderline, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_set_hidden(okUnderline, true);
     lv_group_add_obj(_dialogGroup, okBtn);
     lv_obj_add_event_cb(okBtn, dialogBtnClicked, LV_EVENT_CLICKED, (void*)1);
     lv_obj_add_event_cb(okBtn, dialogBtnFocusChanged, LV_EVENT_FOCUSED, okUnderline);
@@ -365,11 +365,11 @@ void TTPopupLayer::setDialogMessage(const char* msg) {
     for (uint32_t i = 0; i < count; i++) {
         lv_obj_t* child = lv_obj_get_child(_dialogPanel, i);
         if (child != _dialogLabel && child != _dialogActions) {
-            lv_obj_add_flag(child, LV_OBJ_FLAG_HIDDEN);
+            lv_obj_set_hidden(child, true);
         }
     }
     if (_dialogActions != nullptr) {
-        lv_obj_add_flag(_dialogActions, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_set_hidden(_dialogActions, true);
     }
     lv_obj_update_layout(_dialogPanel);
     lv_obj_align(_dialogPanel, LV_ALIGN_CENTER, 0, 0);
