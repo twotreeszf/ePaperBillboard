@@ -511,10 +511,11 @@ void TTWeatherPage::setup() {
             }
             if (payload.state == TT_WEATHER_OK) {
                 requestRefresh(TT_REFRESH_DEEP);
+                tryRequestLightSleep(TT_SLEEP_AFTER_FULL_REFRESH_MS);
             } else {
                 requestRefresh(TT_REFRESH_PARTIAL);
+                tryRequestLightSleep();
             }
-            tryRequestLightSleep();
         });
     subscribe<TTSleepWakePayload>(
         TT_NOTIFICATION_SLEEP_WAKE,
@@ -560,6 +561,7 @@ void TTWeatherPage::willDisappear() {
     _forceRefreshing = false;
     _sleepAfterTimeTick = false;
     cancelInputIdleSleep();
+    cancelSleepSettle();
     applyChrome(false);
     TTInstanceOf<TTLvglEpdDriver>().setAutoDeepRefresh(true);
 }
@@ -1368,7 +1370,10 @@ void TTWeatherPage::cycleDisplayMode(int delta) {
     _displayMode = next;
     applyDisplayMode();
     LOG_I("Weather page: display mode=%d", _displayMode);
+    cancelLightSleep();
+    cancelSleepSettle();
     requestRefresh(TT_REFRESH_DEEP);
+    tryRequestLightSleep(TT_SLEEP_AFTER_FULL_REFRESH_MS);
 }
 
 bool TTWeatherPage::handleKeyAction(TTKeyId key, TTKeyGesture gesture) {
@@ -1390,6 +1395,7 @@ void TTWeatherPage::requestFetch(bool force) {
         return;
     }
     cancelLightSleep();
+    cancelSleepSettle();
     _sleepAfterTimeTick = false;
     _fetching = true;
     LOG_I("Weather page: fetch force=%d", force ? 1 : 0);
@@ -1413,11 +1419,7 @@ void TTWeatherPage::onSleepWake(const TTSleepWakePayload& wake) {
             if (_fetching || _forceRefreshing) {
                 break;
             }
-            _inputIdleSleepHandle = runOnce(TT_SLEEP_INPUT_IDLE_MS, [this]() {
-                _inputIdleSleepHandle = 0;
-                tryRequestLightSleep();
-            });
-            LOG_I("Weather page: sleep in %d s if idle", TT_SLEEP_INPUT_IDLE_MS / 1000);
+            armInputIdleSleep();
             break;
         case TT_SLEEP_WAKE_TIME:
             if (_fetching || _forceRefreshing) {
@@ -1434,6 +1436,13 @@ void TTWeatherPage::onTimeTick() {
         return;
     }
     LOG_I("Weather page: time tick");
+    const bool sleepPending = _sleepAfterTimeTick || _sleepSettleHandle != 0
+        || TTInstanceOf<TTSleepService>().isLightSleepRequested();
+    if (sleepPending) {
+        cancelLightSleep();
+        cancelSleepSettle();
+        _sleepAfterTimeTick = false;
+    }
     const bool fetchedBeforeClock =
         _fetchedAt != 0 && _fetchedAt < (uint32_t)TT_RTC_MIN_UNIX;
     if (fetchedBeforeClock && TTInstanceOf<TTRtc>().isTimeValid()) {
@@ -1448,10 +1457,27 @@ void TTWeatherPage::onTimeTick() {
         updateClock(true);
         updateAge(true);
     }
-    if (_sleepAfterTimeTick) {
-        _sleepAfterTimeTick = false;
+    if (sleepPending && !_fetching && !_forceRefreshing) {
         tryRequestLightSleep();
     }
+}
+
+void TTWeatherPage::armInputIdleSleep() {
+    cancelInputIdleSleep();
+    cancelSleepSettle();
+    const bool contentHidden = _content == nullptr || lv_obj_is_hidden(_content);
+    if (!_visible || _fetching || _forceRefreshing || contentHidden) {
+        return;
+    }
+    _inputIdleSleepHandle = runOnce(TT_SLEEP_INPUT_IDLE_MS, [this]() {
+        _inputIdleSleepHandle = 0;
+        const bool stillHidden = _content == nullptr || lv_obj_is_hidden(_content);
+        if (!_visible || _fetching || _forceRefreshing || stillHidden) {
+            return;
+        }
+        requestLightSleep();
+    });
+    LOG_I("Weather page: sleep in %d s if idle", TT_SLEEP_INPUT_IDLE_MS / 1000);
 }
 
 void TTWeatherPage::cancelInputIdleSleep() {
@@ -1463,17 +1489,33 @@ void TTWeatherPage::cancelInputIdleSleep() {
     LOG_I("Weather page: cancel idle sleep timer");
 }
 
-void TTWeatherPage::tryRequestLightSleep() {
-    if (!_visible || _fetching || _forceRefreshing) {
+void TTWeatherPage::cancelSleepSettle() {
+    if (_sleepSettleHandle == 0) {
         return;
     }
-    const bool contentHidden = _content == nullptr
-        || lv_obj_is_hidden(_content);
-    if (contentHidden) {
-        LOG_I("Weather page: skip sleep, no weather content");
+    cancelRepeat(_sleepSettleHandle);
+    _sleepSettleHandle = 0;
+}
+
+void TTWeatherPage::tryRequestLightSleep(uint32_t delayMs) {
+    const bool contentHidden = _content == nullptr || lv_obj_is_hidden(_content);
+    if (!_visible || _fetching || _forceRefreshing || contentHidden) {
+        cancelSleepSettle();
+        if (_visible && !_fetching && !_forceRefreshing && contentHidden) {
+            LOG_I("Weather page: skip sleep, no weather content");
+        }
         return;
     }
-    requestLightSleep();
+    cancelSleepSettle();
+    LOG_I("Weather page: sleep in %u ms", (unsigned)delayMs);
+    _sleepSettleHandle = runOnce(delayMs, [this]() {
+        _sleepSettleHandle = 0;
+        const bool stillHidden = _content == nullptr || lv_obj_is_hidden(_content);
+        if (!_visible || _fetching || _forceRefreshing || stillHidden) {
+            return;
+        }
+        requestLightSleep();
+    });
 }
 
 void TTWeatherPage::forceRefresh() {
@@ -1482,6 +1524,7 @@ void TTWeatherPage::forceRefresh() {
         return;
     }
     cancelInputIdleSleep();
+    cancelSleepSettle();
     _forceRefreshing = true;
     showContent(false);
     showEmpty(true);

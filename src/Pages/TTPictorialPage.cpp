@@ -239,6 +239,7 @@ void TTPictorialPage::willDisappear() {
     }
     _sleepAfterTimeTick = false;
     cancelInputIdleSleep();
+    cancelSleepSettle();
     if (_artFetching) {
         TTInstanceOf<TTPopupLayer>().dismissLoading();
     }
@@ -271,6 +272,7 @@ bool TTPictorialPage::handleKeyAction(TTKeyId key, TTKeyGesture gesture) {
         }
         LOG_I("Pictorial page: dial next");
         cancelLightSleep();
+        cancelSleepSettle();
         _sleepAfterTimeTick = false;
         cancelInputIdleSleep();
         TTInstanceOf<TTPictorialService>().requestAnother();
@@ -285,6 +287,7 @@ void TTPictorialPage::requestWeather(bool force) {
         return;
     }
     cancelLightSleep();
+    cancelSleepSettle();
     _sleepAfterTimeTick = false;
     _weatherFetching = true;
     LOG_I("Pictorial page: weather fetch force=%d", force ? 1 : 0);
@@ -306,7 +309,7 @@ void TTPictorialPage::applyWeather(const TTWeatherPayload& payload) {
         if (_visible) {
             requestRefresh(TT_REFRESH_DEEP);
         }
-        tryRequestLightSleep();
+        tryRequestLightSleep(TT_SLEEP_AFTER_FULL_REFRESH_MS);
         return;
     }
     _haveWeather = true;
@@ -323,7 +326,7 @@ void TTPictorialPage::applyWeather(const TTWeatherPayload& payload) {
     if (_visible) {
         requestRefresh(TT_REFRESH_FULL);
     }
-    tryRequestLightSleep();
+    tryRequestLightSleep(TT_SLEEP_AFTER_FULL_REFRESH_MS);
 }
 
 void TTPictorialPage::applyPictorial(const TTPicPayload& payload) {
@@ -333,6 +336,7 @@ void TTPictorialPage::applyPictorial(const TTPicPayload& payload) {
     if (payload.state == TT_PIC_FETCHING) {
         _artFetching = true;
         cancelLightSleep();
+        cancelSleepSettle();
         _sleepAfterTimeTick = false;
         cancelInputIdleSleep();
         if (!_artReady && _status != nullptr) {
@@ -394,7 +398,7 @@ void TTPictorialPage::applyPictorial(const TTPicPayload& payload) {
     if (_visible) {
         requestRefresh(TT_REFRESH_DEEP);
     }
-    tryRequestLightSleep();
+    tryRequestLightSleep(TT_SLEEP_AFTER_FULL_REFRESH_MS);
 }
 
 void TTPictorialPage::onSleepWake(const TTSleepWakePayload& wake) {
@@ -419,11 +423,7 @@ void TTPictorialPage::onSleepWake(const TTSleepWakePayload& wake) {
             if (_weatherFetching || _artFetching || _picking) {
                 break;
             }
-            _inputIdleSleepHandle = runOnce(TT_SLEEP_INPUT_IDLE_MS, [this]() {
-                _inputIdleSleepHandle = 0;
-                tryRequestLightSleep();
-            });
-            LOG_I("Pictorial page: sleep in %d s if idle", TT_SLEEP_INPUT_IDLE_MS / 1000);
+            armInputIdleSleep();
             break;
         case TT_SLEEP_WAKE_TIME:
             if (_weatherFetching || _artFetching || _picking) {
@@ -440,13 +440,19 @@ void TTPictorialPage::onTimeTick() {
         return;
     }
     LOG_I("Pictorial page: time tick");
+    const bool sleepPending = _sleepAfterTimeTick || _sleepSettleHandle != 0
+        || TTInstanceOf<TTSleepService>().isLightSleepRequested();
+    if (sleepPending) {
+        cancelLightSleep();
+        cancelSleepSettle();
+        _sleepAfterTimeTick = false;
+    }
     updateClock(true);
     if (!TTInstanceOf<TTPictorialService>().hasToday()) {
         LOG_I("Pictorial page: day changed");
         TTInstanceOf<TTPictorialService>().requestDaily();
     }
-    if (_sleepAfterTimeTick) {
-        _sleepAfterTimeTick = false;
+    if (sleepPending && !_artFetching) {
         tryRequestLightSleep();
     }
 }
@@ -621,6 +627,7 @@ void TTPictorialPage::openPicker() {
         return;
     }
     cancelLightSleep();
+    cancelSleepSettle();
     _sleepAfterTimeTick = false;
     cancelInputIdleSleep();
     service.requestManifest();
@@ -693,6 +700,22 @@ void TTPictorialPage::showPicker() {
           (unsigned)_pickIndex, (unsigned)window, (unsigned)count);
 }
 
+void TTPictorialPage::armInputIdleSleep() {
+    cancelInputIdleSleep();
+    cancelSleepSettle();
+    if (!_visible || _weatherFetching || _artFetching || _picking || !_artReady) {
+        return;
+    }
+    _inputIdleSleepHandle = runOnce(TT_SLEEP_INPUT_IDLE_MS, [this]() {
+        _inputIdleSleepHandle = 0;
+        if (!_visible || _weatherFetching || _artFetching || _picking || !_artReady) {
+            return;
+        }
+        requestLightSleep();
+    });
+    LOG_I("Pictorial page: sleep in %d s if idle", TT_SLEEP_INPUT_IDLE_MS / 1000);
+}
+
 void TTPictorialPage::cancelInputIdleSleep() {
     if (_inputIdleSleepHandle == 0) {
         return;
@@ -702,13 +725,29 @@ void TTPictorialPage::cancelInputIdleSleep() {
     LOG_I("Pictorial page: cancel idle sleep timer");
 }
 
-void TTPictorialPage::tryRequestLightSleep() {
-    if (!_visible || _weatherFetching || _artFetching || _picking) {
+void TTPictorialPage::cancelSleepSettle() {
+    if (_sleepSettleHandle == 0) {
         return;
     }
-    if (!_artReady) {
-        LOG_I("Pictorial page: skip sleep, no art");
+    cancelRepeat(_sleepSettleHandle);
+    _sleepSettleHandle = 0;
+}
+
+void TTPictorialPage::tryRequestLightSleep(uint32_t delayMs) {
+    if (!_visible || _weatherFetching || _artFetching || _picking || !_artReady) {
+        cancelSleepSettle();
+        if (_visible && !_weatherFetching && !_artFetching && !_picking && !_artReady) {
+            LOG_I("Pictorial page: skip sleep, no art");
+        }
         return;
     }
-    requestLightSleep();
+    cancelSleepSettle();
+    LOG_I("Pictorial page: sleep in %u ms", (unsigned)delayMs);
+    _sleepSettleHandle = runOnce(delayMs, [this]() {
+        _sleepSettleHandle = 0;
+        if (!_visible || _weatherFetching || _artFetching || _picking || !_artReady) {
+            return;
+        }
+        requestLightSleep();
+    });
 }

@@ -125,8 +125,10 @@ private:
     void onSleepWake(const TTSleepWakePayload& wake);
     void onTimeTick();
     void finishFetch();
-    void tryRequestLightSleep();
+    void tryRequestLightSleep(uint32_t delayMs = TT_SLEEP_AFTER_REFRESH_MS);
+    void armInputIdleSleep();
     void cancelInputIdleSleep();
+    void cancelSleepSettle();
     void dismissExtendLoading();
     void layoutSide();
     void layoutAge();
@@ -180,6 +182,7 @@ private:
     bool _sleepAfterTimeTick = false;
     bool _ageOk = true;
     uint32_t _inputIdleSleepHandle = 0;
+    uint32_t _sleepSettleHandle = 0;
     int _weatherCode = 0;
     bool _weatherDay = true;
     uint32_t _fetchedAt = 0;

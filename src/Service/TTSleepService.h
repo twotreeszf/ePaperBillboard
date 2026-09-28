@@ -5,7 +5,9 @@
 #include "../Base/TTNotificationPayloads.h"
 
 #define TT_SLEEP_MIN_US             200000ULL
-#define TT_SLEEP_INPUT_IDLE_MS      5000
+#define TT_SLEEP_INPUT_IDLE_MS      10000
+#define TT_SLEEP_AFTER_REFRESH_MS        5000
+#define TT_SLEEP_AFTER_FULL_REFRESH_MS   8000
 #define TT_SLEEP_WALL_TEXT_MAX      24
 #define TT_SLEEP_GPIO_WAKE_MASK \
     ((1ULL << PIN_BUTTONL) | (1ULL << PIN_BUTTONR) | (1ULL << PIN_BUTTONC))
@@ -16,6 +18,7 @@ class TTSleepService {
 public:
     void requestLightSleep(void* owner);
     void cancelLightSleep(void* owner);
+    bool isLightSleepRequested() const { return _requested; }
     void tryEnter();
 
 private:

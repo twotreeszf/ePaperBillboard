@@ -38,8 +38,10 @@ private:
     void openPicker();
     void closePicker(bool apply);
     void showPicker();
-    void tryRequestLightSleep();
+    void tryRequestLightSleep(uint32_t delayMs = TT_SLEEP_AFTER_REFRESH_MS);
+    void armInputIdleSleep();
     void cancelInputIdleSleep();
+    void cancelSleepSettle();
 
     lv_obj_t* _side = nullptr;
     lv_obj_t* _weatherIcon = nullptr;
@@ -69,6 +71,7 @@ private:
     bool _weatherDay = true;
     uint32_t _dayHandle = 0;
     uint32_t _inputIdleSleepHandle = 0;
+    uint32_t _sleepSettleHandle = 0;
     bool _sleepAfterTimeTick = false;
     uint8_t _pickIndex = 0;
 };

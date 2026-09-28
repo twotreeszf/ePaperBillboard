@@ -174,8 +174,10 @@ private:
     void requestFetch(bool force = false);
     void onSleepWake(const TTSleepWakePayload& wake);
     void onTimeTick();
-    void tryRequestLightSleep();
+    void tryRequestLightSleep(uint32_t delayMs = TT_SLEEP_AFTER_REFRESH_MS);
+    void armInputIdleSleep();
     void cancelInputIdleSleep();
+    void cancelSleepSettle();
     void setMessage(const char* text);
     void showContent(bool show);
     void showEmpty(bool show);
@@ -247,6 +249,7 @@ private:
     bool _fetching = false;
     bool _sleepAfterTimeTick = false;
     uint32_t _inputIdleSleepHandle = 0;
+    uint32_t _sleepSettleHandle = 0;
     bool _ageOk = true;
     uint32_t _fetchedAt = 0;
     int _lastClockMinute = -1;

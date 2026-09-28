@@ -342,6 +342,7 @@ void TTCalendarPage::willDisappear() {
     _forceRefreshing = false;
     _sleepAfterTimeTick = false;
     cancelInputIdleSleep();
+    cancelSleepSettle();
     dismissExtendLoading();
     setStatusTimeVisible(true);
     TTInstanceOf<TTLvglEpdDriver>().setAutoDeepRefresh(true);
@@ -362,6 +363,7 @@ void TTCalendarPage::requestCalendar(bool extend, bool force) {
         return;
     }
     cancelLightSleep();
+    cancelSleepSettle();
     _sleepAfterTimeTick = false;
     _calendarFetching = true;
     if (!extend && !_calendarReady && !_forceRefreshing) {
@@ -382,6 +384,7 @@ void TTCalendarPage::requestWeather(bool force) {
         return;
     }
     cancelLightSleep();
+    cancelSleepSettle();
     _sleepAfterTimeTick = false;
     _weatherFetching = true;
     LOG_I("Calendar page: weather fetch force=%d", force ? 1 : 0);
@@ -394,6 +397,7 @@ void TTCalendarPage::forceRefresh() {
         return;
     }
     cancelInputIdleSleep();
+    cancelSleepSettle();
     _forceRefreshing = true;
     _planCount = 0;
     _pageCount = 0;
@@ -424,11 +428,7 @@ void TTCalendarPage::onSleepWake(const TTSleepWakePayload& wake) {
             if (_calendarFetching || _weatherFetching || _forceRefreshing) {
                 break;
             }
-            _inputIdleSleepHandle = runOnce(TT_SLEEP_INPUT_IDLE_MS, [this]() {
-                _inputIdleSleepHandle = 0;
-                tryRequestLightSleep();
-            });
-            LOG_I("Calendar page: sleep in %d s if idle", TT_SLEEP_INPUT_IDLE_MS / 1000);
+            armInputIdleSleep();
             break;
         case TT_SLEEP_WAKE_TIME:
             if (_calendarFetching || _weatherFetching || _forceRefreshing) {
@@ -445,6 +445,13 @@ void TTCalendarPage::onTimeTick() {
         return;
     }
     LOG_I("Calendar page: time tick");
+    const bool sleepPending = _sleepAfterTimeTick || _sleepSettleHandle != 0
+        || TTInstanceOf<TTSleepService>().isLightSleepRequested();
+    if (sleepPending) {
+        cancelLightSleep();
+        cancelSleepSettle();
+        _sleepAfterTimeTick = false;
+    }
     const bool fetchedBeforeClock =
         _fetchedAt != 0 && _fetchedAt < (uint32_t)TT_RTC_MIN_UNIX;
     if (fetchedBeforeClock && TTInstanceOf<TTRtc>().isTimeValid()) {
@@ -465,10 +472,25 @@ void TTCalendarPage::onTimeTick() {
             requestRefresh(TT_REFRESH_PARTIAL);
         }
     }
-    if (_sleepAfterTimeTick) {
-        _sleepAfterTimeTick = false;
+    if (sleepPending && !_calendarFetching && !_weatherFetching) {
         tryRequestLightSleep();
     }
+}
+
+void TTCalendarPage::armInputIdleSleep() {
+    cancelInputIdleSleep();
+    cancelSleepSettle();
+    if (!_visible || _calendarFetching || _weatherFetching || _forceRefreshing || !_calendarReady) {
+        return;
+    }
+    _inputIdleSleepHandle = runOnce(TT_SLEEP_INPUT_IDLE_MS, [this]() {
+        _inputIdleSleepHandle = 0;
+        if (!_visible || _calendarFetching || _weatherFetching || _forceRefreshing || !_calendarReady) {
+            return;
+        }
+        requestLightSleep();
+    });
+    LOG_I("Calendar page: sleep in %d s if idle", TT_SLEEP_INPUT_IDLE_MS / 1000);
 }
 
 void TTCalendarPage::cancelInputIdleSleep() {
@@ -485,7 +507,7 @@ void TTCalendarPage::finishFetch() {
         return;
     }
     _forceRefreshing = false;
-    tryRequestLightSleep();
+    tryRequestLightSleep(TT_SLEEP_AFTER_FULL_REFRESH_MS);
 }
 
 void TTCalendarPage::dismissExtendLoading() {
@@ -496,15 +518,31 @@ void TTCalendarPage::dismissExtendLoading() {
     TTInstanceOf<TTPopupLayer>().dismissLoading();
 }
 
-void TTCalendarPage::tryRequestLightSleep() {
-    if (!_visible || _calendarFetching || _weatherFetching || _forceRefreshing) {
+void TTCalendarPage::cancelSleepSettle() {
+    if (_sleepSettleHandle == 0) {
         return;
     }
-    if (!_calendarReady) {
-        LOG_I("Calendar page: skip sleep, no calendar content");
+    cancelRepeat(_sleepSettleHandle);
+    _sleepSettleHandle = 0;
+}
+
+void TTCalendarPage::tryRequestLightSleep(uint32_t delayMs) {
+    if (!_visible || _calendarFetching || _weatherFetching || _forceRefreshing || !_calendarReady) {
+        cancelSleepSettle();
+        if (_visible && !_calendarFetching && !_weatherFetching && !_forceRefreshing && !_calendarReady) {
+            LOG_I("Calendar page: skip sleep, no calendar content");
+        }
         return;
     }
-    requestLightSleep();
+    cancelSleepSettle();
+    LOG_I("Calendar page: sleep in %u ms", (unsigned)delayMs);
+    _sleepSettleHandle = runOnce(delayMs, [this]() {
+        _sleepSettleHandle = 0;
+        if (!_visible || _calendarFetching || _weatherFetching || _forceRefreshing || !_calendarReady) {
+            return;
+        }
+        requestLightSleep();
+    });
 }
 
 void TTCalendarPage::applyWeather(const TTWeatherPayload& payload) {
@@ -1051,13 +1089,17 @@ void TTCalendarPage::pageBy(int delta) {
         }
         _page--;
         showPage();
+        cancelLightSleep();
         requestRefresh(TT_REFRESH_FULL);
+        tryRequestLightSleep(TT_SLEEP_AFTER_FULL_REFRESH_MS);
         return;
     }
     if (_page + 1 < _pageCount) {
         _page++;
         showPage();
+        cancelLightSleep();
         requestRefresh(TT_REFRESH_FULL);
+        tryRequestLightSleep(TT_SLEEP_AFTER_FULL_REFRESH_MS);
         return;
     }
     LOG_I("Calendar page: load next range");
