@@ -366,12 +366,20 @@ bool TTWiFiManager::_startAP() {
 }
 
 void TTWiFiManager::_stopAP() {
+    LOG_I("WiFi: stop AP");
     _dnsServer.stop();
     _server.stop();
-    WiFi.softAPdisconnect(true);
-    WiFi.mode(WIFI_OFF);
-    _driverHeld = false;
-    delay(100);
+    if (!WiFi.softAPdisconnect(false)) {
+        LOG_W("WiFi: softAP disconnect failed");
+    }
+    const wifi_mode_t mode = WiFi.getMode();
+    if (mode != WIFI_OFF && mode != WIFI_STA) {
+        if (!WiFi.mode(WIFI_STA)) {
+            LOG_W("WiFi: leave AP mode failed mode=%d", (int)mode);
+        }
+    }
+    _state = TT_WIFI_LINK_IDLE;
+    sleepRadio();
 }
 
 bool TTWiFiManager::_scanNearby(std::vector<String>& out) {
