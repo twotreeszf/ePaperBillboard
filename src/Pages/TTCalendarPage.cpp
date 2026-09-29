@@ -483,14 +483,14 @@ void TTCalendarPage::armInputIdleSleep() {
     if (!_visible || _calendarFetching || _weatherFetching || _forceRefreshing || !_calendarReady) {
         return;
     }
-    _inputIdleSleepHandle = runOnce(TT_SLEEP_INPUT_IDLE_MS, [this]() {
+    _inputIdleSleepHandle = runOnce(TT_SLEEP_AFTER_REFRESH_MS, [this]() {
         _inputIdleSleepHandle = 0;
         if (!_visible || _calendarFetching || _weatherFetching || _forceRefreshing || !_calendarReady) {
             return;
         }
         requestLightSleep();
     });
-    LOG_I("Calendar page: sleep in %d s if idle", TT_SLEEP_INPUT_IDLE_MS / 1000);
+    LOG_I("Calendar page: sleep in %d s if idle", TT_SLEEP_AFTER_REFRESH_MS / 1000);
 }
 
 void TTCalendarPage::cancelInputIdleSleep() {
@@ -507,7 +507,7 @@ void TTCalendarPage::finishFetch() {
         return;
     }
     _forceRefreshing = false;
-    tryRequestLightSleep(TT_SLEEP_AFTER_FULL_REFRESH_MS);
+    tryRequestLightSleep(TT_SLEEP_AFTER_REFRESH_MS);
 }
 
 void TTCalendarPage::dismissExtendLoading() {
@@ -1091,7 +1091,7 @@ void TTCalendarPage::pageBy(int delta) {
         showPage();
         cancelLightSleep();
         requestRefresh(TT_REFRESH_FULL);
-        tryRequestLightSleep(TT_SLEEP_AFTER_FULL_REFRESH_MS);
+        tryRequestLightSleep(TT_SLEEP_AFTER_REFRESH_MS);
         return;
     }
     if (_page + 1 < _pageCount) {
@@ -1099,7 +1099,7 @@ void TTCalendarPage::pageBy(int delta) {
         showPage();
         cancelLightSleep();
         requestRefresh(TT_REFRESH_FULL);
-        tryRequestLightSleep(TT_SLEEP_AFTER_FULL_REFRESH_MS);
+        tryRequestLightSleep(TT_SLEEP_AFTER_REFRESH_MS);
         return;
     }
     LOG_I("Calendar page: load next range");

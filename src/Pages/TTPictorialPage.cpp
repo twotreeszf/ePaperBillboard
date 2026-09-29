@@ -310,7 +310,7 @@ void TTPictorialPage::applyWeather(const TTWeatherPayload& payload) {
         if (_visible) {
             requestRefresh(TT_REFRESH_DEEP);
         }
-        tryRequestLightSleep(TT_SLEEP_AFTER_FULL_REFRESH_MS);
+        tryRequestLightSleep(TT_SLEEP_AFTER_REFRESH_MS);
         return;
     }
     _haveWeather = true;
@@ -327,7 +327,7 @@ void TTPictorialPage::applyWeather(const TTWeatherPayload& payload) {
     if (_visible) {
         requestRefresh(TT_REFRESH_FULL);
     }
-    tryRequestLightSleep(TT_SLEEP_AFTER_FULL_REFRESH_MS);
+    tryRequestLightSleep(TT_SLEEP_AFTER_REFRESH_MS);
 }
 
 void TTPictorialPage::applyPictorial(const TTPicPayload& payload) {
@@ -399,7 +399,7 @@ void TTPictorialPage::applyPictorial(const TTPicPayload& payload) {
     if (_visible) {
         requestRefresh(TT_REFRESH_DEEP);
     }
-    tryRequestLightSleep(TT_SLEEP_AFTER_FULL_REFRESH_MS);
+    tryRequestLightSleep(TT_SLEEP_AFTER_REFRESH_MS);
 }
 
 void TTPictorialPage::onSleepWake(const TTSleepWakePayload& wake) {
@@ -717,14 +717,14 @@ void TTPictorialPage::armInputIdleSleep() {
     if (!_visible || _weatherFetching || _artFetching || _picking || !_artReady) {
         return;
     }
-    _inputIdleSleepHandle = runOnce(TT_SLEEP_INPUT_IDLE_MS, [this]() {
+    _inputIdleSleepHandle = runOnce(TT_SLEEP_AFTER_REFRESH_MS, [this]() {
         _inputIdleSleepHandle = 0;
         if (!_visible || _weatherFetching || _artFetching || _picking || !_artReady) {
             return;
         }
         requestLightSleep();
     });
-    LOG_I("Pictorial page: sleep in %d s if idle", TT_SLEEP_INPUT_IDLE_MS / 1000);
+    LOG_I("Pictorial page: sleep in %d s if idle", TT_SLEEP_AFTER_REFRESH_MS / 1000);
 }
 
 void TTPictorialPage::cancelInputIdleSleep() {
