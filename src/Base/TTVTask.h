@@ -34,11 +34,11 @@ struct TTPeriodicTask {
 class TTVTask
 {
 public:
-    TTVTask(const char* name = "TTVtask", uint32_t stackSize = 2048) 
-        : _name(name), _stackSize(stackSize) {}
+    TTVTask(const char* name = "TTVtask", uint32_t stackSize = 2048, uint32_t queueLength = 10)
+        : _name(name), _stackSize(stackSize), _queueLength(queueLength) {}
     virtual ~TTVTask() = default;
 
-    void start(int coreId = 0, uint32_t loopDelayMs = 100);
+    bool start(int coreId = 0, uint32_t loopDelayMs = 100, uint32_t priority = 1);
 
     template<typename PayloadType>
     void postNotification(const char* name, const PayloadType& payload);
@@ -68,6 +68,7 @@ private:
     uint32_t _loopDelayMs = 100;
     const char* _name;
     uint32_t _stackSize;
+    uint32_t _queueLength;
 };
 
 template<typename PayloadType>

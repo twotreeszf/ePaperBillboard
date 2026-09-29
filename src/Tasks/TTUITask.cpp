@@ -62,6 +62,13 @@ void TTUITask::requestDeepRefreshAsync() {
     enqueue(f);
 }
 
+void TTUITask::requestKeyGestureAsync(uint8_t key, uint8_t gesture) {
+    auto* f = new std::function<void()>([this, key, gesture]() {
+        _keypad.apply(key, gesture);
+    });
+    enqueue(f);
+}
+
 void TTUITask::requestRestartAsync() {
     auto* f = new std::function<void()>([]() {
         LOG_I("UI: restart requested, hibernate E-Paper");
@@ -92,7 +99,6 @@ void TTUITask::_selectPanel() {
 }
 
 void TTUITask::loop() {
-    _keypad.tick();
     lv_timer_handler();
     TTInstanceOf<TTSleepService>().tryEnter();
 }

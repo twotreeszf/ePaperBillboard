@@ -19,30 +19,37 @@ static int64_t tt_wall_now_ms() {
     return (int64_t)tv.tv_sec * 1000 + tv.tv_usec / 1000;
 }
 
-void TTVTask::start(int coreId, uint32_t loopDelayMs)
+bool TTVTask::start(int coreId, uint32_t loopDelayMs, uint32_t priority)
 {
     _loopDelayMs = loopDelayMs;
-    _queue = xQueueCreate(10, sizeof(std::function<void()> *));
+    _queue = xQueueCreate(_queueLength, sizeof(std::function<void()> *));
     if (_queue == nullptr) {
         LOG_E("Task %s: queue create failed", _name);
-        return;
+        return false;
     }
-    xTaskCreatePinnedToCore(
+    const BaseType_t created = xTaskCreatePinnedToCore(
         [](void *param)
         {
             TTVTask *task = static_cast<TTVTask *>(param);
             task->_task();
             vTaskDelete(nullptr);
         },
-        _name,      // Text name for the task
-        _stackSize, // Stack size in bytes
-        this,       // Parameter passed into the task
-        1,          // Task priority
-        NULL,       // Task handle
-        coreId      // Core where the task should run
+        _name,
+        _stackSize,
+        this,
+        priority,
+        NULL,
+        coreId
     );
+    if (created != pdPASS) {
+        LOG_E("Task %s: create failed", _name);
+        vQueueDelete(_queue);
+        _queue = nullptr;
+        return false;
+    }
 
-    LOG_I("Task %s started on core %d", _name, coreId);
+    LOG_I("Task %s started on core %d priority %u", _name, coreId, priority);
+    return true;
 }
 
 void TTVTask::enqueue(std::function<void()> *func)
@@ -198,9 +205,12 @@ void TTVTask::_task()
     // Run the task loop
     while (true)
     {
-        // Process any queued functions
-        while (xQueueReceive(_queue, &func, 0) == pdTRUE)
-        {
+        // Only the work already queued. Anything posted from a callback waits until the next loop.
+        const UBaseType_t waiting = (_queue == nullptr) ? 0 : uxQueueMessagesWaiting(_queue);
+        for (UBaseType_t i = 0; i < waiting; i++) {
+            if (xQueueReceive(_queue, &func, 0) != pdTRUE) {
+                break;
+            }
             (*func)();
             delete func;
         }

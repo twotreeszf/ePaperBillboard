@@ -8,6 +8,7 @@
 #include "../Base/TTKeypadInput.h"
 
 #define TT_UI_LOOP_DELAY_MS  5
+#define TT_UI_WORK_QUEUE_LEN 16
 
 #define TT_UI_EPD_MOSI  4
 #define TT_UI_EPD_SCK   16
@@ -18,11 +19,12 @@
 
 class TTUITask : public TTVTask {
 public:
-    TTUITask() : TTVTask("TTUITask", 8192),
+    TTUITask() : TTVTask("TTUITask", 8192, TT_UI_WORK_QUEUE_LEN),
         _display(EPD_DRIVER_CLASS(TT_UI_EPD_CS, TT_UI_EPD_DC, TT_UI_EPD_RST, TT_UI_EPD_BUSY)) {}
 
     void requestDeepRefreshAsync();
     void requestRestartAsync();
+    void requestKeyGestureAsync(uint8_t key, uint8_t gesture);
 
 protected:
     void setup() override;
