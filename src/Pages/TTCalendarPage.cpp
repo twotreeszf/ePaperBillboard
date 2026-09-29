@@ -483,14 +483,14 @@ void TTCalendarPage::armInputIdleSleep() {
     if (!_visible || _calendarFetching || _weatherFetching || _forceRefreshing || !_calendarReady) {
         return;
     }
-    _inputIdleSleepHandle = runOnce(TT_SLEEP_AFTER_REFRESH_MS, [this]() {
+    _inputIdleSleepHandle = runOnce(TT_SLEEP_INPUT_IDLE_MS, [this]() {
         _inputIdleSleepHandle = 0;
         if (!_visible || _calendarFetching || _weatherFetching || _forceRefreshing || !_calendarReady) {
             return;
         }
         requestLightSleep();
     });
-    LOG_I("Calendar page: sleep in %d s if idle", TT_SLEEP_AFTER_REFRESH_MS / 1000);
+    LOG_I("Calendar page: sleep in %d s if idle", TT_SLEEP_INPUT_IDLE_MS / 1000);
 }
 
 void TTCalendarPage::cancelInputIdleSleep() {

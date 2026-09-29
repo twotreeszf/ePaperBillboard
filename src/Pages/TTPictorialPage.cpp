@@ -717,14 +717,14 @@ void TTPictorialPage::armInputIdleSleep() {
     if (!_visible || _weatherFetching || _artFetching || _picking || !_artReady) {
         return;
     }
-    _inputIdleSleepHandle = runOnce(TT_SLEEP_AFTER_REFRESH_MS, [this]() {
+    _inputIdleSleepHandle = runOnce(TT_SLEEP_INPUT_IDLE_MS, [this]() {
         _inputIdleSleepHandle = 0;
         if (!_visible || _weatherFetching || _artFetching || _picking || !_artReady) {
             return;
         }
         requestLightSleep();
     });
-    LOG_I("Pictorial page: sleep in %d s if idle", TT_SLEEP_AFTER_REFRESH_MS / 1000);
+    LOG_I("Pictorial page: sleep in %d s if idle", TT_SLEEP_INPUT_IDLE_MS / 1000);
 }
 
 void TTPictorialPage::cancelInputIdleSleep() {

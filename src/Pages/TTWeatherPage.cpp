@@ -1469,7 +1469,7 @@ void TTWeatherPage::armInputIdleSleep() {
     if (!_visible || _fetching || _forceRefreshing || contentHidden) {
         return;
     }
-    _inputIdleSleepHandle = runOnce(TT_SLEEP_AFTER_REFRESH_MS, [this]() {
+    _inputIdleSleepHandle = runOnce(TT_SLEEP_INPUT_IDLE_MS, [this]() {
         _inputIdleSleepHandle = 0;
         const bool stillHidden = _content == nullptr || lv_obj_is_hidden(_content);
         if (!_visible || _fetching || _forceRefreshing || stillHidden) {
@@ -1477,7 +1477,7 @@ void TTWeatherPage::armInputIdleSleep() {
         }
         requestLightSleep();
     });
-    LOG_I("Weather page: sleep in %d s if idle", TT_SLEEP_AFTER_REFRESH_MS / 1000);
+    LOG_I("Weather page: sleep in %d s if idle", TT_SLEEP_INPUT_IDLE_MS / 1000);
 }
 
 void TTWeatherPage::cancelInputIdleSleep() {
