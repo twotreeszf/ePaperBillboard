@@ -2,7 +2,7 @@
 
 #include <lvgl.h>
 #include "../Base/TTScreenPage.h"
-#include "../Base/TTNotificationPayloads.h"
+#include "../Models/TTNotificationPayloads.h"
 
 #define TT_NTP_BTN_GAP       12
 #define TT_NTP_STATUS_TOP    16

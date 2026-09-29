@@ -4,7 +4,7 @@
 #include "../Base/TTFirmwareVersion.h"
 #include "../Base/TTHttpsClient.h"
 #include "../Base/TTInstance.h"
-#include "../Base/TTNotificationPayloads.h"
+#include "../Models/TTNotificationPayloads.h"
 #include "../Tasks/TTUITask.h"
 #include "../Tasks/TTWiFiTask.h"
 #include <Arduino.h>

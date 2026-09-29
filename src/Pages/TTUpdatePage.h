@@ -1,7 +1,7 @@
 #pragma once
 
 #include "../Base/TTScreenPage.h"
-#include "../Base/TTNotificationPayloads.h"
+#include "../Models/TTNotificationPayloads.h"
 #include "../Service/TTOtaService.h"
 #include <EPDConfig.h>
 

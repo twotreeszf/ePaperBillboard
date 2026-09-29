@@ -2,7 +2,7 @@
 
 #include <lvgl.h>
 #include "../Base/TTScreenPage.h"
-#include "../Base/TTNotificationPayloads.h"
+#include "../Models/TTNotificationPayloads.h"
 
 #define TT_WIFI_STEPS_W_WITH_QR  210
 #define TT_WIFI_QR_RIGHT_PAD     8

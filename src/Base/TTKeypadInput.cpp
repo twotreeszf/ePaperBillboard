@@ -1,10 +1,21 @@
 #include "TTKeypadInput.h"
+#include <Arduino.h>
 #include "ITTNavigationController.h"
 #include "ITTScreenPage.h"
 #include "Logger.h"
+#include "TTKeypadConfig.h"
 #include "../Tasks/TTUITask.h"
 #include "TTInstance.h"
 #include <OneButton.h>
+
+TTKeypadInput::~TTKeypadInput() {
+    delete _btnL;
+    delete _btnR;
+    delete _btnC;
+    _btnL = nullptr;
+    _btnR = nullptr;
+    _btnC = nullptr;
+}
 
 void TTKeypadInput::keypadReadCb(lv_indev_t* indev, lv_indev_data_t* data) {
     TTKeypadInput* self = (TTKeypadInput*)lv_indev_get_user_data(indev);
@@ -32,11 +43,7 @@ void TTKeypadInput::emitKey(uint32_t key) {
     _pendingPress = true;
 }
 
-void TTKeypadInput::setup() {
-    /* PCB: BUTTON1/2/3 have 100kΩ pull-down to GND, C has 10kΩ pull-up to 3V3.
-     * When pressed, button connects C (HIGH) to BUTTON pin, so BUTTON goes HIGH.
-     * So idle = LOW (100kΩ pull-down), pressed = HIGH (active-high).
-     * GPIO 34/35/39 have no internal pull-up, use INPUT and rely on circuit. */
+void TTKeypadInput::init() {
     pinMode(PIN_BUTTONL, INPUT);
     pinMode(PIN_BUTTONR, INPUT);
     pinMode(PIN_BUTTONC, INPUT);
@@ -68,14 +75,16 @@ void TTKeypadInput::setup() {
     LOG_I("Keypad input: L=%d R=%d C=%d sampler %dms", PIN_BUTTONL, PIN_BUTTONR, PIN_BUTTONC, TT_KEYPAD_POLL_MS);
 }
 
-void TTKeypadInput::loop() {
-    sample();
-}
-
 void TTKeypadInput::sample() {
-    if (_btnL) _btnL->tick();
-    if (_btnR) _btnR->tick();
-    if (_btnC) _btnC->tick();
+    if (_btnL) {
+        _btnL->tick();
+    }
+    if (_btnR) {
+        _btnR->tick();
+    }
+    if (_btnC) {
+        _btnC->tick();
+    }
 }
 
 void TTKeypadInput::post(uint8_t key, uint8_t gesture) {
@@ -122,16 +131,12 @@ void TTKeypadInput::apply(uint8_t key, uint8_t gesture) {
     }
 }
 
-bool TTKeypadInput::begin(lv_display_t* display) {
-    if (!start(TT_KEYPAD_TASK_CORE, TT_KEYPAD_POLL_MS, TT_KEYPAD_TASK_PRIORITY)) {
-        return false;
-    }
-
+bool TTKeypadInput::attachIndev(lv_display_t* display) {
     _indev = lv_indev_create();
     lv_indev_set_type(_indev, LV_INDEV_TYPE_KEYPAD);
     lv_indev_set_read_cb(_indev, keypadReadCb);
     lv_indev_set_user_data(_indev, this);
     lv_indev_set_display(_indev, display);
     lv_indev_set_mode(_indev, LV_INDEV_MODE_TIMER);
-    return true;
+    return _indev != nullptr;
 }

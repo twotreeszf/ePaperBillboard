@@ -41,9 +41,9 @@ void TTUITask::setup() {
 
     lv_display_t* disp = TTInstanceOf<TTLvglEpdDriver>().getDisplay();
     ERR_CHECK_FAIL(_keypad.begin(disp));
-    _nav.setKeypadInput(&_keypad);
-    _keypad.setNavigationController(&_nav);
-    TTInstanceOf<TTPopupLayer>().setKeypadInput(&_keypad);
+    _nav.setKeypadInput(&_keypad.input());
+    _keypad.input().setNavigationController(&_nav);
+    TTInstanceOf<TTPopupLayer>().setKeypadInput(&_keypad.input());
 
     _nav.setRootPage(std::unique_ptr<TTScreenPage>(new TTHomePage()));
     TTInstanceOf<TTTimeService>().begin();
@@ -64,7 +64,7 @@ void TTUITask::requestDeepRefreshAsync() {
 
 void TTUITask::requestKeyGestureAsync(uint8_t key, uint8_t gesture) {
     auto* f = new std::function<void()>([this, key, gesture]() {
-        _keypad.apply(key, gesture);
+        _keypad.input().apply(key, gesture);
     });
     enqueue(f);
 }

@@ -1,7 +1,7 @@
 #pragma once
 
-#include "TTFile.h"
-#include "TTStreamImage.h"
+#include "../Base/TTFile.h"
+#include "../Base/TTStreamImage.h"
 #include <stdint.h>
 
 #define TT_PIC_URL_BASE          "https://epaper-board.tos-cn-beijing.volces.com/Comics/"

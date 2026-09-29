@@ -5,7 +5,7 @@
 #include <lvgl.h>
 #include "../Base/TTVTask.h"
 #include "../Base/TTNavigationController.h"
-#include "../Base/TTKeypadInput.h"
+#include "TTKeypadTask.h"
 
 #define TT_UI_LOOP_DELAY_MS  5
 #define TT_UI_WORK_QUEUE_LEN 16
@@ -35,5 +35,5 @@ private:
 
     EPaperDisplay _display;
     TTNavigationController _nav;
-    TTKeypadInput _keypad;
+    TTKeypadTask _keypad;
 };

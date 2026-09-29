@@ -1,7 +1,7 @@
 #pragma once
 
 #include "TTFile.h"
-#include "TTNotificationPayloads.h"
+#include "../Models/TTNotificationPayloads.h"
 #include <lvgl.h>
 
 #define TT_NAV_BAR_HEIGHT      20

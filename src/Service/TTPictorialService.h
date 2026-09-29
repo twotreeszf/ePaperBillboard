@@ -1,6 +1,6 @@
 #pragma once
 
-#include "../Base/TTPictorialTypes.h"
+#include "../Models/TTPictorialTypes.h"
 
 enum TTPicJob {
     TT_PIC_JOB_TODAY = 0,

@@ -4,7 +4,7 @@
 #include "TTInstance.h"
 #include "TTFontManager.h"
 #include "TTLvglEpdDriver.h"
-#include "TTNotificationPayloads.h"
+#include "../Models/TTNotificationPayloads.h"
 #include <cstring>
 
 static lv_obj_t* addDialogText(lv_obj_t* parent, const char* text, lv_text_align_t align, lv_font_t* font) {

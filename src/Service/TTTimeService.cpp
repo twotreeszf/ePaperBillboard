@@ -2,7 +2,7 @@
 #include "../Base/Logger.h"
 #include "../Base/TTInstance.h"
 #include "../Base/TTNotificationCenter.h"
-#include "../Base/TTNotificationPayloads.h"
+#include "../Models/TTNotificationPayloads.h"
 #include "../Base/TTRtc.h"
 #include "../Tasks/TTUITask.h"
 

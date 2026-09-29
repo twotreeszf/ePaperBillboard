@@ -3,7 +3,7 @@
 #include "../Base/TTHttpsClient.h"
 #include "../Base/TTFile.h"
 #include "../Base/TTInstance.h"
-#include "../Base/TTNotificationPayloads.h"
+#include "../Models/TTNotificationPayloads.h"
 #include "../Base/TTPreference.h"
 #include "../Base/TTRtc.h"
 #include "../Tasks/TTUITask.h"

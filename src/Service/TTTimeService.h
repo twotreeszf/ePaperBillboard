@@ -1,7 +1,7 @@
 #pragma once
 
 #include <stdint.h>
-#include "../Base/TTNotificationPayloads.h"
+#include "../Models/TTNotificationPayloads.h"
 
 class TTTimeService {
 public:

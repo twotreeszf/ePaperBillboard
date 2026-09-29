@@ -4,7 +4,7 @@
 #include <WebServer.h>
 #include <DNSServer.h>
 #include <vector>
-#include "TTNotificationPayloads.h"
+#include "../Models/TTNotificationPayloads.h"
 
 #define PREF_WIFI_NETWORKS   "wifi_networks"
 #define PREF_WIFI_LAST_SSID  "wifi_last_ssid"

@@ -2,9 +2,8 @@
 
 #include "../Base/TTFile.h"
 #include "../Base/TTScreenPage.h"
-#include "../Base/TTPictorialTypes.h"
-#include "../Base/TTNotificationPayloads.h"
-#include "../Base/TTWeatherTypes.h"
+#include "../Models/TTPictorialTypes.h"
+#include "../Models/TTNotificationPayloads.h"
 #include "../Service/TTSleepService.h"
 
 #define TT_PIC_UPDATING_TEXT  "正在更新"

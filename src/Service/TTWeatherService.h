@@ -1,7 +1,7 @@
 #pragma once
 
 #include "../Base/TTFile.h"
-#include "../Base/TTWeatherTypes.h"
+#include "../Models/TTWeatherTypes.h"
 
 #define TT_WEATHER_CACHE_PATH        TT_FS_TMP_DIR "/weather.bin"
 #define TT_WEATHER_CACHE_MAGIC       0x52544857u

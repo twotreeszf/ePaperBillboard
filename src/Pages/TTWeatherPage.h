@@ -3,7 +3,7 @@
 #include "../Base/TTFile.h"
 #include <lvgl.h>
 #include "../Base/TTScreenPage.h"
-#include "../Base/TTNotificationPayloads.h"
+#include "../Models/TTNotificationPayloads.h"
 #include "../Service/TTSleepService.h"
 
 #define TT_WEATHER_TEMP_FONT      48

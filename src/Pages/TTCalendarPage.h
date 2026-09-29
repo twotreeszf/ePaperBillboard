@@ -2,9 +2,8 @@
 
 #include "../Base/TTFile.h"
 #include "../Base/TTScreenPage.h"
-#include "../Base/TTCalendarTypes.h"
-#include "../Base/TTNotificationPayloads.h"
-#include "../Base/TTWeatherTypes.h"
+#include "../Models/TTCalendarTypes.h"
+#include "../Models/TTNotificationPayloads.h"
 #include "../Service/TTSleepService.h"
 
 #define TT_CAL_CLOCK_GLYPHS    5

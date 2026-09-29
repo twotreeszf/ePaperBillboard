@@ -3,7 +3,7 @@
 #include "TTSensorTask.h"
 #include "../Base/Logger.h"
 #include "../Base/TTInstance.h"
-#include "../Base/TTNotificationPayloads.h"
+#include "../Models/TTNotificationPayloads.h"
 #include "../Base/TTRtc.h"
 #include <ctime>
 #include <cstring>

@@ -2,7 +2,7 @@
 
 #include <lvgl.h>
 #include "../Base/TTScreenPage.h"
-#include "../Base/TTNotificationPayloads.h"
+#include "../Models/TTNotificationPayloads.h"
 
 #define TT_WIFI_STATUS_BTN_GAP    8
 #define TT_WIFI_STATUS_TOP        16

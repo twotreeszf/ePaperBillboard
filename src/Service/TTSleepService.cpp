@@ -2,7 +2,7 @@
 #include "../Base/Logger.h"
 #include "../Base/TTInstance.h"
 #include "../Base/TTLvglEpdDriver.h"
-#include "../Base/TTNotificationPayloads.h"
+#include "../Models/TTNotificationPayloads.h"
 #include "../Base/TTNotificationCenter.h"
 #include "../Base/TTPopupLayer.h"
 #include "../Base/TTRtc.h"
