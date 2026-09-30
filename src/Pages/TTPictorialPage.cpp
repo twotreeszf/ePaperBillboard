@@ -69,8 +69,12 @@ void TTPictorialPage::buildContent(lv_obj_t* screen) {
     lv_font_t* fontDate = fonts.getFont(TT_CAL_DATE_EN_FONT);
     lv_font_t* fontWeek = fonts.getFont(TT_CAL_WEEK_FONT);
     lv_font_t* fontCond = fonts.getFont(TT_CAL_COND_FONT);
+    lv_font_t* font10 = fonts.getFont(TT_CAL_PAGE_FONT);
     if (fontTemp == nullptr) {
         fontTemp = font16;
+    }
+    if (font10 == nullptr) {
+        font10 = font16;
     }
     if (fontClock == nullptr) {
         fontClock = fontTemp;
@@ -142,7 +146,8 @@ void TTPictorialPage::buildContent(lv_obj_t* screen) {
 
     _pickPanel = lv_obj_create(screen);
     lv_obj_set_size(_pickPanel, artW - 24,
-                    TT_PIC_PICK_ROWS * TT_PIC_PICK_ROW_H + TT_PIC_PICK_INSET * 2 + TT_PIC_PICK_BORDER * 2);
+                    TT_PIC_PICK_ROWS * TT_PIC_PICK_ROW_H + TT_PIC_PICK_ORDINAL_H + TT_PIC_PICK_INSET * 2
+                        + TT_PIC_PICK_BORDER * 2);
     lv_obj_align(_pickPanel, LV_ALIGN_CENTER, TT_CAL_SIDE_W / 2, 0);
     lv_obj_set_style_bg_color(_pickPanel, lv_color_white(), 0);
     lv_obj_set_style_bg_opa(_pickPanel, LV_OPA_COVER, 0);
@@ -160,14 +165,30 @@ void TTPictorialPage::buildContent(lv_obj_t* screen) {
     lv_obj_set_clickable(_pickPanel, false);
     lv_obj_set_hidden(_pickPanel, true);
     for (int i = 0; i < TT_PIC_PICK_ROWS; i++) {
-        _pickRows[i] = createLabel(_pickPanel, font16, lv_color_black(), "");
+        _pickRows[i] = lv_obj_create(_pickPanel);
         lv_obj_set_width(_pickRows[i], LV_PCT(100));
         lv_obj_set_height(_pickRows[i], TT_PIC_PICK_ROW_H);
+        lv_obj_set_style_bg_opa(_pickRows[i], LV_OPA_COVER, 0);
+        lv_obj_set_style_border_width(_pickRows[i], 0, 0);
+        lv_obj_set_style_pad_all(_pickRows[i], 0, 0);
         lv_obj_set_style_pad_left(_pickRows[i], 8, 0);
-        lv_obj_set_style_pad_top(_pickRows[i], (TT_PIC_PICK_ROW_H - TT_CAL_TEXT_FONT) / 2, 0);
-        lv_label_set_long_mode(_pickRows[i], LV_LABEL_LONG_CLIP);
+        lv_obj_set_style_pad_right(_pickRows[i], 8, 0);
         lv_obj_set_clickable(_pickRows[i], false);
+
+        _pickNames[i] = createLabel(_pickRows[i], font16, lv_color_black(), "");
+        lv_obj_set_style_bg_opa(_pickNames[i], LV_OPA_TRANSP, 0);
+        lv_obj_set_width(_pickNames[i], LV_PCT(100));
+        lv_label_set_long_mode(_pickNames[i], LV_LABEL_LONG_CLIP);
+        lv_obj_set_style_text_align(_pickNames[i], LV_TEXT_ALIGN_LEFT, 0);
+        lv_obj_align(_pickNames[i], LV_ALIGN_LEFT_MID, 0, 0);
     }
+
+    _pickOrdinal = createLabel(_pickPanel, font10, lv_color_black(), "");
+    lv_obj_set_width(_pickOrdinal, LV_PCT(100));
+    lv_obj_set_height(_pickOrdinal, TT_PIC_PICK_ORDINAL_H);
+    lv_obj_set_style_bg_opa(_pickOrdinal, LV_OPA_TRANSP, 0);
+    lv_obj_set_style_text_align(_pickOrdinal, LV_TEXT_ALIGN_RIGHT, 0);
+    lv_obj_set_style_pad_right(_pickOrdinal, 2, 0);
 
     _hit = lv_btn_create(screen);
     lv_obj_set_pos(_hit, 0, 0);
@@ -693,11 +714,17 @@ void TTPictorialPage::showPicker() {
             continue;
         }
         const bool selected = index == _pickIndex;
-        lv_label_set_text(_pickRows[row], series.name);
-        lv_obj_set_style_bg_color(_pickRows[row], selected ? lv_color_black() : lv_color_white(), 0);
-        lv_obj_set_style_bg_opa(_pickRows[row], LV_OPA_COVER, 0);
-        lv_obj_set_style_text_color(_pickRows[row], selected ? lv_color_white() : lv_color_black(), 0);
+        const lv_color_t ink = selected ? lv_color_white() : lv_color_black();
+        const lv_color_t paper = selected ? lv_color_black() : lv_color_white();
+        lv_label_set_text(_pickNames[row], series.name);
+        lv_obj_set_style_bg_color(_pickRows[row], paper, 0);
+        lv_obj_set_style_text_color(_pickNames[row], ink, 0);
         lv_obj_set_hidden(_pickRows[row], false);
+    }
+    if (_pickOrdinal != nullptr) {
+        char ordinal[16];
+        snprintf(ordinal, sizeof(ordinal), "%u/%u", (unsigned)(_pickIndex + 1), (unsigned)count);
+        lv_label_set_text(_pickOrdinal, ordinal);
     }
     if (_status != nullptr) {
         lv_obj_set_hidden(_status, true);
