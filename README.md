@@ -2,7 +2,7 @@
 
 ESP32-WROOM-32E weather and calendar billboard: LVGL 9, custom binary fonts, LittleFS icons, indoor sensors, Open-Meteo, and CalDAV over a small TLS 1.2 client. UI is a page stack with an always-on status bar and E-Paper three-level refresh (partial / full-screen partial / deep full).
 
-**Contents:** [Hardware](#hardware) · [Build & Flash](#build--flash) · [Fonts](#fonts) · [Icons](#icons) · [E-Ink / LVGL](#e-ink-refresh-strategy) · [Software Architecture](#software-architecture) · [Keypad & focus](#keypad--focus)
+**Contents:** [Hardware](#hardware) · [Build & Flash](#build--flash) · [Fonts](#fonts) · [Icons](#icons) · [Comics (pictorial)](#comics-pictorial) · [E-Ink / LVGL](#e-ink-refresh-strategy) · [Software Architecture](#software-architecture) · [Keypad & focus](#keypad--focus)
 
 ## Hardware
 
@@ -107,7 +107,7 @@ Sources live in `tools/fonts/`. After replacing a `.bin`, run `uploadfs`.
 ```bash
 npm install -g lv_font_conv
 cd tools
-python3 -m venv venv
+/opt/homebrew/bin/python3 -m venv venv
 source venv/bin/activate
 pip install -r requirements.txt
 ```
@@ -163,6 +163,101 @@ node slice_lucide_icons.mjs
 node slice_weather_icons.mjs
 pio run --target uploadfs
 ```
+
+## Comics (pictorial)
+
+The **画报** page loads series from TOS (`Comics/Manifest.json`; base URL in `TTPictorialTypes.h`). Each series is one Chinese title; pages are `Comics/<pinyin>/0001.i1`, `0002.i1`, … (280×280 **TTI1**, same format as on-device icons). Publishing is offline tooling only (`tools/comics/` is gitignored).
+
+### Directories
+
+| Path | Role |
+|------|------|
+| `tools/comics/input/` | Source scans (`.jpg` / `.png` / …), any subfolder layout |
+| `tools/comics/output/` | 1024×1024 1-bit PNG from the image API; `progress.json` tracks done / failed / skipped |
+| `tools/comics/prepare/<系列名>/` | Final PNGs before pack: `0001.png` … `NNNN.png`, **no gaps** |
+| `tools/comics/Publish/<系列名>/` | Packed `0001.i1` … plus `Manifest.json` for upload |
+
+Use one **prepare** folder per series (Chinese folder name = name on device). To ship multiple volumes as one series, merge pages in order and renumber continuously (e.g. vol.1 pages → `0001`–`0200`, vol.2 → `0201`–`0381`). If a source file is missing, drop that page and renumber so the sequence stays contiguous—`sync_comics.py` rejects holes in page numbers.
+
+### Environment
+
+Project root `.env` (TOS keys are the same as `tools/publish_firmware.py`):
+
+| Variable | Used by |
+|----------|---------|
+| `UUROUTE_API_KEY` | `eink_comic.py`, `batch_eink_comic.py` |
+| `UUROUTE_BASE_URL`, `UUROUTE_MODEL` | Optional overrides (default `https://api.uuroute.ai`, `gemini-3.1-flash-image`) |
+| `TOS_ACCESS_KEY_ID`, `TOS_SECRET_ACCESS_KEY`, `TOS_BUCKET`, `TOS_REGION` | `sync_comics.py` (via `publish_firmware.load_env`) |
+
+### Python setup
+
+From the repo root (Homebrew Python recommended so HTTPS to the API validates cleanly):
+
+```bash
+/opt/homebrew/bin/python3 -m venv tools/venv
+source tools/venv/bin/activate
+pip install -r tools/requirements.txt pypinyin
+```
+
+### Pipeline
+
+**1. Generate e-ink panels (API)** — picks the best panel per page and redraws it as square B/W art:
+
+```bash
+python tools/batch_eink_comic.py
+# optional: --input tools/comics/input --output tools/comics/output
+```
+
+Re-run until exit code `0`. Finished pages are skipped; failures stay in `output/progress.json` for retry. `IMAGE_SAFETY` skips are recorded and not retried.
+
+**2. Stage for pack** — copy PNGs into `tools/comics/prepare/<系列名>/` as contiguous four-digit names (`0001.png`, `0002.png`, …). Example after batch output under `output/海贼王/VOL.001` and `VOL.002`:
+
+```bash
+python - <<'PY'
+import shutil
+from pathlib import Path
+root = Path("tools/comics")
+vols = sorted((root / "output/海贼王").glob("VOL.*"))
+dest = root / "prepare/海贼王"
+dest.mkdir(parents=True, exist_ok=True)
+pages = []
+for vol in vols:
+    pages.extend(sorted(vol.glob("*.png"), key=lambda p: int(p.stem)))
+for i, src in enumerate(pages, 1):
+    shutil.copy2(src, dest / f"{i:04d}.png")
+print(len(pages), "pages ->", dest)
+PY
+```
+
+**3. Pack TTI1** — renames to four-digit stems if needed, fits each 1024 PNG into 280×280 ink, writes `Publish/`:
+
+```bash
+python tools/publish_comics.py
+# --prepare tools/comics/prepare --publish tools/comics/Publish
+```
+
+**4. Upload to TOS** — writes `Publish/Manifest.json` (series list + counts), uploads `Comics/**`, drops remote objects no longer in the tree:
+
+```bash
+python tools/sync_comics.py
+```
+
+Manifest item order follows **sorted Chinese folder names** under `Publish/`; the **first** series is the device default. Pinyin paths must be unique (`haizeiwang`, `jiqimao`, …).
+
+### Single-page test
+
+```bash
+python tools/eink_comic.py path/to/page.jpg -o /tmp/page.eink.png
+```
+
+### Limits (enforced by `sync_comics.py`)
+
+| Limit | Value |
+|-------|--------|
+| Series count | 24 |
+| Page file | `0001.i1` … `9999.i1`, contiguous, ≤ 32 KiB each |
+| Manifest | ≤ 8 KiB UTF-8 |
+| TTI1 size | ≤ 400×300 (publisher uses 280×280) |
 
 ## E-Ink Refresh Strategy
 

@@ -26,6 +26,7 @@ data/res/manifest.json
 *~
 __pycache__/
 *.pyc
+tools/venv/
 
 managed_components/
 .dummy/

@@ -260,7 +260,7 @@ bool TTPictorialPage::handleKeyAction(TTKeyId key, TTKeyGesture gesture) {
             if (count == 0) {
                 return true;
             }
-            if (key == TT_KEY_RIGHT) {
+            if (key == TT_KEY_LEFT) {
                 _pickIndex = (uint8_t)((_pickIndex + 1) % count);
             } else {
                 _pickIndex = (uint8_t)((_pickIndex + count - 1) % count);
