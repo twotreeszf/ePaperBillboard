@@ -165,7 +165,7 @@ pio run --target uploadfs
 
 ## Comics (pictorial)
 
-The **画报** page loads series from TOS (`Comics/Manifest.json`; base URL in `TTPictorialTypes.h`). Each series is one Chinese title; pages are `Comics/<pinyin>/0001.i1`, `0002.i1`, … (280×280 **TTI1**, same format as on-device icons). Publishing is offline tooling only (`tools/comics/` is gitignored).
+The **画报** page loads series from TOS (`Comics/Manifest.json`; base URL in `TTPictorialTypes.h`). Each series is one Chinese title; pages are `Comics/<pinyin>/0001.i1`, `0002.i1`, … (280×280 **TTI1**, same format as on-device icons). `tools/comics/input/` and `output/` stay local; `prepare/` and `publish/` are tracked for packed series assets.
 
 ### Directories
 
@@ -174,7 +174,7 @@ The **画报** page loads series from TOS (`Comics/Manifest.json`; base URL in `
 | `tools/comics/input/` | Source pages (`.jpg` / `.png` / …), one top-level folder per series; PDFs can sit here for raster prep (see below) |
 | `tools/comics/output/` | 1024×1024 1-bit PNG from the image API; `progress.json` tracks done / failed / skipped |
 | `tools/comics/prepare/<系列名>/` | Staging copy of output (rewritten by `publish_comics.py`) |
-| `tools/comics/Publish/<系列名>/` | Packed `0001.i1` … plus `Manifest.json` for upload |
+| `tools/comics/publish/<系列名>/` | Packed `0001.i1` … plus `Manifest.json` for upload |
 
 One **output** top-level folder per series (Chinese name = name on device). Nested folders under output are flattened; page order follows sorted relative paths, then contiguous `0001`… numbering. Missing API pages simply omit from output—staging keeps the sequence gap-free for `sync_comics.py`.
 
@@ -204,8 +204,8 @@ pip install -r tools/requirements.txt
 |--------|------|
 | `tools/extract_images.py` | Pull embedded images from `.pdf` / `.epub` / `.mobi` / `.zip` into `<stem>/0001.jpg` … beside the file |
 | `tools/batch_eink_comic.py` | Batch API redraw → `output/` |
-| `tools/publish_comics.py` | `output/` → `prepare/` (flatten + renumber) → `Publish/*.i1` |
-| `tools/sync_comics.py` | `Publish/` → TOS `Comics/` |
+| `tools/publish_comics.py` | `output/` → `prepare/` (flatten + renumber) → `publish/*.i1` |
+| `tools/sync_comics.py` | `publish/` → TOS `Comics/` |
 | `tools/eink_comic.py` | Single-page API test |
 
 Scanned PDFs without usable embedded images must be rasterized to JPG/PNG under `input/<系列名>/` first (for example with PyMuPDF). `extract_images.py` only extracts embedded bitmaps, not full page renders.
@@ -223,7 +223,7 @@ python tools/batch_eink_comic.py
 
 Re-run until exit code `0`. Finished pages are skipped; failures stay in `output/progress.json` for retry. `IMAGE_SAFETY` skips are recorded and not retried. Up to 10 pages run in parallel (`--workers`).
 
-**2. Pack TTI1** — default one command: flatten each series under `output/` into `prepare/` (`0001`…, no gaps), then pack to `Publish/` (10 workers). Skips `.i1` files that are already up to date vs `prepare/` (mtime).
+**2. Pack TTI1** — default one command: flatten each series under `output/` into `prepare/` (`0001`…, no gaps), then pack to `publish/` (10 workers). Skips `.i1` files that are already up to date vs `prepare/` (mtime).
 
 ```bash
 python tools/publish_comics.py
@@ -236,13 +236,13 @@ python tools/publish_comics.py
 | `--stage-only` | Restage into `prepare/` only, no pack |
 | `--workers N` | Pack pool size (1–10, default 10) |
 
-**3. Upload to TOS** — writes `Publish/Manifest.json` when it changed, uploads only new or changed `Comics/**` objects (size + ETag/MD5 match → `keep`), drops remote objects no longer in the tree:
+**3. Upload to TOS** — writes `publish/Manifest.json` when it changed, uploads only new or changed `Comics/**` objects (size + ETag/MD5 match → `keep`), drops remote objects no longer in the tree:
 
 ```bash
 python tools/sync_comics.py
 ```
 
-Manifest item order follows **sorted Chinese folder names** under `Publish/`; the **first** series is the device default. Pinyin paths must be unique (`haizeiwang`, `jiqimao`, …).
+Manifest item order follows **sorted Chinese folder names** under `publish/`; the **first** series is the device default. Pinyin paths must be unique (`haizeiwang`, `jiqimao`, …).
 
 ### Single-page test
 

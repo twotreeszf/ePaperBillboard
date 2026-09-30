@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Build Comics/Manifest.json from Publish and sync that tree to TOS.
+"""Build Comics/Manifest.json from publish and sync that tree to TOS.
 
 Name each series folder in Chinese. The script turns that name into the TOS
 pinyin directory. Pages are 0001.i1, 0002.i1, ... with no gaps. Manifest order
@@ -96,7 +96,7 @@ def to_pinyin(name, lazy_pinyin, style):
 
 def scan_series(publish):
     if not publish.is_dir():
-        raise SystemExit(f"Publish directory not found: {publish}")
+        raise SystemExit(f"publish directory not found: {publish}")
     style, lazy_pinyin = load_pinyin()
     series = []
     seen = {}
@@ -258,7 +258,7 @@ def publish(publish_dir):
 
 
 def main():
-    publish(project_root() / "tools" / "comics" / "Publish")
+    publish(project_root() / "tools" / "comics" / "publish")
 
 
 if __name__ == "__main__":

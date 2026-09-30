@@ -241,7 +241,7 @@ def main():
     parser = argparse.ArgumentParser(description="Pack prepared comics as 4-digit TTI1 pages.")
     parser.add_argument("--output", type=Path, default=root / "tools" / "comics" / "output")
     parser.add_argument("--prepare", type=Path, default=root / "tools" / "comics" / "prepare")
-    parser.add_argument("--publish", type=Path, default=root / "tools" / "comics" / "Publish")
+    parser.add_argument("--publish", type=Path, default=root / "tools" / "comics" / "publish")
     parser.add_argument(
         "--series",
         help="Only restage this top-level folder name under output (default: all series)",
@@ -254,7 +254,7 @@ def main():
     parser.add_argument(
         "--stage-only",
         action="store_true",
-        help="Only restage output into prepare; do not pack to Publish",
+        help="Only restage output into prepare; do not pack to publish",
     )
     parser.add_argument(
         "--workers",
