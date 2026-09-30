@@ -106,10 +106,9 @@ Sources live in `tools/fonts/`. After replacing a `.bin`, run `uploadfs`.
 
 ```bash
 npm install -g lv_font_conv
-cd tools
-/opt/homebrew/bin/python3 -m venv venv
-source venv/bin/activate
-pip install -r requirements.txt
+/opt/homebrew/bin/python3 -m venv tools/venv
+source tools/venv/bin/activate
+pip install -r tools/requirements.txt
 ```
 
 ```text
@@ -172,12 +171,12 @@ The **画报** page loads series from TOS (`Comics/Manifest.json`; base URL in `
 
 | Path | Role |
 |------|------|
-| `tools/comics/input/` | Source scans (`.jpg` / `.png` / …), any subfolder layout |
+| `tools/comics/input/` | Source pages (`.jpg` / `.png` / …), one top-level folder per series; PDFs can sit here for raster prep (see below) |
 | `tools/comics/output/` | 1024×1024 1-bit PNG from the image API; `progress.json` tracks done / failed / skipped |
-| `tools/comics/prepare/<系列名>/` | Final PNGs before pack: `0001.png` … `NNNN.png`, **no gaps** |
+| `tools/comics/prepare/<系列名>/` | Staging copy of output (rewritten by `publish_comics.py`) |
 | `tools/comics/Publish/<系列名>/` | Packed `0001.i1` … plus `Manifest.json` for upload |
 
-Use one **prepare** folder per series (Chinese folder name = name on device). To ship multiple volumes as one series, merge pages in order and renumber continuously (e.g. vol.1 pages → `0001`–`0200`, vol.2 → `0201`–`0381`). If a source file is missing, drop that page and renumber so the sequence stays contiguous—`sync_comics.py` rejects holes in page numbers.
+One **output** top-level folder per series (Chinese name = name on device). Nested folders under output are flattened; page order follows sorted relative paths, then contiguous `0001`… numbering. Missing API pages simply omit from output—staging keeps the sequence gap-free for `sync_comics.py`.
 
 ### Environment
 
@@ -196,10 +195,24 @@ From the repo root (Homebrew Python recommended so HTTPS to the API validates cl
 ```bash
 /opt/homebrew/bin/python3 -m venv tools/venv
 source tools/venv/bin/activate
-pip install -r tools/requirements.txt pypinyin
+pip install -r tools/requirements.txt
 ```
 
+### Scripts
+
+| Script | Role |
+|--------|------|
+| `tools/extract_images.py` | Pull embedded images from `.pdf` / `.epub` / `.mobi` / `.zip` into `<stem>/0001.jpg` … beside the file |
+| `tools/batch_eink_comic.py` | Batch API redraw → `output/` |
+| `tools/publish_comics.py` | `output/` → `prepare/` (flatten + renumber) → `Publish/*.i1` |
+| `tools/sync_comics.py` | `Publish/` → TOS `Comics/` |
+| `tools/eink_comic.py` | Single-page API test |
+
+Scanned PDFs without usable embedded images must be rasterized to JPG/PNG under `input/<系列名>/` first (for example with PyMuPDF). `extract_images.py` only extracts embedded bitmaps, not full page renders.
+
 ### Pipeline
+
+**0. Input (optional)** — place scans under `tools/comics/input/<系列名>/`, or run `python tools/extract_images.py tools/comics/input/book.pdf` when the file carries embedded page images.
 
 **1. Generate e-ink panels (API)** — picks the best panel per page and redraws it as square B/W art:
 
@@ -208,35 +221,22 @@ python tools/batch_eink_comic.py
 # optional: --input tools/comics/input --output tools/comics/output
 ```
 
-Re-run until exit code `0`. Finished pages are skipped; failures stay in `output/progress.json` for retry. `IMAGE_SAFETY` skips are recorded and not retried.
+Re-run until exit code `0`. Finished pages are skipped; failures stay in `output/progress.json` for retry. `IMAGE_SAFETY` skips are recorded and not retried. Up to 10 pages run in parallel (`--workers`).
 
-**2. Stage for pack** — copy PNGs into `tools/comics/prepare/<系列名>/` as contiguous four-digit names (`0001.png`, `0002.png`, …). Example after batch output under `output/海贼王/VOL.001` and `VOL.002`:
-
-```bash
-python - <<'PY'
-import shutil
-from pathlib import Path
-root = Path("tools/comics")
-vols = sorted((root / "output/海贼王").glob("VOL.*"))
-dest = root / "prepare/海贼王"
-dest.mkdir(parents=True, exist_ok=True)
-pages = []
-for vol in vols:
-    pages.extend(sorted(vol.glob("*.png"), key=lambda p: int(p.stem)))
-for i, src in enumerate(pages, 1):
-    shutil.copy2(src, dest / f"{i:04d}.png")
-print(len(pages), "pages ->", dest)
-PY
-```
-
-**3. Pack TTI1** — renames to four-digit stems if needed, fits each 1024 PNG into 280×280 ink, writes `Publish/`:
+**2. Pack TTI1** — default one command: flatten each series under `output/` into `prepare/` (`0001`…, no gaps), then pack to `Publish/` (10 workers). Skips `.i1` files that are already up to date vs `prepare/` (mtime).
 
 ```bash
 python tools/publish_comics.py
-# --prepare tools/comics/prepare --publish tools/comics/Publish
 ```
 
-**4. Upload to TOS** — writes `Publish/Manifest.json` (series list + counts), uploads `Comics/**`, drops remote objects no longer in the tree:
+| Flag | Effect |
+|------|--------|
+| `--series <name>` | Restage only one top-level folder under `output/` |
+| `--skip-stage` | Pack existing `prepare/` only (no read from `output/`) |
+| `--stage-only` | Restage into `prepare/` only, no pack |
+| `--workers N` | Pack pool size (1–10, default 10) |
+
+**3. Upload to TOS** — writes `Publish/Manifest.json` when it changed, uploads only new or changed `Comics/**` objects (size + ETag/MD5 match → `keep`), drops remote objects no longer in the tree:
 
 ```bash
 python tools/sync_comics.py

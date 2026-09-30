@@ -40,7 +40,22 @@ def md5_file(path):
     with path.open("rb") as handle:
         for chunk in iter(lambda: handle.read(1024 * 1024), b""):
             digest.update(chunk)
-    return digest.hexdigest()
+    return digest.hexdigest().lower()
+
+
+_FILE_MD5_CACHE = {}
+
+
+def file_md5(path):
+    path = Path(path)
+    stat = path.stat()
+    cache_key = (str(path), stat.st_mtime_ns, stat.st_size)
+    cached = _FILE_MD5_CACHE.get(cache_key)
+    if cached is not None:
+        return cached
+    digest = md5_file(path)
+    _FILE_MD5_CACHE[cache_key] = digest
+    return digest
 
 
 def check_i1(path):
@@ -157,9 +172,25 @@ def list_remote(client, bucket):
     return found
 
 
+def remote_etag(item):
+    return str(getattr(item, "etag", "") or "").strip('"').lower()
+
+
 def remote_same(item, path):
-    etag = str(getattr(item, "etag", "")).strip('"')
-    return getattr(item, "size", None) == path.stat().st_size and etag == md5_file(path)
+    path = Path(path)
+    remote_size = getattr(item, "size", None)
+    if remote_size is None:
+        return False
+    try:
+        local_size = path.stat().st_size
+    except OSError:
+        return False
+    if int(remote_size) != int(local_size):
+        return False
+    etag = remote_etag(item)
+    if not etag:
+        return False
+    return etag == file_md5(path)
 
 
 def content_type(key):
@@ -171,6 +202,7 @@ def content_type(key):
 def sync_objects(client, bucket, objects, remote):
     uploaded = 0
     kept = 0
+    uploaded_keys = []
     manifest_key = f"{COMICS_PREFIX}/{MANIFEST_NAME}"
     ordered = sorted(objects.items(), key=lambda item: (item[1] == manifest_key, item[1]))
     for path, key in ordered:
@@ -183,7 +215,8 @@ def sync_objects(client, bucket, objects, remote):
         client.put_object_from_file(
             bucket, key, str(path), content_type=content_type(key), acl=ACLType.ACL_Public_Read)
         uploaded += 1
-    for key in objects.values():
+        uploaded_keys.append(key)
+    for key in uploaded_keys:
         client.put_object_acl(bucket, key, acl=ACLType.ACL_Public_Read)
     deleted = 0
     for key in sorted(remote):
@@ -197,12 +230,21 @@ def sync_objects(client, bucket, objects, remote):
     print(f"synced upload={uploaded} keep={kept} delete={deleted}")
 
 
+def write_manifest(manifest_path, body):
+    if manifest_path.is_file() and manifest_path.read_bytes() == body:
+        print(f"manifest unchanged {manifest_path}")
+        return
+    manifest_path.write_bytes(body)
+    print(f"manifest updated {manifest_path}")
+
+
 def publish(publish_dir):
+    _FILE_MD5_CACHE.clear()
     series = scan_series(publish_dir)
     body = manifest_bytes(series)
     manifest_path = publish_dir / MANIFEST_NAME
-    manifest_path.write_bytes(body)
-    print(f"manifest {manifest_path} series={len(series)}")
+    write_manifest(manifest_path, body)
+    print(f"manifest series={len(series)}")
     for item in series:
         print(f"series {item['pinyin']} name={item['name']} count={item['count']}")
 

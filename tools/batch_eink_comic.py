@@ -10,6 +10,7 @@ import json
 import os
 import sys
 import traceback
+from concurrent.futures import ProcessPoolExecutor, as_completed
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
@@ -20,6 +21,7 @@ IMAGE_SUFFIXES = {".jpg", ".jpeg", ".png", ".webp", ".gif"}
 DEFAULT_INPUT = eink_comic.project_root() / "tools" / "comics" / "input"
 DEFAULT_OUTPUT = eink_comic.project_root() / "tools" / "comics" / "output"
 PROGRESS_NAME = "progress.json"
+MAX_WORKERS = 10
 
 
 def list_pages(input_dir):
@@ -60,11 +62,18 @@ def save_progress(path, progress):
     temporary.replace(path)
 
 
-def redraw_page(source, destination, api_key, base_url, model, threshold):
-    eink_comic.render_page(source, destination, api_key, base_url, model, threshold)
+def redraw_page_worker(source, destination, api_key, base_url, model, threshold):
+    eink_comic.render_page(
+        Path(source),
+        Path(destination),
+        api_key,
+        base_url,
+        model,
+        threshold,
+    )
 
 
-def run_batch(input_dir, output_dir, api_key, base_url, model, threshold):
+def run_batch(input_dir, output_dir, api_key, base_url, model, threshold, workers):
     pages = list_pages(input_dir)
     if not pages:
         raise SystemExit(f"No comic pages in {input_dir}")
@@ -75,6 +84,7 @@ def run_batch(input_dir, output_dir, api_key, base_url, model, threshold):
     skipped = 0
     blocked = 0
     finished = 0
+    pending = []
 
     for index, source in enumerate(pages, start=1):
         key = relative_key(input_dir, source)
@@ -87,29 +97,49 @@ def run_batch(input_dir, output_dir, api_key, base_url, model, threshold):
             skipped += 1
             print(f"[{index}/{total}] skip {key}")
             continue
-        print(f"[{index}/{total}] draw {key}")
-        try:
-            redraw_page(source, destination, api_key, base_url, model, threshold)
-        except eink_comic.ImageBlocked:
-            progress["done"].pop(key, None)
+        pending.append((index, key, source, destination))
+
+    if pending:
+        print(f"draw {len(pending)} pages with {workers} workers")
+    with ProcessPoolExecutor(max_workers=workers) as pool:
+        futures = {
+            pool.submit(
+                redraw_page_worker,
+                str(source),
+                str(destination),
+                api_key,
+                base_url,
+                model,
+                threshold,
+            ): (index, key, destination)
+            for index, key, source, destination in pending
+        }
+        for future in as_completed(futures):
+            index, key, destination = futures[future]
+            print(f"[{index}/{total}] draw {key}")
+            try:
+                future.result()
+            except eink_comic.ImageBlocked:
+                progress["done"].pop(key, None)
+                progress["failed"].pop(key, None)
+                progress["skipped"][key] = "IMAGE_SAFETY"
+                save_progress(progress_path, progress)
+                blocked += 1
+                print(f"[{index}/{total}] skip {key}: IMAGE_SAFETY")
+                continue
+            except (Exception, SystemExit) as error:
+                message = str(error).strip() or traceback.format_exc(limit=1).strip()
+                progress["done"].pop(key, None)
+                progress["failed"][key] = message
+                save_progress(progress_path, progress)
+                print(f"[{index}/{total}] fail {key}: {message}")
+                continue
             progress["failed"].pop(key, None)
-            progress["skipped"][key] = "IMAGE_SAFETY"
+            progress["skipped"].pop(key, None)
+            progress["done"][key] = destination.relative_to(output_dir).as_posix()
             save_progress(progress_path, progress)
-            blocked += 1
-            print(f"[{index}/{total}] skip {key}: IMAGE_SAFETY")
-            continue
-        except (Exception, SystemExit) as error:
-            message = str(error).strip() or traceback.format_exc(limit=1).strip()
-            progress["done"].pop(key, None)
-            progress["failed"][key] = message
-            save_progress(progress_path, progress)
-            print(f"[{index}/{total}] fail {key}: {message}")
-            continue
-        progress["failed"].pop(key, None)
-        progress["skipped"].pop(key, None)
-        progress["done"][key] = destination.relative_to(output_dir).as_posix()
-        save_progress(progress_path, progress)
-        finished += 1
+            finished += 1
+            print(f"[{index}/{total}] ok {key}")
 
     remaining = len(progress["failed"])
     print(
@@ -132,7 +162,14 @@ def main():
     parser.add_argument("--threshold", type=int, default=eink_comic.DEFAULT_THRESHOLD)
     parser.add_argument("--model", default=os.environ.get("UUROUTE_MODEL", eink_comic.DEFAULT_MODEL))
     parser.add_argument("--base-url", default=os.environ.get("UUROUTE_BASE_URL", eink_comic.DEFAULT_BASE_URL))
+    parser.add_argument(
+        "--workers",
+        type=int,
+        default=MAX_WORKERS,
+        help=f"Parallel worker processes (1–{MAX_WORKERS}, default {MAX_WORKERS})",
+    )
     args = parser.parse_args()
+    workers = max(1, min(MAX_WORKERS, args.workers))
 
     api_key = os.environ.get("UUROUTE_API_KEY", "")
     if not api_key:
@@ -140,7 +177,15 @@ def main():
     if not args.input.is_dir():
         raise SystemExit(f"Input directory not found: {args.input}")
 
-    code = run_batch(args.input, args.output, api_key, args.base_url, args.model, args.threshold)
+    code = run_batch(
+        args.input,
+        args.output,
+        api_key,
+        args.base_url,
+        args.model,
+        args.threshold,
+        workers,
+    )
     raise SystemExit(code)
 
 
