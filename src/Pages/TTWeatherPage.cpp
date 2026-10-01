@@ -511,10 +511,10 @@ void TTWeatherPage::setup() {
             }
             if (payload.state == TT_WEATHER_OK) {
                 requestRefresh(TT_REFRESH_DEEP);
-                tryRequestLightSleep(TT_SLEEP_AFTER_REFRESH_MS);
+                tryRequestLightSleep(TT_SLEEP_AFTER_SYNC_MS);
             } else {
                 requestRefresh(TT_REFRESH_PARTIAL);
-                tryRequestLightSleep();
+                tryRequestLightSleep(TT_SLEEP_AFTER_SYNC_MS);
             }
         });
     subscribe<TTSleepWakePayload>(
@@ -1458,7 +1458,7 @@ void TTWeatherPage::onTimeTick() {
         updateAge(true);
     }
     if (sleepPending && !_fetching && !_forceRefreshing) {
-        tryRequestLightSleep();
+        tryRequestLightSleep(TT_SLEEP_AFTER_SYNC_MS);
     }
 }
 
@@ -1507,6 +1507,10 @@ void TTWeatherPage::tryRequestLightSleep(uint32_t delayMs) {
         return;
     }
     cancelSleepSettle();
+    if (delayMs == 0) {
+        requestLightSleep();
+        return;
+    }
     LOG_I("Weather page: sleep in %u ms", (unsigned)delayMs);
     _sleepSettleHandle = runOnce(delayMs, [this]() {
         _sleepSettleHandle = 0;

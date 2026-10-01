@@ -5,6 +5,7 @@
 #include "../Models/TTNotificationPayloads.h"
 
 #define TT_SLEEP_MIN_US             200000ULL
+#define TT_SLEEP_AFTER_SYNC_MS      0
 #define TT_SLEEP_AFTER_REFRESH_MS   5000
 #define TT_SLEEP_INPUT_IDLE_MS      TT_SLEEP_AFTER_REFRESH_MS
 #define TT_SLEEP_WALL_TEXT_MAX      24

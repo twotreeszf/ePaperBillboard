@@ -322,7 +322,7 @@ void TTPictorialPage::applyWeather(const TTWeatherPayload& payload) {
     }
     _weatherFetching = false;
     if (_tempLabel == nullptr) {
-        tryRequestLightSleep();
+        tryRequestLightSleep(TT_SLEEP_AFTER_SYNC_MS);
         return;
     }
     if (payload.state != TT_WEATHER_OK) {
@@ -331,7 +331,7 @@ void TTPictorialPage::applyWeather(const TTWeatherPayload& payload) {
         if (_visible) {
             requestRefresh(TT_REFRESH_DEEP);
         }
-        tryRequestLightSleep(TT_SLEEP_AFTER_REFRESH_MS);
+        tryRequestLightSleep(TT_SLEEP_AFTER_SYNC_MS);
         return;
     }
     _haveWeather = true;
@@ -348,7 +348,7 @@ void TTPictorialPage::applyWeather(const TTWeatherPayload& payload) {
     if (_visible) {
         requestRefresh(TT_REFRESH_FULL);
     }
-    tryRequestLightSleep(TT_SLEEP_AFTER_REFRESH_MS);
+    tryRequestLightSleep(TT_SLEEP_AFTER_SYNC_MS);
 }
 
 void TTPictorialPage::applyPictorial(const TTPicPayload& payload) {
@@ -420,7 +420,7 @@ void TTPictorialPage::applyPictorial(const TTPicPayload& payload) {
     if (_visible) {
         requestRefresh(TT_REFRESH_DEEP);
     }
-    tryRequestLightSleep(TT_SLEEP_AFTER_REFRESH_MS);
+    tryRequestLightSleep(TT_SLEEP_AFTER_SYNC_MS);
 }
 
 void TTPictorialPage::onSleepWake(const TTSleepWakePayload& wake) {
@@ -475,7 +475,7 @@ void TTPictorialPage::onTimeTick() {
         TTInstanceOf<TTPictorialService>().requestDaily();
     }
     if (sleepPending && !_artFetching) {
-        tryRequestLightSleep();
+        tryRequestLightSleep(TT_SLEEP_AFTER_SYNC_MS);
     }
 }
 
@@ -780,6 +780,10 @@ void TTPictorialPage::tryRequestLightSleep(uint32_t delayMs) {
         return;
     }
     cancelSleepSettle();
+    if (delayMs == 0) {
+        requestLightSleep();
+        return;
+    }
     LOG_I("Pictorial page: sleep in %u ms", (unsigned)delayMs);
     _sleepSettleHandle = runOnce(delayMs, [this]() {
         _sleepSettleHandle = 0;

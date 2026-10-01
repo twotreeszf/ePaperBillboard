@@ -473,7 +473,7 @@ void TTCalendarPage::onTimeTick() {
         }
     }
     if (sleepPending && !_calendarFetching && !_weatherFetching) {
-        tryRequestLightSleep();
+        tryRequestLightSleep(TT_SLEEP_AFTER_SYNC_MS);
     }
 }
 
@@ -507,7 +507,7 @@ void TTCalendarPage::finishFetch() {
         return;
     }
     _forceRefreshing = false;
-    tryRequestLightSleep(TT_SLEEP_AFTER_REFRESH_MS);
+    tryRequestLightSleep(TT_SLEEP_AFTER_SYNC_MS);
 }
 
 void TTCalendarPage::dismissExtendLoading() {
@@ -535,6 +535,10 @@ void TTCalendarPage::tryRequestLightSleep(uint32_t delayMs) {
         return;
     }
     cancelSleepSettle();
+    if (delayMs == 0) {
+        requestLightSleep();
+        return;
+    }
     LOG_I("Calendar page: sleep in %u ms", (unsigned)delayMs);
     _sleepSettleHandle = runOnce(delayMs, [this]() {
         _sleepSettleHandle = 0;
