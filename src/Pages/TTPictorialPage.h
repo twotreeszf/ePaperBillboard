@@ -76,5 +76,6 @@ private:
     uint32_t _inputIdleSleepHandle = 0;
     uint32_t _sleepSettleHandle = 0;
     bool _sleepAfterTimeTick = false;
+    bool _dialArtChange = false;
     uint8_t _pickIndex = 0;
 };

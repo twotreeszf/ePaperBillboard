@@ -255,6 +255,7 @@ void TTPictorialPage::willAppear() {
 
 void TTPictorialPage::willDisappear() {
     _visible = false;
+    _dialArtChange = false;
     _picking = false;
     if (_pickPanel != nullptr) {
         lv_obj_set_hidden(_pickPanel, true);
@@ -297,6 +298,7 @@ bool TTPictorialPage::handleKeyAction(TTKeyId key, TTKeyGesture gesture) {
         cancelSleepSettle();
         _sleepAfterTimeTick = false;
         cancelInputIdleSleep();
+        _dialArtChange = true;
         TTInstanceOf<TTPictorialService>().requestAnother();
         return true;
     }
@@ -408,7 +410,12 @@ void TTPictorialPage::applyPictorial(const TTPicPayload& payload) {
         } else if (_visible && _artPath[0] == '\0') {
             requestRefresh(TT_REFRESH_PARTIAL);
         }
-        tryRequestLightSleep();
+        if (_dialArtChange) {
+            _dialArtChange = false;
+            tryRequestLightSleep(TT_SLEEP_AFTER_REFRESH_MS);
+        } else {
+            tryRequestLightSleep();
+        }
         return;
     }
     showArt(payload.path);
@@ -420,7 +427,9 @@ void TTPictorialPage::applyPictorial(const TTPicPayload& payload) {
     if (_visible) {
         requestRefresh(TT_REFRESH_DEEP);
     }
-    tryRequestLightSleep(TT_SLEEP_AFTER_SYNC_MS);
+    const uint32_t sleepDelay = _dialArtChange ? TT_SLEEP_AFTER_REFRESH_MS : TT_SLEEP_AFTER_SYNC_MS;
+    _dialArtChange = false;
+    tryRequestLightSleep(sleepDelay);
 }
 
 void TTPictorialPage::onSleepWake(const TTSleepWakePayload& wake) {
@@ -682,6 +691,7 @@ void TTPictorialPage::closePicker(bool apply) {
         return;
     }
     LOG_I("Pictorial page: select series %u", (unsigned)index);
+    _dialArtChange = true;
     TTInstanceOf<TTPictorialService>().requestSeries(index);
 }
 
