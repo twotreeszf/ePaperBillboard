@@ -22,6 +22,7 @@ MANIFEST_NAME = "manifest.json"
 NOTES_PATH = ROOT / "release-notes.txt"
 CONTENT_ROOTS = ("src", "include", "lib")
 CONTENT_FILES = ("platformio.ini", "partitions_8MB.csv")
+CHANGELOG_PATHS = ("src", "include", "lib", "data/res", "platformio.ini", "partitions_8MB.csv")
 
 
 def load_env(path):
@@ -204,6 +205,84 @@ def load_notes():
     return NOTES_PATH.read_text().strip()
 
 
+def git_output(*args):
+    try:
+        return subprocess.check_output(["git", *args], cwd=ROOT, text=True, stderr=subprocess.DEVNULL)
+    except (subprocess.CalledProcessError, FileNotFoundError):
+        return ""
+
+
+def firmware_version_commits(limit=10):
+    text = git_output("log", f"-{limit}", "--format=%H", "--", str(VERSION_HEADER.relative_to(ROOT)))
+    return [line.strip() for line in text.splitlines() if line.strip()]
+
+
+def version_at_commit(sha):
+    text = git_output("show", f"{sha}:{VERSION_HEADER.relative_to(ROOT)}")
+    match = VERSION_RE.search(text)
+    return match.group(1) if match else None
+
+
+def notes_at_commit(sha):
+    text = git_output("show", f"{sha}:release-notes.txt")
+    return text.strip()
+
+
+def previous_published_commit():
+    commits = firmware_version_commits()
+    if len(commits) < 2:
+        return None
+    return commits[1]
+
+
+def print_release_summary():
+    prev = previous_published_commit()
+    if prev is None:
+        print("no previous firmware version commit in git history")
+        return
+    prev_version = version_at_commit(prev) or prev[:8]
+    current = read_version()
+    print(f"changes since published {prev_version} (commit {prev[:8]})")
+    print(f"current header version {current}")
+    print("")
+    log = git_output(
+        "log",
+        f"{prev}..HEAD",
+        "--oneline",
+        "--no-merges",
+        "--",
+        *CHANGELOG_PATHS,
+    )
+    if log.strip():
+        print(log.rstrip())
+    else:
+        print("(no commits touching firmware paths)")
+    print("")
+    prev_notes = notes_at_commit(prev)
+    if prev_notes:
+        print("release-notes.txt at last publish:")
+        print(prev_notes)
+        print("")
+    print("Edit release-notes.txt with a user-facing summary of the above, then run publish_firmware.py.")
+
+
+def ensure_release_notes_updated():
+    prev = previous_published_commit()
+    if prev is None:
+        return
+    prev_notes = notes_at_commit(prev)
+    notes = load_notes()
+    if not notes:
+        raise SystemExit(
+            f"release-notes.txt is empty; summarize changes since {version_at_commit(prev) or prev[:8]}"
+        )
+    if notes == prev_notes:
+        raise SystemExit(
+            "release-notes.txt unchanged since last publish; "
+            "run publish_firmware.py --summary and update it before releasing"
+        )
+
+
 def package_files():
     if not FIRMWARE_BIN.is_file():
         raise SystemExit(f"missing {FIRMWARE_BIN}")
@@ -274,6 +353,9 @@ def publish(env, client, version, fingerprint):
 
 
 def main():
+    if len(sys.argv) > 1 and sys.argv[1] in ("--summary", "-s"):
+        print_release_summary()
+        return
     env = load_env(ENV_PATH)
     client = tos_client(env)
     fingerprint = content_fingerprint()
@@ -292,6 +374,7 @@ def main():
             store_manifest(client, env, remote_version, local_path)
             print(f"updated notes version={remote_version}")
             return
+    ensure_release_notes_updated()
     version = datetime.now().strftime("%Y%m%d%H%M")
     print(f"update {remote_version or '-'} -> {version}")
     previous = read_version()

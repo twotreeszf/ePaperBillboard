@@ -2,7 +2,7 @@
 
 ESP32-WROOM-32E weather and calendar billboard: LVGL 9, custom binary fonts, LittleFS icons, indoor sensors, Open-Meteo, and CalDAV over a small TLS 1.2 client. UI is a page stack with an always-on status bar and E-Paper three-level refresh (partial / full-screen partial / deep full).
 
-**Contents:** [Hardware](#hardware) · [Build & Flash](#build--flash) · [Fonts](#fonts) · [Icons](#icons) · [Comics (pictorial)](#comics-pictorial) · [E-Ink / LVGL](#e-ink-refresh-strategy) · [Software Architecture](#software-architecture) · [Keypad & focus](#keypad--focus)
+**Contents:** [Hardware](#hardware) · [Build & Flash](#build--flash) · [Fonts](#fonts) · [Icons](#icons) · [Comics (pictorial)](#comics-pictorial) · [Firmware OTA publish](#firmware-ota-publish) · [E-Ink / LVGL](#e-ink-refresh-strategy) · [Software Architecture](#software-architecture) · [Keypad & focus](#keypad--focus)
 
 ## Hardware
 
@@ -258,6 +258,45 @@ python tools/eink_comic.py path/to/page.jpg -o /tmp/page.eink.png
 | Page file | `0001.i1` … `9999.i1`, contiguous, ≤ 32 KiB each |
 | Manifest | ≤ 8 KiB UTF-8 |
 | TTI1 size | ≤ 400×300 (publisher uses 280×280) |
+
+## Firmware OTA publish
+
+Devices pull `firmware/manifest.json` from TOS (see `TT_OTA_MANIFEST_URL` in `TTOtaService.h`). Publishing builds `esp32` firmware, uploads `firmware.bin` plus every `data/res/**` asset (except the generated local manifest), and writes a manifest with version, SHA-256 file list, and **release notes**.
+
+### Prerequisites
+
+- Project root `.env` with `TOS_ACCESS_KEY_ID`, `TOS_SECRET_ACCESS_KEY`, `TOS_BUCKET`, `TOS_REGION` (optional `TOS_PREFIX`, default `firmware`)
+- Python venv with dependencies (same as comics tooling):
+
+```bash
+/opt/homebrew/bin/python3 -m venv tools/venv
+tools/venv/bin/pip install -r tools/requirements.txt
+```
+
+### Release checklist
+
+1. **Summarize changes since the last published version** — commits that touch firmware are listed from git:
+
+```bash
+tools/venv/bin/python tools/publish_firmware.py --summary
+```
+
+This compares against the **previous** commit that changed `src/Base/TTFirmwareVersion.h` (not the current header value alone).
+
+2. **Edit `release-notes.txt`** at the repo root with a short, user-facing Chinese summary of **only what changed since that last publish** (shown on the system update page and in the OTA confirm dialog). The publish script refuses a new binary release if this file is still identical to the copy at the last publish commit.
+
+3. **Publish**:
+
+```bash
+tools/venv/bin/python tools/publish_firmware.py
+```
+
+- If the code/resource fingerprint matches TOS but `release-notes.txt` changed, only the remote manifest notes are updated (same version string on the server).
+- If the fingerprint changed, the script stamps a new `TT_FW_VERSION` (`YYYYMMDDHHMM`), runs `pio run -e esp32`, uploads all objects, and updates `firmware/manifest.json`.
+
+4. **Commit** `src/Base/TTFirmwareVersion.h` and `release-notes.txt` together after you verify the release on a device.
+
+`data/res/manifest.json` is generated locally for packaging and is gitignored; do not commit it.
 
 ## E-Ink Refresh Strategy
 
