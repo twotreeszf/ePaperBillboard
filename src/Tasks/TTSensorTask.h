@@ -17,23 +17,23 @@
 #define TT_BATTERY_ADC_MAX          4096
 #define TT_BATTERY_USB_MV           4400
 #define TT_BATTERY_USB_OFF_MV       4300
-#define TT_BATTERY_EMPTY_MV         3500
-#define TT_BATTERY_LOW_MV           3700
-#define TT_BATTERY_MEDIUM_MV        3900
-#define TT_BATTERY_FULL_MV          4100
+#define TT_BATTERY_EMPTY_MV         3350
+#define TT_BATTERY_LOW_MV           3500
+#define TT_BATTERY_MEDIUM_MV        3660
+#define TT_BATTERY_FULL_MV          4120
 #define TT_BATTERY_SOC_PAIRS        11
 #define TT_BATTERY_SOC_MAP \
-    3400, 0, \
-    3500, 3, \
-    3600, 8, \
-    3650, 12, \
-    3700, 18, \
-    3750, 26, \
-    3800, 36, \
-    3850, 47, \
-    3900, 58, \
-    4000, 88, \
-    4100, 100
+    2750, 0, \
+    3380, 12, \
+    3500, 23, \
+    3560, 34, \
+    3600, 45, \
+    3660, 56, \
+    3730, 67, \
+    3820, 78, \
+    3930, 89, \
+    4050, 96, \
+    4120, 100
 
 class TTSensorTask : public TTVTask {
 public:
