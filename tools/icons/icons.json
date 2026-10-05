@@ -50,6 +50,12 @@
       "file": "back.i1",
       "size": 14,
       "strokeWidth": 1.75
+    },
+    {
+      "id": "rotate-cw",
+      "file": "restart.i1",
+      "size": 48,
+      "strokeWidth": 1.5
     }
   ]
 }
