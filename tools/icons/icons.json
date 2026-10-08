@@ -52,6 +52,18 @@
       "strokeWidth": 1.75
     },
     {
+      "id": "chevron-left",
+      "file": "arrow_left.i1",
+      "size": 24,
+      "strokeWidth": 3
+    },
+    {
+      "id": "chevron-right",
+      "file": "arrow_right.i1",
+      "size": 24,
+      "strokeWidth": 3
+    },
+    {
       "id": "rotate-cw",
       "file": "restart.i1",
       "size": 48,
