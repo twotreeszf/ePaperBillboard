@@ -29,5 +29,11 @@ __pycache__/
 *.pyc
 tools/venv/
 
+# pioarduino hybrid compile (Arduino + custom_sdkconfig)
+CMakeLists.txt
+dependencies.lock
+sdkconfig
+sdkconfig.defaults
+sdkconfig.esp32
 managed_components/
 .dummy/
