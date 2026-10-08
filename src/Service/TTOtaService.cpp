@@ -266,7 +266,7 @@ bool finishHash(TTOtaWriteCtx* writer, const char* expect) {
         return false;
     }
     uint8_t dig[32];
-    bool ok = mbedtls_sha256_finish_ret(&writer->sha, dig) == 0;
+    bool ok = mbedtls_sha256_finish(&writer->sha, dig) == 0;
     mbedtls_sha256_free(&writer->sha);
     writer->shaOn = false;
     if (!ok) {
@@ -282,7 +282,7 @@ void dropHash(TTOtaWriteCtx* writer) {
         return;
     }
     uint8_t dig[32];
-    mbedtls_sha256_finish_ret(&writer->sha, dig);
+    mbedtls_sha256_finish(&writer->sha, dig);
     mbedtls_sha256_free(&writer->sha);
     writer->shaOn = false;
 }
@@ -368,14 +368,14 @@ bool otaWriteBody(void* ctx, const uint8_t* data, size_t len) {
             }
         }
         mbedtls_sha256_init(&writer->sha);
-        if (mbedtls_sha256_starts_ret(&writer->sha, 0) != 0) {
+        if (mbedtls_sha256_starts(&writer->sha, 0) != 0) {
             mbedtls_sha256_free(&writer->sha);
             return false;
         }
         writer->shaOn = true;
         writer->opened = true;
     }
-    if (mbedtls_sha256_update_ret(&writer->sha, data, len) != 0) {
+    if (mbedtls_sha256_update(&writer->sha, data, len) != 0) {
         return false;
     }
     if (writer->useUpdate) {

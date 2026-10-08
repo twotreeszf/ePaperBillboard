@@ -7,3 +7,5 @@ CompileFlags:
     - -mtext-section-literals
     - -mdisable-hardware-atomics
     - -mno-target-align
+    - -mfix-esp32-psram-cache-issue
+    - -mfix-esp32-psram-cache-strategy=memw

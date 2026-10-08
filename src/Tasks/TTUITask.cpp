@@ -20,6 +20,12 @@
 void TTUITask::setup() {
     LOG_I("Initializing SPI (MOSI=%d, SCK=%d)...", TT_UI_EPD_MOSI, TT_UI_EPD_SCK);
     SPI.begin(TT_UI_EPD_SCK, -1, TT_UI_EPD_MOSI, TT_UI_EPD_CS);
+    pinMode(TT_UI_EPD_CS, OUTPUT);
+    pinMode(TT_UI_EPD_DC, OUTPUT);
+    pinMode(TT_UI_EPD_RST, OUTPUT);
+    digitalWrite(TT_UI_EPD_CS, HIGH);
+    digitalWrite(TT_UI_EPD_DC, HIGH);
+    digitalWrite(TT_UI_EPD_RST, HIGH);
 
     _selectPanel();
     LOG_I("Initializing E-Paper display...");

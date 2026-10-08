@@ -35,6 +35,12 @@
     4050, 96, \
     4120, 100
 
+class TTAHT20 : public Adafruit_AHTX0 {
+public:
+    bool begin(TwoWire *wire = &Wire, int32_t sensorId = 0,
+               uint8_t i2cAddress = AHTX0_I2CADDR_DEFAULT);
+};
+
 class TTSensorTask : public TTVTask {
 public:
     TTSensorTask() : TTVTask("TTSensorTask", 4096) {}
@@ -52,7 +58,7 @@ private:
     void pollUsbPlug();
     void arm();
 
-    Adafruit_AHTX0 _aht20;
+    TTAHT20 _aht20;
     Adafruit_BMP280 _bmp280;
     bool _bmp280Ok = false;
     bool _hasIndoor = false;

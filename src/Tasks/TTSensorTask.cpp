@@ -8,6 +8,33 @@
 #include <freertos/FreeRTOS.h>
 #include <freertos/task.h>
 
+bool TTAHT20::begin(TwoWire *wire, int32_t sensorId, uint8_t i2cAddress) {
+    (void)sensorId;
+    delay(20);
+    delete i2c_dev;
+    i2c_dev = new Adafruit_I2CDevice(i2cAddress, wire);
+    if (i2c_dev == nullptr || !i2c_dev->begin()) {
+        return false;
+    }
+
+    const uint8_t resetCmd = AHTX0_CMD_SOFTRESET;
+    if (!i2c_dev->write(&resetCmd, 1)) {
+        return false;
+    }
+    delay(20);
+    while (getStatus() & AHTX0_STATUS_BUSY) {
+        delay(10);
+    }
+    if (!(getStatus() & AHTX0_STATUS_CALIBRATED)) {
+        const uint8_t calibrateCmd[] = { AHTX0_CMD_CALIBRATE, 0x08, 0x00 };
+        i2c_dev->write(calibrateCmd, sizeof(calibrateCmd));
+        while (getStatus() & AHTX0_STATUS_BUSY) {
+            delay(10);
+        }
+    }
+    return (getStatus() & AHTX0_STATUS_CALIBRATED) != 0;
+}
+
 static volatile bool s_chargeChanged = false;
 
 static void IRAM_ATTR tt_battery_charge_isr() {

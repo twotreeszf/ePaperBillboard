@@ -346,8 +346,6 @@ time_t TTRtc::_queryNtp(const char* host) {
         LOG_E("RTC: NTP resolve failed host=%s", host);
         return 0;
     }
-    while (udp.parsePacket() > 0) {
-    }
     if (!udp.begin(TT_NTP_LOCAL_PORT)) {
         LOG_E("RTC: UDP begin failed");
         return 0;
