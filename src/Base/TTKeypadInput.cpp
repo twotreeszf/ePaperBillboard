@@ -75,7 +75,31 @@ void TTKeypadInput::init() {
     LOG_I("Keypad input: L=%d R=%d C=%d sampler %dms", PIN_BUTTONL, PIN_BUTTONR, PIN_BUTTONC, TT_KEYPAD_POLL_MS);
 }
 
+void TTKeypadInput::idleButton(OneButton* btn) {
+    if (btn == nullptr) {
+        return;
+    }
+    btn->debounce(false);
+    btn->reset();
+}
+
+void TTKeypadInput::suspend() {
+    _suspended = true;
+    LOG_I("Keypad: suspend, button state cleared until resume");
+}
+
+void TTKeypadInput::resume() {
+    _suspended = false;
+    LOG_I("Keypad: resume");
+}
+
 void TTKeypadInput::sample() {
+    if (_suspended) {
+        idleButton(_btnL);
+        idleButton(_btnR);
+        idleButton(_btnC);
+        return;
+    }
     if (_btnL) {
         _btnL->tick();
     }

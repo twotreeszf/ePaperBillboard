@@ -25,6 +25,7 @@ public:
     void requestDeepRefreshAsync();
     void requestRestartAsync();
     void requestKeyGestureAsync(uint8_t key, uint8_t gesture);
+    TTKeypadInput& keypadInput() { return _keypad.input(); }
 
 protected:
     void setup() override;

@@ -8,6 +8,7 @@
 #include "../Base/TTRtc.h"
 #include "../Tasks/TTWiFiTask.h"
 #include "../Tasks/TTSensorTask.h"
+#include "../Tasks/TTUITask.h"
 #include <Arduino.h>
 #include <cstring>
 #include <driver/gpio.h>
@@ -115,7 +116,11 @@ void TTSleepService::tryEnter() {
           nowText[0] != '\0' ? nowText : "?",
           (unsigned)(sleepUs / 1000000ULL),
           untilText[0] != '\0' ? untilText : "?");
-    if (!enterSleep(sleepUs)) {
+    TTKeypadInput& keypad = TTInstanceOf<TTUITask>().keypadInput();
+    keypad.suspend();
+    const bool slept = enterSleep(sleepUs);
+    keypad.resume();
+    if (!slept) {
         _loggedWait = false;
         return;
     }
