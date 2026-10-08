@@ -6,11 +6,11 @@
 #include "../Models/TTNotificationPayloads.h"
 #include "../Base/TTPreference.h"
 #include "../Base/TTRtc.h"
+#include "../Base/Util.h"
 #include "../Tasks/TTUITask.h"
 #include "../Tasks/TTWiFiTask.h"
 #include <ArduinoJson.h>
 #include <WiFi.h>
-#include <esp_heap_caps.h>
 #include <cmath>
 #include <cstdio>
 #include <cstring>
@@ -24,8 +24,8 @@ bool httpGetJson(const char* url, JsonDocument& doc, JsonDocument* filter, size_
     request.url = url;
     request.bodyMax = bodyMax;
     LOG_I("Weather: GET heap=%u largest=%u body_max=%u",
-          (unsigned)ESP.getFreeHeap(),
-          (unsigned)heap_caps_get_largest_free_block(MALLOC_CAP_8BIT),
+          (unsigned)Util::heapFree(),
+          (unsigned)Util::heapLargest(),
           (unsigned)bodyMax);
     if (!tt_https_exchange_file(&request, TT_HTTPS_TMP_RESP, &res)) {
         LOG_E("Weather: HTTPS file get failed");
@@ -66,8 +66,8 @@ bool httpGetJson(const char* url, JsonDocument& doc, JsonDocument* filter, size_
     LOG_I("Weather: JSON err=%s overflow=%d heap=%u largest=%u",
           err ? err.c_str() : "ok",
           overflowed ? 1 : 0,
-          (unsigned)ESP.getFreeHeap(),
-          (unsigned)heap_caps_get_largest_free_block(MALLOC_CAP_8BIT));
+          (unsigned)Util::heapFree(),
+          (unsigned)Util::heapLargest());
     if (err) {
         LOG_E("Weather: JSON %s", err.c_str());
         return false;
@@ -526,16 +526,24 @@ bool TTWeatherService::fetchCaiyun(float lat, float lon, TTWeatherPayload& out) 
     realtime["air_quality"]["aqi"]["chn"] = true;
     realtime["life_index"]["ultraviolet"]["index"] = true;
     JsonObject hourly = filter["result"]["hourly"].to<JsonObject>();
-    hourly["temperature"] = true;
-    hourly["humidity"] = true;
-    hourly["precipitation"] = true;
-    hourly["skycon"] = true;
+    hourly["temperature"][0]["datetime"] = true;
+    hourly["temperature"][0]["value"] = true;
+    hourly["humidity"][0]["value"] = true;
+    hourly["precipitation"][0]["value"] = true;
+    hourly["precipitation"][0]["probability"] = true;
+    hourly["skycon"][0]["value"] = true;
     JsonObject daily = filter["result"]["daily"].to<JsonObject>();
-    daily["temperature"] = true;
-    daily["precipitation"] = true;
-    daily["skycon"] = true;
-    daily["astro"] = true;
-    daily["life_index"]["ultraviolet"] = true;
+    daily["temperature"][0]["date"] = true;
+    daily["temperature"][0]["max"] = true;
+    daily["temperature"][0]["min"] = true;
+    daily["precipitation"][0]["avg"] = true;
+    daily["precipitation"][0]["probability"] = true;
+    daily["skycon"][0]["date"] = true;
+    daily["skycon"][0]["value"] = true;
+    daily["astro"][0]["date"] = true;
+    daily["astro"][0]["sunrise"]["time"] = true;
+    daily["astro"][0]["sunset"]["time"] = true;
+    daily["life_index"]["ultraviolet"][0]["index"] = true;
 
     JsonDocument doc;
     if (!httpGetJson(url, doc, &filter, TT_WEATHER_CAIYUN_BODY_MAX)) {
@@ -719,8 +727,8 @@ void TTWeatherService::fetchWeather() {
     LOG_I("Weather: fetch source=%s lat=%.4f lon=%.4f city=%s heap=%u largest=%u",
           caiyun ? "caiyun" : "open-meteo",
           lat, lon, draft.city,
-          (unsigned)ESP.getFreeHeap(),
-          (unsigned)heap_caps_get_largest_free_block(MALLOC_CAP_8BIT));
+          (unsigned)Util::heapFree(),
+          (unsigned)Util::heapLargest());
 
     const bool fetched = caiyun ? fetchCaiyun(lat, lon, draft) : fetchForecast(lat, lon, draft);
     if (!fetched) {

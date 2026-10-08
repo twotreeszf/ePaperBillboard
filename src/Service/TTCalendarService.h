@@ -20,16 +20,16 @@ private:
     void saveCache(const char* host, const char* user, const char* message);
     void fetch(bool extend);
     bool loadAccount(char* host, size_t hostMax, char* user, size_t userMax, char* pass, size_t passMax);
-    bool discover(const char* host, const char* authHeader);
+    bool discover(const char* host, const char* authHeader, char hrefs[][TT_CAL_HREF_LEN]);
     int queryHrefs(const char* host, const char* authHeader, const char* calendarPath,
-                   time_t rangeStart, time_t rangeEnd);
+                   time_t rangeStart, time_t rangeEnd, char hrefs[][TT_CAL_HREF_LEN]);
     bool pullEvents(const char* host, const char* authHeader, const char* calendarPath,
-                    int hrefCount, time_t rangeStart, time_t rangeEnd);
+                    const char hrefs[][TT_CAL_HREF_LEN], int hrefCount,
+                    time_t rangeStart, time_t rangeEnd);
 
     char _accountHost[TT_CAL_HOST_MAX] = {};
     char _accountUser[TT_CAL_USER_MAX] = {};
     char _cals[TT_CAL_CALS_MAX][TT_CAL_PATH_MAX];
-    char _hrefs[TT_CAL_HREF_MAX][TT_CAL_HREF_LEN];
     TTCalEvent _events[TT_CAL_EVENT_MAX];
     uint8_t _calCount = 0;
     uint8_t _count = 0;

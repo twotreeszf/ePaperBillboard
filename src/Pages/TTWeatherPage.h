@@ -2,6 +2,7 @@
 
 #include "../Base/TTFile.h"
 #include <lvgl.h>
+#include <memory>
 #include "../Base/TTScreenPage.h"
 #include "../Models/TTNotificationPayloads.h"
 #include "../Service/TTSleepService.h"
@@ -203,6 +204,10 @@ private:
     void syncIndoor(bool refreshIfChanged);
     void applyIndoorLabels();
     void layoutClockMetrics();
+    void buildDetail();
+    void destroyDetail();
+    void buildClock();
+    void destroyClock();
 
     lv_obj_t* _content = nullptr;
     lv_obj_t* _empty = nullptr;
@@ -259,4 +264,5 @@ private:
     float _indoorTemp = 0;
     float _indoorHum = 0;
     char _cityName[TT_WEATHER_CITY_MAX + 1] = {};
+    std::unique_ptr<TTWeatherPayload> _payload;
 };

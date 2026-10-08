@@ -4,6 +4,7 @@
 #include "../Base/TTFirmwareVersion.h"
 #include "../Base/TTHttpsClient.h"
 #include "../Base/TTInstance.h"
+#include "../Base/Util.h"
 #include "../Models/TTNotificationPayloads.h"
 #include "../Tasks/TTUITask.h"
 #include "../Tasks/TTWiFiTask.h"
@@ -553,8 +554,9 @@ bool downloadManifest(TTOtaDoc* doc) {
     request.bodyMax = TT_OTA_MANIFEST_MAX;
     request.bodyTimeoutMs = downloadTimeoutMs(TT_OTA_MANIFEST_MAX);
     TTHttpsResult result = {};
-    LOG_I("OTA: GET %s timeout=%u ms heap=%u",
-          TT_OTA_MANIFEST_URL, (unsigned)request.bodyTimeoutMs, (unsigned)ESP.getFreeHeap());
+    LOG_I("OTA: GET %s timeout=%u ms heap=%u largest=%u",
+          TT_OTA_MANIFEST_URL, (unsigned)request.bodyTimeoutMs,
+          (unsigned)Util::heapFree(), (unsigned)Util::heapLargest());
     if (!tt_https_exchange_file(&request, TT_OTA_REMOTE_MANIFEST, &result)) {
         LOG_E("OTA: manifest get failed");
         return false;

@@ -2,6 +2,7 @@
 #include "TTTlsClient.h"
 #include "TTFile.h"
 #include "Logger.h"
+#include "Util.h"
 #include <WiFi.h>
 #include <Arduino.h>
 #include <esp_heap_caps.h>
@@ -21,8 +22,8 @@ struct TTHttpsCtx {
 void logHeap(const char* tag) {
     LOG_I("HTTPS: %s heap=%u largest=%u",
           tag,
-          (unsigned)ESP.getFreeHeap(),
-          (unsigned)heap_caps_get_largest_free_block(MALLOC_CAP_8BIT));
+          (unsigned)Util::heapFree(),
+          (unsigned)Util::heapLargest());
 }
 
 void ctxInit(TTHttpsCtx* ctx) {
@@ -397,8 +398,8 @@ bool tt_https_exchange_file(const TTHttpsRequest* request, const char* tmpPath, 
             }
             LOG_I("HTTPS: tmp %s bytes=%u heap=%u largest=%u",
                   tmpPath, (unsigned)written,
-                  (unsigned)ESP.getFreeHeap(),
-                  (unsigned)heap_caps_get_largest_free_block(MALLOC_CAP_8BIT));
+                  (unsigned)Util::heapFree(),
+                  (unsigned)Util::heapLargest());
             ok = parseResponseFile(file, out);
             file.close();
             if (!ok) {

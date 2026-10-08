@@ -7,6 +7,7 @@
 #include "../Base/TTRtc.h"
 #include "../Base/TTTextButton.h"
 #include "../Base/TTNavigationBar.h"
+#include "../Base/Util.h"
 #include "../Service/TTWeatherService.h"
 #include "../Service/TTSleepService.h"
 #include "../Base/TTLvglEpdDriver.h"
@@ -19,6 +20,7 @@
 #include <ctime>
 #include <cmath>
 #include <memory>
+#include <new>
 
 static float windSpeedToBeaufort(float ms) {
     if (ms < 0.0f) {
@@ -226,14 +228,6 @@ void TTWeatherPage::buildContent(lv_obj_t* screen) {
     lv_font_t* font12 = fm.getFont(12);
     lv_font_t* font16 = fm.getFont(16);
     lv_font_t* font48 = fm.getFont(TT_WEATHER_TEMP_FONT);
-    lv_font_t* fontMetric = fm.getFont(TT_WEATHER_CLOCK_METRIC_FONT);
-    if (fontMetric == nullptr) {
-        fontMetric = font16;
-    }
-    lv_font_t* fontClock = fm.getFont(TT_WEATHER_CLOCK_FONT);
-    if (fontClock == nullptr) {
-        fontClock = font48;
-    }
     _graphFont = font10;
 
     lv_obj_set_style_bg_color(screen, lv_color_white(), 0);
@@ -362,6 +356,23 @@ void TTWeatherPage::buildContent(lv_obj_t* screen) {
     lv_obj_set_clickable(forecastDiv, false);
     lv_obj_add_event_cb(forecastDiv, drawForecastDiv, LV_EVENT_DRAW_MAIN, nullptr);
 
+    applyDisplayMode();
+    showContent(false);
+    showEmpty(true);
+    showEmptyActions(false, false);
+    setMessage("正在获取天气");
+    LOG_I("Weather page: built heap=%u largest=%u",
+          (unsigned)Util::heapFree(), (unsigned)Util::heapLargest());
+}
+
+void TTWeatherPage::buildDetail() {
+    if (_content == nullptr || _modeDetail != nullptr) {
+        return;
+    }
+    TTFontManager& fm = TTFontManager::instance();
+    lv_font_t* font10 = fm.getFont(10);
+    lv_font_t* font12 = fm.getFont(12);
+
     _modeDetail = createPlainBox(_content);
     lv_obj_set_pos(_modeDetail, 0, 0);
     lv_obj_set_size(_modeDetail, EPD_WIDTH, EPD_HEIGHT - TT_NAV_PAGE_INSET);
@@ -455,6 +466,49 @@ void TTWeatherPage::buildContent(lv_obj_t* screen) {
         lv_obj_set_size(_hourIcons[i], TT_WEATHER_ICON_HOUR, TT_WEATHER_ICON_HOUR);
     }
 
+    if (_payload) {
+        bindDetails(*_payload);
+        bindGraph(*_payload);
+    }
+    LOG_I("Weather page: detail built bound=%d heap=%u largest=%u", _payload ? 1 : 0,
+          (unsigned)Util::heapFree(), (unsigned)Util::heapLargest());
+}
+
+void TTWeatherPage::destroyDetail() {
+    if (_modeDetail == nullptr) {
+        return;
+    }
+    lv_obj_delete(_modeDetail);
+    _modeDetail = nullptr;
+    for (int i = 0; i < TT_WEATHER_DETAIL_N; i++) {
+        _details[i] = TTWeatherDetailCell();
+    }
+    _uviLevel = nullptr;
+    _aqiLevel = nullptr;
+    _windLevel = nullptr;
+    _graph = nullptr;
+    _tempLine = nullptr;
+    for (int i = 0; i < TT_WEATHER_GRAPH_X_TICKS; i++) {
+        _hourIcons[i] = nullptr;
+    }
+    LOG_I("Weather page: detail destroyed heap=%u largest=%u",
+          (unsigned)Util::heapFree(), (unsigned)Util::heapLargest());
+}
+
+void TTWeatherPage::buildClock() {
+    if (_content == nullptr || _modeClock != nullptr) {
+        return;
+    }
+    TTFontManager& fm = TTFontManager::instance();
+    lv_font_t* fontMetric = fm.getFont(TT_WEATHER_CLOCK_METRIC_FONT);
+    if (fontMetric == nullptr) {
+        fontMetric = fm.getFont(16);
+    }
+    lv_font_t* fontClock = fm.getFont(TT_WEATHER_CLOCK_FONT);
+    if (fontClock == nullptr) {
+        fontClock = fm.getFont(TT_WEATHER_TEMP_FONT);
+    }
+
     const int clockH = EPD_HEIGHT - TT_NAV_PAGE_INSET - TT_WEATHER_CLOCK_Y;
     _modeClock = createPlainBox(_content);
     lv_obj_set_pos(_modeClock, 0, TT_WEATHER_CLOCK_Y);
@@ -491,14 +545,26 @@ void TTWeatherPage::buildContent(lv_obj_t* screen) {
     tt_stream_image_set_src(humIcon, TT_WEATHER_CLOCK_HUM_SRC);
     _clockHumLabel = createPlainLabel(humRow, fontMetric, "--%");
     lv_obj_set_style_pad_top(_clockHumLabel, TT_WEATHER_CLOCK_ICON_NUDGE_Y, 0);
-    layoutClockMetrics();
 
-    applyDisplayMode();
-    showContent(false);
-    showEmpty(true);
-    showEmptyActions(false, false);
-    setMessage("正在获取天气");
-    LOG_I("Weather page: built heap=%u", (unsigned)ESP.getFreeHeap());
+    _lastClockMinute = -1;
+    updateClock(false);
+    LOG_I("Weather page: clock built heap=%u largest=%u",
+          (unsigned)Util::heapFree(), (unsigned)Util::heapLargest());
+}
+
+void TTWeatherPage::destroyClock() {
+    if (_modeClock == nullptr) {
+        return;
+    }
+    lv_obj_delete(_modeClock);
+    _modeClock = nullptr;
+    _clockHourLabel = nullptr;
+    _clockMinLabel = nullptr;
+    _clockTempLabel = nullptr;
+    _clockTempUnit = nullptr;
+    _clockHumLabel = nullptr;
+    LOG_I("Weather page: clock destroyed heap=%u largest=%u",
+          (unsigned)Util::heapFree(), (unsigned)Util::heapLargest());
 }
 
 void TTWeatherPage::setup() {
@@ -1217,8 +1283,22 @@ void TTWeatherPage::bindOk(const TTWeatherPayload& payload) {
         lv_label_set_text(_forecast[i].temps, buf);
     }
 
-    bindDetails(payload);
-    bindGraph(payload);
+    if (!_payload) {
+        _payload.reset(new (std::nothrow) TTWeatherPayload());
+        if (!_payload) {
+            LOG_W("Weather page: payload copy alloc failed size=%u heap=%u largest=%u",
+                  (unsigned)sizeof(TTWeatherPayload),
+                  (unsigned)Util::heapFree(), (unsigned)Util::heapLargest());
+        }
+    }
+    if (_payload) {
+        *_payload = payload;
+    }
+
+    if (_modeDetail != nullptr) {
+        bindDetails(payload);
+        bindGraph(payload);
+    }
 }
 
 void TTWeatherPage::bindIndoor(const TTSensorDataPayload& data, bool refreshIfChanged) {
@@ -1337,22 +1417,15 @@ void TTWeatherPage::applyChrome(bool clock) {
 
 void TTWeatherPage::applyDisplayMode() {
     const bool clock = _displayMode == TT_WEATHER_MODE_CLOCK;
-    if (_modeDetail != nullptr) {
-        if (clock) {
-            lv_obj_set_hidden(_modeDetail, true);
-        } else {
-            lv_obj_set_hidden(_modeDetail, false);
-        }
-    }
-    if (_modeClock != nullptr) {
-        if (clock) {
-            lv_obj_set_hidden(_modeClock, false);
-            syncIndoor(false);
-            applyIndoorLabels();
-            layoutClockMetrics();
-        } else {
-            lv_obj_set_hidden(_modeClock, true);
-        }
+    if (clock) {
+        destroyDetail();
+        buildClock();
+        syncIndoor(false);
+        applyIndoorLabels();
+        layoutClockMetrics();
+    } else {
+        destroyClock();
+        buildDetail();
     }
     applyChrome(clock);
 }

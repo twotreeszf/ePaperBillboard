@@ -2,9 +2,9 @@
 // Created by fanzhang on 2024/6/25.
 //
 #include "Logger.h"
-#include <iostream>
 #include <map>
 #include <cstdarg>
+#include <cstdio>
 #include <ctime>
 #include <sys/time.h>
 #include "Util.h"
@@ -63,7 +63,8 @@ void Logger::logLevel(const char* file, int line, LogLevel level, const char* fm
     std::string output = Util::format(
             "%s[%s]%s[%s:%d]: %s\033[0m",
             colorMap[level].c_str(), timestamp.c_str(), levelMap[level].c_str(), file, line, msg.c_str());
-    std::cout << output << std::endl;
+    puts(output.c_str());
+    fflush(stdout);
 }
 
 Logger _logger;

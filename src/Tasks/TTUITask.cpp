@@ -11,6 +11,7 @@
 #include "../Base/TTFile.h"
 #include "../Base/TTFontManager.h"
 #include "../Base/TTPreference.h"
+#include "../Base/Util.h"
 #include "../Service/TTSleepService.h"
 #include "../Service/TTTimeService.h"
 #include "../Service/TTOtaService.h"
@@ -36,13 +37,15 @@ void TTUITask::setup() {
         LOG_E("LittleFS mkdir %s failed", TT_FS_TMP_DIR);
     }
     TTInstanceOf<TTOtaService>().applyPending();
-    LOG_I("LittleFS initialized, heap=%u", (unsigned)ESP.getFreeHeap());
+    LOG_I("LittleFS initialized, heap=%u largest=%u",
+          (unsigned)Util::heapFree(), (unsigned)Util::heapLargest());
 
     LOG_I("Initializing LVGL...");
     ERR_CHECK_FAIL(TTInstanceOf<TTLvglEpdDriver>().begin(_display));
 
     ERR_CHECK_FAIL(TTFontManager::instance().begin());
-    LOG_I("Fonts ready, heap=%u", (unsigned)ESP.getFreeHeap());
+    LOG_I("Fonts ready, heap=%u largest=%u",
+          (unsigned)Util::heapFree(), (unsigned)Util::heapLargest());
     TTInstanceOf<TTPopupLayer>().begin(TTInstanceOf<TTLvglEpdDriver>().getDisplay());
 
     lv_display_t* disp = TTInstanceOf<TTLvglEpdDriver>().getDisplay();
@@ -54,7 +57,8 @@ void TTUITask::setup() {
     _nav.setRootPage(std::unique_ptr<TTScreenPage>(new TTHomePage()));
     TTInstanceOf<TTTimeService>().begin();
 
-    LOG_I("UI task started, heap=%u", (unsigned)ESP.getFreeHeap());
+    LOG_I("UI task started, heap=%u largest=%u",
+          (unsigned)Util::heapFree(), (unsigned)Util::heapLargest());
 }
 
 void TTUITask::requestDeepRefreshAsync() {

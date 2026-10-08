@@ -7,14 +7,15 @@ static const struct {
     int size;
     const char* path;
     const char* asciiPath;
+    uint16_t glyphCacheCapacity;
 } TT_FONT_ENTRIES[] = {
-    { 10, TT_FS_FONT_DIR "/all_10.bin", nullptr },
-    { 12, TT_FS_FONT_DIR "/all_12.bin", nullptr },
-    { 16, TT_FS_FONT_DIR "/all_16.bin", nullptr },
-    { 32, TT_FS_RES_DIR "/fonts/en_32.bin", nullptr },
-    { 40, TT_FS_RES_DIR "/fonts/en_40.bin", nullptr },
-    { 48, TT_FS_RES_DIR "/fonts/en_48.bin", nullptr },
-    { 120, TT_FS_RES_DIR "/fonts/en_120.bin", nullptr },
+    { 10, TT_FS_FONT_DIR "/all_10.bin", nullptr, TT_FONT_GLYPH_CACHE_CJK },
+    { 12, TT_FS_FONT_DIR "/all_12.bin", nullptr, TT_FONT_GLYPH_CACHE_CJK },
+    { 16, TT_FS_FONT_DIR "/all_16.bin", nullptr, TT_FONT_GLYPH_CACHE_CJK },
+    { 32, TT_FS_RES_DIR "/fonts/en_32.bin", nullptr, TT_FONT_GLYPH_CACHE_LATIN },
+    { 40, TT_FS_RES_DIR "/fonts/en_40.bin", nullptr, TT_FONT_GLYPH_CACHE_LATIN },
+    { 48, TT_FS_RES_DIR "/fonts/en_48.bin", nullptr, TT_FONT_GLYPH_CACHE_LATIN },
+    { 120, TT_FS_RES_DIR "/fonts/en_120.bin", nullptr, TT_FONT_GLYPH_CACHE_LATIN },
 };
 #define TT_FONT_ENTRIES_COUNT  (sizeof(TT_FONT_ENTRIES) / sizeof(TT_FONT_ENTRIES[0]))
 
@@ -25,7 +26,7 @@ bool TTFontManager::begin() {
         const char* path = TT_FONT_ENTRIES[i].path;
         const char* asciiPath = TT_FONT_ENTRIES[i].asciiPath;
         std::unique_ptr<TTFontLoader> loader(new TTFontLoader());
-        if (loader->begin(path, asciiPath)) {
+        if (loader->begin(path, asciiPath, TT_FONT_ENTRIES[i].glyphCacheCapacity)) {
             LOG_I("Font %d loaded%s", size, asciiPath ? " (dual)" : "");
             _fonts[size] = std::move(loader);
         } else {

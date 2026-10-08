@@ -6,12 +6,15 @@
 #include "../Models/TTNotificationPayloads.h"
 #include "../Base/TTPreference.h"
 #include "../Base/TTRtc.h"
+#include "../Base/Util.h"
 #include "../Tasks/TTUITask.h"
 #include "../Tasks/TTWiFiTask.h"
 #include <WiFi.h>
 #include <cstring>
 #include <cstdio>
 #include <cstdlib>
+#include <memory>
+#include <new>
 
 namespace {
 
@@ -594,7 +597,7 @@ bool TTCalendarService::loadAccount(char* host, size_t hostMax, char* user, size
     return true;
 }
 
-bool TTCalendarService::discover(const char* host, const char* authHeader) {
+bool TTCalendarService::discover(const char* host, const char* authHeader, char hrefs[][TT_CAL_HREF_LEN]) {
     if (_discovered && _calCount > 0) {
         return true;
     }
@@ -604,9 +607,9 @@ bool TTCalendarService::discover(const char* host, const char* authHeader) {
     if (!exchange(url, "PROPFIND", authHeader, nullptr, &result)) {
         return false;
     }
-    _calCount = (uint8_t)collectHrefs(_hrefs, TT_CAL_CALS_MAX, false);
+    _calCount = (uint8_t)collectHrefs(hrefs, TT_CAL_CALS_MAX, false);
     for (uint8_t i = 0; i < _calCount; i++) {
-        strncpy(_cals[i], _hrefs[i], TT_CAL_PATH_MAX - 1);
+        strncpy(_cals[i], hrefs[i], TT_CAL_PATH_MAX - 1);
         _cals[i][TT_CAL_PATH_MAX - 1] = '\0';
     }
     _discovered = _calCount > 0;
@@ -615,7 +618,7 @@ bool TTCalendarService::discover(const char* host, const char* authHeader) {
 }
 
 int TTCalendarService::queryHrefs(const char* host, const char* authHeader, const char* calendarPath,
-                                  time_t rangeStart, time_t rangeEnd) {
+                                  time_t rangeStart, time_t rangeEnd, char hrefs[][TT_CAL_HREF_LEN]) {
     char startText[20];
     char endText[20];
     formatUtc(rangeStart, startText, sizeof(startText));
@@ -637,11 +640,12 @@ int TTCalendarService::queryHrefs(const char* host, const char* authHeader, cons
     if (!exchange(url, "REPORT", authHeader, body, &result)) {
         return -1;
     }
-    return collectHrefs(_hrefs, TT_CAL_HREF_MAX, true);
+    return collectHrefs(hrefs, TT_CAL_HREF_MAX, true);
 }
 
 bool TTCalendarService::pullEvents(const char* host, const char* authHeader, const char* calendarPath,
-                                   int hrefCount, time_t rangeStart, time_t rangeEnd) {
+                                   const char hrefs[][TT_CAL_HREF_LEN], int hrefCount,
+                                   time_t rangeStart, time_t rangeEnd) {
     char url[128];
     snprintf(url, sizeof(url), "https://%s%s", host, calendarPath);
     for (int offset = 0; offset < hrefCount; offset += TT_CAL_MULTIGET_BATCH) {
@@ -657,7 +661,7 @@ bool TTCalendarService::pullEvents(const char* host, const char* authHeader, con
         }
         for (int i = 0; i < batch; i++) {
             const int extra = snprintf(body + used, sizeof(body) - (size_t)used,
-                                       "<d:href>%s</d:href>", _hrefs[offset + i]);
+                                       "<d:href>%s</d:href>", hrefs[offset + i]);
             if (extra <= 0 || used + extra >= (int)sizeof(body)) {
                 return false;
             }
@@ -845,7 +849,19 @@ void TTCalendarService::fetch(bool extend) {
         _count = 0;
         _rangeStart = (int32_t)localMidnight(now);
     }
-    if (!discover(host, auth)) {
+    std::unique_ptr<char[][TT_CAL_HREF_LEN]> hrefs(new (std::nothrow) char[TT_CAL_HREF_MAX][TT_CAL_HREF_LEN]);
+    if (!hrefs) {
+        LOG_E("CalDAV: hrefs alloc %u failed heap=%u largest=%u",
+              (unsigned)(TT_CAL_HREF_MAX * TT_CAL_HREF_LEN),
+              (unsigned)Util::heapFree(), (unsigned)Util::heapLargest());
+        if (extend && _count > 0) {
+            publish(TT_CAL_OK, "", true);
+        } else {
+            publish(TT_CAL_FAILED, "内存不足", false);
+        }
+        return;
+    }
+    if (!discover(host, auth, hrefs.get())) {
         if (extend && _count > 0) {
             publish(TT_CAL_OK, "", true);
         } else {
@@ -853,15 +869,16 @@ void TTCalendarService::fetch(bool extend) {
         }
         return;
     }
-    LOG_I("CalDAV: fetch %ld..%ld extend=%d heap=%u",
-          (long)rangeStart, (long)rangeEnd, extend ? 1 : 0, (unsigned)ESP.getFreeHeap());
+    LOG_I("CalDAV: fetch %ld..%ld extend=%d heap=%u largest=%u",
+          (long)rangeStart, (long)rangeEnd, extend ? 1 : 0,
+          (unsigned)Util::heapFree(), (unsigned)Util::heapLargest());
     for (uint8_t i = 0; i < _calCount; i++) {
-        const int hrefs = queryHrefs(host, auth, _cals[i], rangeStart, rangeEnd);
-        LOG_I("CalDAV: calendar %u hrefs=%d", (unsigned)i, hrefs);
-        if (hrefs <= 0) {
+        const int hrefCount = queryHrefs(host, auth, _cals[i], rangeStart, rangeEnd, hrefs.get());
+        LOG_I("CalDAV: calendar %u hrefs=%d", (unsigned)i, hrefCount);
+        if (hrefCount <= 0) {
             continue;
         }
-        pullEvents(host, auth, _cals[i], hrefs, rangeStart, rangeEnd);
+        pullEvents(host, auth, _cals[i], hrefs.get(), hrefCount, rangeStart, rangeEnd);
         if (_count >= TT_CAL_EVENT_MAX) {
             LOG_W("CalDAV: event cap %u", (unsigned)TT_CAL_EVENT_MAX);
             break;

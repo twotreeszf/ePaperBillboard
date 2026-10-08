@@ -1,14 +1,12 @@
 #pragma once
 
 #include <Arduino.h>
-#include <map>
+#include <memory>
 #include <LittleFS.h>
 #include <Adafruit_GFX.h>
 #include <lvgl.h>
 
-#define TT_FONT_GLYPH_BUF_SIZE    (120 * 120)
 #define TT_FONT_CMAP_RECORD_SIZE  16
-#define TT_FONT_GLYPH_CACHE_MAX   128
 
 class TTFontLoader {
 public:
@@ -18,7 +16,7 @@ public:
     // Load font file(s)
     // path: main font file (e.g. Chinese font)
     // asciiPath: optional fallback font, characters in this font are rendered with priority
-    bool begin(const char* path, const char* asciiPath = nullptr);
+    bool begin(const char* path, const char* asciiPath, uint16_t glyphCacheCapacity);
     void end();
 
     // GFX direct drawing (legacy)
@@ -30,12 +28,12 @@ public:
 
     // Glyph info for LVGL
     struct GlyphInfo {
+        uint32_t glyfOffset;  // File offset to bitmap data
         uint16_t adv_w;
         uint16_t box_w;
         uint16_t box_h;
         int16_t ofs_x;
         int16_t ofs_y;
-        uint32_t glyfOffset;  // File offset to bitmap data
         uint8_t bitmapBits;   // Bits consumed by header (for bitmap start)
         bool fromAsciiFont;   // True if this glyph is from ASCII font
     };
@@ -92,7 +90,14 @@ private:
     FontData _ascii;    // ASCII font (English)
     uint16_t _color = 0;
 
-    std::map<uint32_t, GlyphInfo> _glyphCache;
+    struct GlyphCacheEntry {
+        uint32_t unicode;
+        GlyphInfo info;
+    };
+    std::unique_ptr<GlyphCacheEntry[]> _glyphCache;
+    uint16_t _glyphCacheCapacity = 0;
+    uint16_t _glyphCacheCount = 0;
+    uint16_t _glyphCacheNext = 0;
     void _glyphCacheClear();
     bool _glyphCacheGet(uint32_t unicode, GlyphInfo& info);
     void _glyphCachePut(uint32_t unicode, const GlyphInfo& info);

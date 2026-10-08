@@ -4,6 +4,7 @@
 #include <Arduino.h>
 #include <LittleFS.h>
 #include <esp_timer.h>
+#include <esp_heap_caps.h>
 #include "soc/soc.h"           // Disable brownout problems
 #include "soc/rtc_cntl_reg.h"  // Disable brownout problems
 #elif defined(ESP8266)
@@ -56,9 +57,26 @@ namespace Util
             LOG_I("LittleFS Used: %u KB", LittleFS.usedBytes() / 1024);
         }
 
-        LOG_I("Free Heap: %u bytes", ESP.getFreeHeap());
+        LOG_I("Free Heap: %u bytes, largest %u (internal incl. IRAM %u)",
+              (unsigned)heapFree(), (unsigned)heapLargest(), (unsigned)ESP.getFreeHeap());
         LOG_I("SDK Version: %s", ESP.getSdkVersion());
         LOG_I("-----------------");
+#endif
+    }
+
+    uint32_t heapFree() {
+#ifdef ESP32
+        return (uint32_t)heap_caps_get_free_size(TT_HEAP_CAPS);
+#else
+        return ESP.getFreeHeap();
+#endif
+    }
+
+    uint32_t heapLargest() {
+#ifdef ESP32
+        return (uint32_t)heap_caps_get_largest_free_block(TT_HEAP_CAPS);
+#else
+        return ESP.getMaxFreeBlockSize();
 #endif
     }
 }

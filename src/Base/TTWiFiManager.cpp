@@ -5,6 +5,7 @@
 #include "../Models/TTCalendarTypes.h"
 #include "TTPreference.h"
 #include "TTRtc.h"
+#include "Util.h"
 #include "../Tasks/TTUITask.h"
 #include <EPDConfig.h>
 #include <ArduinoJson.h>
@@ -86,7 +87,7 @@ bool TTWiFiManager::resumeRadio() {
     }
     _driverHeld = false;
     LOG_I("WiFi: radio resume heap=%u largest=%u",
-          (unsigned)ESP.getFreeHeap(), (unsigned)ESP.getMaxAllocHeap());
+          (unsigned)Util::heapFree(), (unsigned)Util::heapLargest());
     return true;
 }
 
@@ -117,7 +118,7 @@ bool TTWiFiManager::sleepRadio() {
     }
     LOG_I("WiFi: radio stopped held=%d heap=%u largest=%u",
           _driverHeld ? 1 : 0,
-          (unsigned)ESP.getFreeHeap(), (unsigned)ESP.getMaxAllocHeap());
+          (unsigned)Util::heapFree(), (unsigned)Util::heapLargest());
     return true;
 }
 

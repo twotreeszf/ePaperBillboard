@@ -5,6 +5,7 @@
 #include "TTNavigationBar.h"
 #include <EPDConfig.h>
 #include "Logger.h"
+#include "Util.h"
 #include <esp_heap_caps.h>
 
 static uint8_t* _drawBuf = nullptr;
@@ -64,14 +65,12 @@ bool TTLvglEpdDriver::begin(EPaperDisplay& display) {
 
     if (_drawBuf == nullptr) {
         LOG_I("LVGL alloc %u bytes, heap=%u largest=%u",
-              (unsigned)EPD_BUF_SIZE, (unsigned)ESP.getFreeHeap(),
-              (unsigned)heap_caps_get_largest_free_block(MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT));
+              (unsigned)EPD_BUF_SIZE, (unsigned)Util::heapFree(), (unsigned)Util::heapLargest());
         _drawBuf = (uint8_t*)heap_caps_aligned_alloc(4, EPD_BUF_SIZE, MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT);
     }
     if (_drawBuf == nullptr) {
         LOG_E("Failed to allocate LVGL draw buffer (%u bytes), heap=%u largest=%u",
-              (unsigned)EPD_BUF_SIZE, (unsigned)ESP.getFreeHeap(),
-              (unsigned)heap_caps_get_largest_free_block(MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT));
+              (unsigned)EPD_BUF_SIZE, (unsigned)Util::heapFree(), (unsigned)Util::heapLargest());
         return false;
     }
 

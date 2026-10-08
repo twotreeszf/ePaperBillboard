@@ -1,9 +1,7 @@
 #include "TTFontLoader.h"
 #include "TTFile.h"
 #include "Base/Logger.h"
-
-static uint8_t s_glyphBuf[TT_FONT_GLYPH_BUF_SIZE];
-static lv_draw_buf_t s_drawBuf;
+#include <new>
 
 bool TTFontLoader::_seekToTable(FontData& fd, const char* tag) {
     fd.file.seek(0);
@@ -77,27 +75,44 @@ bool TTFontLoader::_readCmapSubtable(FontData& fd, uint16_t index, FontData::CMA
 }
 
 void TTFontLoader::_glyphCacheClear() {
-    _glyphCache.clear();
+    _glyphCacheCount = 0;
+    _glyphCacheNext = 0;
 }
 
 bool TTFontLoader::_glyphCacheGet(uint32_t unicode, GlyphInfo& info) {
-    auto it = _glyphCache.find(unicode);
-    if (it != _glyphCache.end()) {
-        info = it->second;
-        return true;
+    for (uint16_t i = 0; i < _glyphCacheCount; i++) {
+        if (_glyphCache[i].unicode == unicode) {
+            info = _glyphCache[i].info;
+            return true;
+        }
     }
     return false;
 }
 
 void TTFontLoader::_glyphCachePut(uint32_t unicode, const GlyphInfo& info) {
-    if (_glyphCache.size() >= TT_FONT_GLYPH_CACHE_MAX && _glyphCache.find(unicode) == _glyphCache.end()) {
-        _glyphCache.erase(_glyphCache.begin());
+    if (_glyphCacheCapacity == 0) {
+        return;
     }
-    _glyphCache[unicode] = info;
+    uint16_t slot;
+    if (_glyphCacheCount < _glyphCacheCapacity) {
+        slot = _glyphCacheCount++;
+    } else {
+        slot = _glyphCacheNext;
+        _glyphCacheNext = (uint16_t)((_glyphCacheNext + 1) % _glyphCacheCapacity);
+    }
+    _glyphCache[slot].unicode = unicode;
+    _glyphCache[slot].info = info;
 }
 
-bool TTFontLoader::begin(const char* path, const char* asciiPath) {
+bool TTFontLoader::begin(const char* path, const char* asciiPath, uint16_t glyphCacheCapacity) {
     _glyphCacheClear();
+    if (_glyphCacheCapacity != glyphCacheCapacity) {
+        _glyphCache.reset(glyphCacheCapacity > 0 ? new (std::nothrow) GlyphCacheEntry[glyphCacheCapacity] : nullptr);
+        _glyphCacheCapacity = _glyphCache ? glyphCacheCapacity : 0;
+        if (glyphCacheCapacity > 0 && !_glyphCache) {
+            LOG_W("Font glyph cache alloc failed: %u entries", (unsigned)glyphCacheCapacity);
+        }
+    }
 
     // Load main font
     if (!_loadFontData(_main, path)) {
@@ -125,14 +140,17 @@ bool TTFontLoader::begin(const char* path, const char* asciiPath) {
     _lvFont.underline_thickness = 1;
     _lvFont.dsc = this;
 
-    LOG_I("Font Ready: Asc=%d, Des=%d, LineH=%d, CMAPs=%d, BPP=%d",
+    LOG_I("Font Ready: Asc=%d, Des=%d, LineH=%d, CMAPs=%d, BPP=%d, Cache=%u (%u bytes)",
         _main.head.ascent, _main.head.descent, getLineHeight(), 
-        _main.cmapCount, _main.head.bpp);
+        _main.cmapCount, _main.head.bpp,
+        (unsigned)_glyphCacheCapacity, (unsigned)(_glyphCacheCapacity * sizeof(GlyphCacheEntry)));
     return true;
 }
 
 void TTFontLoader::end() {
     _glyphCacheClear();
+    _glyphCache.reset();
+    _glyphCacheCapacity = 0;
     _freeFontData(_ascii);
     _freeFontData(_main);
 }
@@ -336,9 +354,11 @@ bool TTFontLoader::lvglGetGlyphDsc(const lv_font_t* font, lv_font_glyph_dsc_t* d
 
 // LVGL callback: get glyph bitmap
 const void* TTFontLoader::lvglGetGlyphBitmap(lv_font_glyph_dsc_t* dsc, lv_draw_buf_t* draw_buf) {
-    LV_UNUSED(draw_buf);
-    
     if (!dsc || !dsc->resolved_font) return nullptr;
+    if (!draw_buf || !draw_buf->data) {
+        LOG_E("Glyph draw buffer missing");
+        return nullptr;
+    }
     
     TTFontLoader* loader = (TTFontLoader*)dsc->resolved_font->dsc;
     if (!loader) return nullptr;
@@ -352,9 +372,12 @@ const void* TTFontLoader::lvglGetGlyphBitmap(lv_font_glyph_dsc_t* dsc, lv_draw_b
     FontData& fd = info.fromAsciiFont ? loader->_ascii : loader->_main;
     if (!fd.file) return nullptr;
     
-    uint32_t a8Size = info.box_w * info.box_h;
-    if (a8Size > sizeof(s_glyphBuf)) {
-        LOG_E("Glyph too large: %ux%u = %u bytes", info.box_w, info.box_h, a8Size);
+    const uint32_t stride = draw_buf->header.stride;
+    if (draw_buf->header.w < info.box_w || draw_buf->header.h < info.box_h
+        || stride < info.box_w || stride * info.box_h > draw_buf->data_size) {
+        LOG_E("Glyph %ux%u exceeds draw buffer %ux%u stride=%u size=%u",
+              info.box_w, info.box_h, draw_buf->header.w, draw_buf->header.h,
+              (unsigned)stride, (unsigned)draw_buf->data_size);
         return nullptr;
     }
 
@@ -362,22 +385,14 @@ const void* TTFontLoader::lvglGetGlyphBitmap(lv_font_glyph_dsc_t* dsc, lv_draw_b
     loader->_resetBitReader(fd);
     loader->_readBits(fd, info.bitmapBits);
 
-    uint8_t* dst = s_glyphBuf;
-    for (uint32_t i = 0; i < a8Size; i++) {
-        uint8_t bit = loader->_readBits(fd, fd.head.bpp);
-        *dst++ = bit ? 0xFF : 0x00;
+    for (uint32_t y = 0; y < info.box_h; y++) {
+        uint8_t* dst = draw_buf->data + y * stride;
+        for (uint32_t x = 0; x < info.box_w; x++) {
+            dst[x] = loader->_readBits(fd, fd.head.bpp) ? 0xFF : 0x00;
+        }
     }
 
-    memset(&s_drawBuf, 0, sizeof(s_drawBuf));
-    s_drawBuf.header.magic = LV_IMAGE_HEADER_MAGIC;
-    s_drawBuf.header.cf = LV_COLOR_FORMAT_A8;
-    s_drawBuf.header.w = info.box_w;
-    s_drawBuf.header.h = info.box_h;
-    s_drawBuf.header.stride = info.box_w;
-    s_drawBuf.data_size = a8Size;
-    s_drawBuf.data = s_glyphBuf;
-
-    return &s_drawBuf;
+    return draw_buf;
 }
 
 // LVGL callback: release glyph

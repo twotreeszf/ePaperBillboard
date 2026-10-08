@@ -6,6 +6,9 @@
 #include "TTFontLoader.h"
 #include "TTInstance.h"
 
+#define TT_FONT_GLYPH_CACHE_CJK    64
+#define TT_FONT_GLYPH_CACHE_LATIN  24
+
 class TTFontManager {
 public:
     static TTFontManager& instance() { return TTInstanceOf<TTFontManager>(); }
