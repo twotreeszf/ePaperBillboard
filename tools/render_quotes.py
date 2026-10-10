@@ -6,7 +6,7 @@ so the ink fills a rectangle (default 280x280, the pictorial pane).
 Line spacing is 1.2 times the font size. Each edge keeps 16px clear.
 The first line is indented by one em.
 
-    python tools/render_quotes.py tools/quotes/关于欲望.txt
+    python tools/render_quotes.py tools/quotes/叔本华.txt
 """
 
 import argparse

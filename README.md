@@ -2,7 +2,7 @@
 
 ESP32-WROOM-32E weather and calendar billboard: LVGL 9, custom binary fonts, LittleFS icons, indoor sensors, Open-Meteo, and CalDAV over a small TLS 1.2 client. UI is a page stack with an always-on status bar and E-Paper three-level refresh (partial / full-screen partial / deep full).
 
-**Contents:** [Hardware](#hardware) · [Build & Flash](#build--flash) · [Fonts](#fonts) · [Icons](#icons) · [Comics (pictorial)](#comics-pictorial) · [Firmware OTA publish](#firmware-ota-publish) · [E-Ink / LVGL](#e-ink-refresh-strategy) · [Software Architecture](#software-architecture) · [Keypad & focus](#keypad--focus)
+**Contents:** [Hardware](#hardware) · [Build & Flash](#build--flash) · [Fonts](#fonts) · [Icons](#icons) · [Comics (pictorial)](#comics-pictorial) · [Quote pictorials](#quote-pictorials) · [Firmware OTA publish](#firmware-ota-publish) · [E-Ink / LVGL](#e-ink-refresh-strategy) · [Software Architecture](#software-architecture) · [Keypad & focus](#keypad--focus)
 
 ## Hardware
 
@@ -205,6 +205,7 @@ pip install -r tools/requirements.txt
 | `tools/extract_images.py` | Pull embedded images from `.pdf` / `.epub` / `.mobi` / `.zip` into `<stem>/0001.jpg` … beside the file |
 | `tools/batch_eink_comic.py` | Batch API redraw → `output/` |
 | `tools/publish_comics.py` | `output/` → `prepare/` (flatten + renumber) → `publish/*.i1` |
+| `tools/render_quotes.py` | One UTF-8 quote per line → 280×280 PNG preview + `.i1` |
 | `tools/sync_comics.py` | `publish/` → TOS `Comics/` |
 | `tools/eink_comic.py` | Single-page API test |
 
@@ -249,6 +250,27 @@ Manifest item order follows **sorted Chinese folder names** under `publish/`; th
 ```bash
 python tools/eink_comic.py path/to/page.jpg -o /tmp/page.eink.png
 ```
+
+### Quote pictorials
+
+A quote series is the same 画报 payload as a comic: one Chinese folder under `tools/comics/publish/`, contiguous `0001.i1` …, then `sync_comics.py`. The source is a plain UTF-8 text file, one quote per line. The renderer does not fetch or parse a web page. Skip book-title-only lines and original/translation lines when preparing the file; keep one source bullet as one line.
+
+`tools/render_quotes.py` sets LXGW WenKai (霞鹜文楷) Regular. It looks in `tools/fonts/`, `~/Library/Fonts/`, and `fc-list`, and otherwise downloads the pinned v1.521 Regular TTF. Font size and wraps are chosen so the ink fills a 280×280 pane. Line spacing is 1.2× the font size. Each edge keeps 16px clear. The first line is indented by one em. A line does not start with closing punctuation or end with an opening bracket; a closing mark that does not fit travels with the previous character onto the next line.
+
+```bash
+tools/venv/bin/python tools/render_quotes.py tools/quotes/叔本华.txt
+# optional: --name <folder> --output tools/quotes/output
+#           --width 280 --height 280 --leading 1.2 --margin 16 --font <ttf>
+```
+
+That writes `tools/quotes/output/<stem>/0001.png`, `0001.i1`, … and `index.json` (preview only). Copy the packed pages into the publish tree and upload. The folder name is the Chinese series title; pinyin and `Manifest.json` come from `sync_comics.py`. Sorted names decide the device default, so a name that sorts before `千与千寻` would replace it.
+
+```bash
+cp tools/quotes/output/叔本华/*.i1 tools/comics/publish/叔本华/
+tools/venv/bin/python tools/sync_comics.py
+```
+
+Pillow is already in `tools/requirements.txt`. Re-running the renderer replaces every page in that output folder.
 
 ### Limits (enforced by `sync_comics.py`)
 
