@@ -3,7 +3,8 @@
 
 The font is LXGW WenKai (霞鹜文楷). Font size and line breaks are chosen
 so the ink fills a rectangle (default 280x280, the pictorial pane).
-Line spacing is 1.2 times the font size.
+Line spacing is 1.2 times the font size. Each edge keeps 16px clear.
+The first line is indented by one em.
 
     python tools/render_quotes.py tools/quotes/关于欲望.txt
 """
@@ -28,6 +29,9 @@ BOX = 280
 MIN_FONT = 8
 PROBE_SIZE = 64
 TOP_WRAPS = 8
+MARGIN = 16
+FIRST_INDENT = 1
+INDENT_CHAR = "\u3000"
 
 NO_LINE_START = set("，。、；：！？）》」』】〕〉”’…—～·,.;:!?)]}")
 NO_LINE_END = set("（《「『【〔〈“‘([{")
@@ -112,16 +116,28 @@ def wrap_cols(text, cols):
     lines = []
     index = 0
     count = len(text)
+    first = True
     while index < count:
-        end = min(index + cols, count)
-        while end < count and text[end] in NO_LINE_START:
+        budget = max(1, cols - FIRST_INDENT) if first else cols
+        end = min(index + budget, count)
+        while end < count and text[end] in NO_LINE_START and end - index < budget:
             end += 1
+        if end < count and text[end] in NO_LINE_START:
+            back = end - 1
+            while back > index and text[back] in NO_LINE_START:
+                back -= 1
+            if back > index:
+                end = back
         if end < count and end - index > 1 and text[end - 1] in NO_LINE_END:
             end -= 1
         if end == index:
             end = index + 1
-        lines.append(text[index:end])
+        piece = text[index:end]
+        if first:
+            piece = INDENT_CHAR * FIRST_INDENT + piece
+        lines.append(piece)
         index = end
+        first = False
     return lines
 
 
@@ -135,7 +151,7 @@ def measure(font, lines, size, leading, boxes):
     return right - left, ink_bottom - ink_top, left, ink_top, y_offsets
 
 
-def fit_quote(text, font_path, box_w, box_h, leading, threshold):
+def fit_quote(text, font_path, box_w, box_h, leading, margin, threshold):
     fonts = {}
     box_cache = {}
 
@@ -170,7 +186,10 @@ def fit_quote(text, font_path, box_w, box_h, leading, threshold):
         }
 
     def fits(layout):
-        return 0 < layout["width"] <= box_w and 0 < layout["height"] <= box_h
+        return (
+            0 < layout["width"] <= box_w - 2 * margin
+            and 0 < layout["height"] <= box_h - 2 * margin
+        )
 
     def largest(lines):
         lo = MIN_FONT * 2
@@ -196,7 +215,10 @@ def fit_quote(text, font_path, box_w, box_h, leading, threshold):
         sample = layout_at(lines, PROBE_SIZE)
         if sample["width"] <= 0 or sample["height"] <= 0:
             continue
-        scale = min(box_w / sample["width"], box_h / sample["height"])
+        scale = min(
+            (box_w - 2 * margin) / sample["width"],
+            (box_h - 2 * margin) / sample["height"],
+        )
         ranked.append((min(sample["width"], sample["height"]) * scale, lines))
     if not ranked:
         raise SystemExit(f"Cannot fit quote into {box_w}x{box_h}: {text}")
@@ -215,14 +237,14 @@ def fit_quote(text, font_path, box_w, box_h, leading, threshold):
 
     layout = chosen[1]
     while layout["size"] >= MIN_FONT:
-        rendered = render_layout(layout, font_at(layout["size"]), box_w, box_h, threshold)
+        rendered = render_layout(layout, font_at(layout["size"]), box_w, box_h, margin, threshold)
         if rendered is not None:
             return rendered
         layout = layout_at(layout["lines"], layout["size"] - 0.5)
     raise SystemExit(f"Ink does not fit {box_w}x{box_h}: {text}")
 
 
-def render_layout(layout, font, box_w, box_h, threshold):
+def render_layout(layout, font, box_w, box_h, margin, threshold):
     pad = 12
     canvas_w = int(layout["width"]) + pad * 2 + 8
     canvas_h = int(layout["height"]) + pad * 2 + 8
@@ -238,10 +260,12 @@ def render_layout(layout, font, box_w, box_h, threshold):
         return None
     ink_w = bbox[2] - bbox[0]
     ink_h = bbox[3] - bbox[1]
-    if ink_w > box_w or ink_h > box_h:
+    left = (box_w - ink_w) // 2
+    top = (box_h - ink_h) // 2
+    if ink_w > box_w - 2 * margin or ink_h > box_h - 2 * margin or left < margin or top < margin:
         return None
     page = Image.new("L", (box_w, box_h), 255)
-    page.paste(inked.crop(bbox), ((box_w - ink_w) // 2, (box_h - ink_h) // 2))
+    page.paste(inked.crop(bbox), (left, top))
     return page, ink_w, ink_h, layout
 
 
@@ -278,13 +302,13 @@ def clear_pages(folder):
             path.unlink()
 
 
-def render_series(quotes, folder, font_path, box_w, box_h, leading, threshold, source):
+def render_series(quotes, folder, font_path, box_w, box_h, leading, margin, threshold, source):
     folder.mkdir(parents=True, exist_ok=True)
     clear_pages(folder)
     pages = []
     for index, text in enumerate(quotes, start=1):
         image, ink_w, ink_h, layout = fit_quote(
-            text, font_path, box_w, box_h, leading, threshold
+            text, font_path, box_w, box_h, leading, margin, threshold
         )
         stem = f"{index:04d}"
         png_path = folder / f"{stem}.png"
@@ -307,6 +331,7 @@ def render_series(quotes, folder, font_path, box_w, box_h, leading, threshold, s
         "source": source,
         "font": str(font_path),
         "box": [box_w, box_h],
+        "margin": margin,
         "quotes": pages,
     }
     (folder / "index.json").write_text(
@@ -337,6 +362,12 @@ def main():
         help="Line spacing as a multiple of the font size",
     )
     parser.add_argument(
+        "--margin",
+        type=int,
+        default=MARGIN,
+        help="Padding on each edge, in pixels",
+    )
+    parser.add_argument(
         "--threshold",
         type=int,
         default=160,
@@ -347,6 +378,8 @@ def main():
         raise SystemExit("--width and --height must be at least 8")
     if args.leading <= 0:
         raise SystemExit("--leading must be greater than 0")
+    if args.margin < 0 or args.margin * 2 >= min(args.width, args.height):
+        raise SystemExit("--margin must leave room inside the box")
     if not 1 <= args.threshold <= 254:
         raise SystemExit("--threshold must be between 1 and 254")
     quotes = load_quotes(args.source)
@@ -361,6 +394,7 @@ def main():
         args.width,
         args.height,
         args.leading,
+        args.margin,
         args.threshold,
         str(args.source),
     )
