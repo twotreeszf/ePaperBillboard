@@ -11,6 +11,9 @@
 #define TT_WEATHER_REGION_OVERSEAS "overseas"
 
 #define TT_WEATHER_CITY_MAX   32
+#define TT_WEATHER_DEFAULT_CITY "北京.望京"
+#define TT_WEATHER_DEFAULT_LAT  39.9972f
+#define TT_WEATHER_DEFAULT_LON  116.4569f
 #define TT_WEATHER_MSG_MAX    48
 #define TT_WEATHER_HOURS      24
 #define TT_WEATHER_DAYS            6

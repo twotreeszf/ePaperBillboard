@@ -41,10 +41,10 @@ bool parseCoord(const String& text, float& out, float minV, float maxV) {
 }
 
 String normalizeEpdPanel(const String& panel) {
-    if (panel == TT_EPD_PANEL_B0 || panel == TT_EPD_PANEL_C0) {
+    if (panel == TT_EPD_PANEL_A0_1 || panel == TT_EPD_PANEL_A0_2 || panel == TT_EPD_PANEL_A0_3) {
         return panel;
     }
-    return String(TT_EPD_PANEL_A0);
+    return String(TT_EPD_PANEL_DEFAULT);
 }
 
 }
@@ -662,9 +662,18 @@ void TTWiFiManager::_handleStatus() {
     String weatherCity;
     float weatherLat = NAN;
     float weatherLon = NAN;
-    pref.get(PREF_WEATHER_CITY, weatherCity, String(""));
-    pref.get(PREF_WEATHER_LAT, weatherLat, NAN);
-    pref.get(PREF_WEATHER_LON, weatherLon, NAN);
+    pref.get(PREF_WEATHER_CITY, weatherCity, String(TT_WEATHER_DEFAULT_CITY));
+    if (weatherCity.isEmpty()) {
+        weatherCity = TT_WEATHER_DEFAULT_CITY;
+    }
+    pref.get(PREF_WEATHER_LAT, weatherLat, TT_WEATHER_DEFAULT_LAT);
+    pref.get(PREF_WEATHER_LON, weatherLon, TT_WEATHER_DEFAULT_LON);
+    if (!isfinite(weatherLat)) {
+        weatherLat = TT_WEATHER_DEFAULT_LAT;
+    }
+    if (!isfinite(weatherLon)) {
+        weatherLon = TT_WEATHER_DEFAULT_LON;
+    }
     doc["weather_city"] = weatherCity;
     String weatherRegion;
     pref.get(PREF_WEATHER_REGION, weatherRegion, String(TT_WEATHER_REGION_CN));
@@ -787,11 +796,11 @@ String TTWiFiManager::_getHTMLContent() {
                     <option value="overseas">海外</option>
                 </select>
                 <label>城市</label>
-                <input type="text" id="weather_city" name="weather_city" placeholder="例如 上海" maxlength="32">
+                <input type="text" id="weather_city" name="weather_city" placeholder="北京.望京" maxlength="32">
                 <label>纬度</label>
-                <input type="text" id="weather_lat" name="weather_lat" placeholder="例如 31.2304" inputmode="decimal">
+                <input type="text" id="weather_lat" name="weather_lat" placeholder="39.9972" inputmode="decimal">
                 <label>经度</label>
-                <input type="text" id="weather_lon" name="weather_lon" placeholder="例如 121.4737" inputmode="decimal">
+                <input type="text" id="weather_lon" name="weather_lon" placeholder="116.4569" inputmode="decimal">
             </div>
             <div class="panel" id="panel-cal">
                 <p class="tip">CalDAV 账号。密码留空则保留已保存的密码。三项都留空则清除日历配置。</p>
@@ -803,12 +812,12 @@ String TTWiFiManager::_getHTMLContent() {
                 <input type="text" id="caldav_pass" name="caldav_pass" placeholder="CalDAV 密码" maxlength="31" autocomplete="off">
             </div>
             <div class="panel" id="panel-hw">
-                <p class="tip">同一排线有三种波形。A0 是当前默认。C0 是最初的 A0 驱动。B0 是另一款膜。选错会出现残影或噪点。更改后设备会自动重启。</p>
+                <p class="tip">同一排线有三种波形。A0-2 是当前默认。A0-3 是最初的 A0 驱动。A0-1 是另一款膜。选错会出现残影或噪点。更改后设备会自动重启。</p>
                 <label>屏幕型号</label>
                 <select id="epd_panel" name="epd_panel">
-                    <option value="a0" selected>HINK-E042A13 A0</option>
-                    <option value="b0">HINK-E042A13 B0</option>
-                    <option value="c0">HINK-E042A13 C0</option>
+                    <option value="a0-1">HINK-E042A13 A0-1</option>
+                    <option value="a0-2" selected>HINK-E042A13 A0-2</option>
+                    <option value="a0-3">HINK-E042A13 A0-3</option>
                 </select>
             </div>
             <button class="save" type="submit">完成配置</button>

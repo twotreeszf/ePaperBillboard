@@ -268,17 +268,20 @@ void TTWeatherService::publishStatus(TTWeatherState state, const char* message) 
 bool TTWeatherService::loadLocation(float& lat, float& lon, char* city, size_t cityMax) {
     auto& pref = TTInstanceOf<TTPreference>();
     String cityStr;
-    pref.get(PREF_WEATHER_CITY, cityStr, String(""));
+    pref.get(PREF_WEATHER_CITY, cityStr, String(TT_WEATHER_DEFAULT_CITY));
+    if (cityStr.isEmpty()) {
+        cityStr = TT_WEATHER_DEFAULT_CITY;
+    }
     if (city != nullptr && cityMax > 0) {
         strncpy(city, cityStr.c_str(), cityMax - 1);
         city[cityMax - 1] = '\0';
     }
 
-    const float missing = NAN;
-    pref.get(PREF_WEATHER_LAT, lat, missing);
-    pref.get(PREF_WEATHER_LON, lon, missing);
+    pref.get(PREF_WEATHER_LAT, lat, TT_WEATHER_DEFAULT_LAT);
+    pref.get(PREF_WEATHER_LON, lon, TT_WEATHER_DEFAULT_LON);
     if (!isfinite(lat) || !isfinite(lon)) {
-        return false;
+        lat = TT_WEATHER_DEFAULT_LAT;
+        lon = TT_WEATHER_DEFAULT_LON;
     }
     if (lat < -90.0f || lat > 90.0f || lon < -180.0f || lon > 180.0f) {
         return false;

@@ -92,14 +92,14 @@ void TTUITask::_selectPanel() {
 #if defined(EPD_PANEL_SELECTABLE)
     String panel;
     TTInstanceOf<TTPreference>().get(PREF_EPD_PANEL, panel, String(TT_EPD_PANEL_DEFAULT));
-    uint8_t variant = EPD_HINK_E042A13_A0;
-    const char* use = TT_EPD_PANEL_A0;
-    if (panel == TT_EPD_PANEL_B0) {
-        variant = EPD_HINK_E042A13_B0;
-        use = TT_EPD_PANEL_B0;
-    } else if (panel == TT_EPD_PANEL_C0) {
+    const char* use = TT_EPD_PANEL_DEFAULT;
+    uint8_t variant = EPD_HINK_E042A13_B0;
+    if (panel == TT_EPD_PANEL_A0_1) {
+        variant = EPD_HINK_E042A13_A0;
+        use = TT_EPD_PANEL_A0_1;
+    } else if (panel == TT_EPD_PANEL_A0_3) {
         variant = EPD_HINK_E042A13_C0;
-        use = TT_EPD_PANEL_C0;
+        use = TT_EPD_PANEL_A0_3;
     }
     _display.epd2.selectPanel(variant);
     LOG_I("E-Paper panel pref=%s use=%s", panel.c_str(), use);

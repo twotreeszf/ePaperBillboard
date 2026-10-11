@@ -37,7 +37,7 @@ using EPaperDisplay = GxEPD2_BW<GxEPD2_420_HinkE042A13Select, GxEPD2_420_HinkE04
 #define EPD_FULL_REFRESH_INTERVAL 64
 
 #define PREF_EPD_PANEL "epd_panel"
-#define TT_EPD_PANEL_A0 "a0"
-#define TT_EPD_PANEL_B0 "b0"
-#define TT_EPD_PANEL_C0 "c0"
-#define TT_EPD_PANEL_DEFAULT TT_EPD_PANEL_A0
+#define TT_EPD_PANEL_A0_1 "a0-1"
+#define TT_EPD_PANEL_A0_2 "a0-2"
+#define TT_EPD_PANEL_A0_3 "a0-3"
+#define TT_EPD_PANEL_DEFAULT TT_EPD_PANEL_A0_2
