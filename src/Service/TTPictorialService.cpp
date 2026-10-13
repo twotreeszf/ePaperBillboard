@@ -223,15 +223,95 @@ void TTPictorialService::removeStale(const char* keep, const char* alsoKeep) {
     }
 }
 
-uint16_t TTPictorialService::pickIndex(uint16_t count, uint16_t avoid, bool avoidCurrent) const {
-    if (count <= 1) {
-        return 1;
+bool TTPictorialService::seenHas(uint16_t index) const {
+    return _seen.find(index) != _seen.end();
+}
+
+void TTPictorialService::markSeen(uint16_t index) {
+    if (index < 1 || index > TT_PIC_PAGE_MAX) {
+        return;
     }
-    uint16_t index = (uint16_t)(esp_random() % count) + 1;
-    if (avoidCurrent && index == avoid) {
-        index = (uint16_t)(index % count) + 1;
+    const auto inserted = _seen.insert(index);
+    if (inserted.second) {
+        LOG_I("Pictorial: seen %u size=%u", (unsigned)index, (unsigned)_seen.size());
     }
-    return index;
+}
+
+void TTPictorialService::beginSeen(const char* pinyin, uint16_t count, int dayKey) {
+    if (pinyin == nullptr) {
+        pinyin = "";
+    }
+    if (_seenReady && _seenDay == dayKey && _seenCount == count && strcmp(_seenPinyin, pinyin) == 0) {
+        return;
+    }
+    _seen.clear();
+    copyText(_seenPinyin, sizeof(_seenPinyin), pinyin);
+    _seenCount = count;
+    _seenDay = dayKey;
+    _seenReady = true;
+    LOG_I("Pictorial: seen reset %s day=%d count=%u", pinyin, dayKey, (unsigned)count);
+}
+
+void TTPictorialService::noteShown(const TTPicSeries& series, int dayKey) {
+    beginSeen(series.pinyin, series.count, dayKey);
+    if (dayKey != 0) {
+        int savedDay = 0;
+        TTInstanceOf<TTPreference>().get(PREF_PIC_DAY, savedDay, 0);
+        if (savedDay != dayKey) {
+            return;
+        }
+    }
+    String savedPinyin;
+    TTInstanceOf<TTPreference>().get(PREF_PIC_PINYIN, savedPinyin, String(""));
+    if (savedPinyin != series.pinyin) {
+        return;
+    }
+    int savedIndex = 0;
+    TTInstanceOf<TTPreference>().get(PREF_PIC_INDEX, savedIndex, 0);
+    if (savedIndex < 1 || savedIndex > (int)series.count) {
+        return;
+    }
+    if (seenHas((uint16_t)savedIndex)) {
+        return;
+    }
+    markSeen((uint16_t)savedIndex);
+    LOG_I("Pictorial: seen note %s #%d", series.pinyin, savedIndex);
+}
+
+uint16_t TTPictorialService::pickUnseen(uint16_t count, uint16_t avoid) const {
+    if (count == 0 || count > TT_PIC_PAGE_MAX) {
+        return 0;
+    }
+    uint16_t unseen = 0;
+    uint16_t fallback = 0;
+    for (uint16_t index = 1; index <= count; index++) {
+        if (seenHas(index)) {
+            continue;
+        }
+        if (index == avoid) {
+            fallback = index;
+            continue;
+        }
+        unseen++;
+    }
+    if (unseen == 0) {
+        if (fallback != 0) {
+            LOG_I("Pictorial: pick %u unseen=1 avoid=%u", (unsigned)fallback, (unsigned)avoid);
+        }
+        return fallback;
+    }
+    uint32_t choice = esp_random() % unseen;
+    for (uint16_t index = 1; index <= count; index++) {
+        if (seenHas(index) || index == avoid) {
+            continue;
+        }
+        if (choice == 0) {
+            LOG_I("Pictorial: pick %u unseen=%u avoid=%u", (unsigned)index, (unsigned)unseen, (unsigned)avoid);
+            return index;
+        }
+        choice--;
+    }
+    return fallback;
 }
 
 bool TTPictorialService::loadManifest() {
@@ -269,7 +349,7 @@ bool TTPictorialService::loadManifest() {
         }
         const char* pinyin = item["pinyin"] | "";
         const int count = item["count"] | 0;
-        if (!pinyinOk(pinyin) || count <= 0 || count > 9999) {
+        if (!pinyinOk(pinyin) || count <= 0 || count > TT_PIC_PAGE_MAX) {
             LOG_W("Pictorial: skip series pinyin=%s count=%d", pinyin, count);
             continue;
         }
@@ -387,15 +467,31 @@ void TTPictorialService::runJob(TTPicJob job, uint8_t seriesIndex) {
     }
 
     const TTPicSeries series = _series[_selected];
+    const int dayKey = todayKey();
+    String savedPinyin;
     int savedIndex = 0;
+    TTInstanceOf<TTPreference>().get(PREF_PIC_PINYIN, savedPinyin, String(""));
     TTInstanceOf<TTPreference>().get(PREF_PIC_INDEX, savedIndex, 0);
-    const uint16_t index = pickIndex(series.count, (uint16_t)savedIndex, true);
-    const bool updateDay = job != TT_PIC_JOB_ANOTHER || todayKey() != 0;
+    uint16_t avoid = 0;
+    if (savedPinyin == series.pinyin && savedIndex >= 1 && savedIndex <= (int)series.count) {
+        avoid = (uint16_t)savedIndex;
+    }
+    noteShown(series, dayKey);
+    const uint16_t index = pickUnseen(series.count, avoid);
+    if (index == 0) {
+        _busy = false;
+        LOG_I("Pictorial: day deck empty series=%s count=%u", series.pinyin, (unsigned)series.count);
+        publish(TT_PIC_FAILED, "今天都看过了", "", series.name);
+        return;
+    }
+    const bool updateDay = job != TT_PIC_JOB_ANOTHER || dayKey != 0;
     if (!downloadIndex(series, index, updateDay)) {
         _busy = false;
         publish(TT_PIC_FAILED, "画报下载失败", "", series.name);
         return;
     }
+    beginSeen(series.pinyin, series.count, dayKey);
+    markSeen(index);
     _busy = false;
 }
 

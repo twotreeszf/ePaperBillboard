@@ -10,6 +10,7 @@
 #define TT_PIC_IMAGE_MAX         (32 * 1024)
 #define TT_PIC_HTTP_PATH         TT_FS_TMP_DIR "/pic_http"
 #define TT_PIC_SERIES_MAX        24
+#define TT_PIC_PAGE_MAX          9999
 #define TT_PIC_NAME_MAX          48
 #define TT_PIC_PINYIN_MAX        32
 #define TT_PIC_MSG_MAX           48
