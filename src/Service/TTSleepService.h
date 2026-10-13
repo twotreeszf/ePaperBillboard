@@ -4,6 +4,8 @@
 #include "../Base/TTKeypadConfig.h"
 #include "../Models/TTNotificationPayloads.h"
 
+#define TT_SLEEP_FETCH_QUIET_START_HOUR  22
+#define TT_SLEEP_FETCH_QUIET_END_HOUR    6
 #define TT_SLEEP_MIN_US             200000ULL
 #define TT_SLEEP_AFTER_SYNC_MS      0
 #define TT_SLEEP_AFTER_REFRESH_MS   5000

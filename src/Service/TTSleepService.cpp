@@ -290,6 +290,20 @@ void TTSleepService::refreshFetchDeadline() {
     if (next <= now) {
         next += 3600;
     }
+    for (int step = 0; step < 24; step++) {
+        struct tm slot;
+        memset(&slot, 0, sizeof(slot));
+        if (localtime_r(&next, &slot) == nullptr) {
+            break;
+        }
+        const int hour = slot.tm_hour;
+        const bool quiet = hour >= TT_SLEEP_FETCH_QUIET_START_HOUR
+            || hour < TT_SLEEP_FETCH_QUIET_END_HOUR;
+        if (!quiet) {
+            break;
+        }
+        next += 3600;
+    }
     _nextFetchUnix = next;
     char untilText[TT_SLEEP_WALL_TEXT_MAX];
     tt_sleep_format_wall(next, untilText, sizeof(untilText));
