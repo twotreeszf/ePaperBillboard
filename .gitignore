@@ -19,6 +19,7 @@ tools/icons/node_modules/
 
 .env
 data/res/manifest.json
+docs/publish/
 
 # Temporary files
 .cache/

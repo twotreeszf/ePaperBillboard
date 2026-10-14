@@ -1,0 +1,632 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>墨鱼桌搭 使用说明书</title>
+<style>
+  :root {
+    --ink: #1c1c1c;
+    --muted: #5c5852;
+    --line: #e4e0d8;
+    --paper: #f6f4ef;
+    --card: #fff;
+    --hole-x: 8.605263%;
+    --hole-y: 9.322874%;
+    --hole-w: 82.789474%;
+    --hole-h: 73.3739%;
+    --frame-gap-x: calc(4px + 0.3021%);
+    --frame-gap-y: calc(4px + 0.3987%);
+  }
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body {
+    margin: 0;
+    background: var(--paper);
+    color: var(--ink);
+    font: 17px/1.75 "PingFang SC", "Hiragino Sans GB", "Noto Sans SC", sans-serif;
+  }
+  main {
+    max-width: 800px;
+    margin: 0 auto;
+    padding: 48px 28px 96px;
+    background: var(--card);
+  }
+  h1 {
+    margin: 0 0 0.35em;
+    font-size: 2rem;
+    font-weight: 650;
+    letter-spacing: 0.02em;
+    line-height: 1.3;
+  }
+  h2 {
+    margin: 2.8em 0 0.7em;
+    padding-top: 1.15em;
+    font-size: 1.35rem;
+    font-weight: 650;
+    line-height: 1.4;
+    border-top: 1px solid var(--line);
+    scroll-margin-top: 1.25rem;
+  }
+  h3 { margin: 1.7em 0 0.45em; font-size: 1.08rem; font-weight: 650; scroll-margin-top: 1.25rem; }
+  h4 {
+    margin: 1.45em 0 0.35em;
+    font-size: 1rem;
+    font-weight: 650;
+  }
+  .lead {
+    margin: 0 0 1.1em;
+    color: var(--muted);
+    font-size: 1.05rem;
+  }
+  p { margin: 0.75em 0; }
+  a { color: inherit; text-underline-offset: 0.18em; }
+  a.link { color: #1a56c4; }
+  strong { font-weight: 650; }
+  code {
+    font-family: "SF Mono", ui-monospace, Menlo, Consolas, monospace;
+    font-size: 0.86em;
+    background: #f3f1eb;
+    padding: 0.08em 0.38em;
+    border-radius: 4px;
+  }
+  .toc {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.45rem;
+    margin: 0 0 0.4em;
+  }
+  .toc a {
+    padding: 0.28em 0.7em;
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    background: #faf8f4;
+    font-size: 0.86rem;
+    line-height: 1.4;
+    text-decoration: none;
+  }
+  .toc a:hover { background: #f0ece4; }
+  .toc + h2 { margin-top: 1.5em; }
+  ul, ol { margin: 0.55em 0 0.9em; padding-left: 1.35em; }
+  li { margin: 0.32em 0; }
+  li > ul, li > ol { margin: 0.2em 0; }
+  ol > li { padding-left: 0.15em; }
+  blockquote {
+    margin: 1.05em 0;
+    padding: 0.7em 1em;
+    background: #f7f4ee;
+    border-radius: 8px;
+  }
+  blockquote p { margin: 0.3em 0; }
+  .table-wrap { margin: 1em 0 1.25em; overflow-x: auto; }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.95rem;
+  }
+  th, td {
+    padding: 0.62em 0.8em;
+    text-align: left;
+    vertical-align: top;
+    border-bottom: 1px solid var(--line);
+  }
+  th {
+    font-weight: 650;
+    background: #f7f4ee;
+    border-bottom-color: #1c1c1c;
+  }
+  tr:last-child td { border-bottom: 0; }
+  .faq { margin: 0.4em 0 1.4em; }
+  .faq dt {
+    margin: 0.85em 0 0;
+    padding: 0.75em 0.9em 0.2em;
+    border: 1px solid var(--line);
+    border-bottom: 0;
+    border-radius: 10px 10px 0 0;
+    background: #faf8f4;
+    font-weight: 650;
+  }
+  .faq dd {
+    margin: 0 0 0.15em;
+    padding: 0.15em 0.9em 0.8em;
+    border: 1px solid var(--line);
+    border-top: 0;
+    border-radius: 0 0 10px 10px;
+  }
+  .faq dd ul { margin-top: 0.35em; }
+  figure { margin: 1.35em auto 1.55em; }
+  figcaption {
+    margin-top: 0.45em;
+    text-align: center;
+    color: var(--muted);
+    font-size: 0.86rem;
+  }
+  .device {
+    position: relative;
+    width: min(640px, 100%);
+    margin-left: auto;
+    margin-right: auto;
+  }
+  .device .canvas {
+    position: relative;
+    width: 100%;
+    aspect-ratio: 399 / 341;
+  }
+  .device .hole,
+  .device .bezel {
+    position: absolute;
+  }
+  .device .hole {
+    left: var(--hole-x);
+    top: var(--hole-y);
+    width: var(--hole-w);
+    height: var(--hole-h);
+    overflow: hidden;
+    background: #fff;
+    border-radius: 2.139% / 2.824%;
+  }
+  .device .screen {
+    position: absolute;
+    left: var(--frame-gap-x);
+    top: var(--frame-gap-y);
+    width: calc(100% - 2 * var(--frame-gap-x));
+    height: calc(100% - 2 * var(--frame-gap-y));
+    object-fit: fill;
+  }
+  .device .bezel {
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+  }
+  .device-bar {
+    width: min(760px, 100%);
+    overflow: hidden;
+    aspect-ratio: 399 / 88;
+  }
+  .device-bar .canvas {
+    position: absolute;
+    left: 0;
+    width: 100%;
+    aspect-ratio: auto;
+    height: calc(341 / 88 * 100%);
+    top: calc(-248 / 88 * 100%);
+  }
+  .device-bar .screen {
+    top: auto;
+    bottom: var(--frame-gap-y);
+    height: calc(22 / 300 * 100% - var(--frame-gap-y));
+  }
+  .webshot {
+    display: block;
+    width: min(440px, 100%);
+    margin: 0 auto;
+    border: 1px solid var(--line);
+    border-radius: 10px;
+  }
+  .dial {
+    display: block;
+    width: min(520px, 100%);
+    margin: 0 auto;
+  }
+  .hero { margin: 0.35em 0 1.7em; }
+  .hero img {
+    display: block;
+    width: 100%;
+    height: auto;
+    border-radius: 14px;
+  }
+  @media (max-width: 640px) {
+    main { padding: 28px 16px 72px; }
+    h1 { font-size: 1.6rem; }
+    .lead { font-size: 1rem; }
+    table { font-size: 0.88rem; }
+    th, td { padding: 0.5em 0.45em; }
+    .device, .device-bar { width: 100%; }
+  }
+</style>
+</head>
+<body>
+<main>
+  <h1>墨鱼桌搭 使用说明书</h1>
+  <p class="lead">墨鱼桌搭是一款低功耗的电子墨水屏桌面摆件，可显示天气、日程和画报，并实时展示室内温湿度。</p>
+  <figure class="hero">
+    <img src="shots/hero.jpg" alt="墨鱼桌搭">
+  </figure>
+  <nav class="toc" aria-label="目录">
+    <a href="#device">认识设备</a>
+    <a href="#menu">主菜单</a>
+    <a href="#setup">首次配置</a>
+    <a href="#apps">应用功能</a>
+    <a href="#faq">常见问题</a>
+  </nav>
+
+  <h2 id="device">一、认识设备</h2>
+
+  <h3>1. 三个按键</h3>
+  <p>所有操作都通过一个三向拨轮完成。拨轮位于屏幕背面左后方、一块向内凹陷的椭圆区域里。它支持三种动作：<strong>上拨</strong>、<strong>下拨</strong>、<strong>按下</strong>（下文简称"上""下""中键"）。</p>
+  <figure>
+    <img class="dial" src="shots/dial.png" alt="拨轮位于背面凹陷处">
+  </figure>
+  <div class="table-wrap">
+  <table>
+    <thead>
+      <tr><th>操作</th><th>通用作用</th></tr>
+    </thead>
+    <tbody>
+      <tr><td>向上 / 向下拨动</td><td>切换选中项；部分页面有专属功能（见各应用说明）</td></tr>
+      <tr><td>中 单击</td><td>确认 / 进入</td></tr>
+      <tr><td>下 长按（约 1 秒）</td><td>返回上一页</td></tr>
+      <tr><td>中 长按（约 1 秒）</td><td>页面专属功能，如强制刷新、打开列表</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <blockquote><p>选中的菜单或按钮下方会出现一条<strong>黑色下划线</strong>。</p></blockquote>
+
+  <h3>2. 开机与关机</h3>
+  <ul>
+    <li><strong>没有电源键，也没有关机</strong>：只要有电，设备就一直在运行。空闲时它会自动休眠，拨动按键就能直接使用，不需要手动开机。</li>
+    <li><strong>什么时候会开机</strong>：电池耗尽后接上 USB 线充电，或者在设置中选择"重启"，设备都会重新开机。</li>
+    <li><strong>开机后会做什么</strong>：先进入主菜单；如果已经配置过 Wi-Fi，还会自动联网校准时间。</li>
+    <li><strong>开机后请进入一个应用</strong>：主菜单不会自动休眠，开机后请进入天气、日历或画报页面，以免白白耗电。</li>
+    <li><strong>屏幕有画面，不代表设备在运行</strong>：墨水屏断电后画面仍会保留。判断设备是否在运行，可以拨动按键看有没有反应，或者看状态栏的时间是否在走。</li>
+  </ul>
+
+  <h3>3. 底部状态栏</h3>
+  <p>除主菜单外，每个页面底部都有状态栏。左侧是页面标题，右侧依次为：</p>
+  <ul>
+    <li><strong>Wi-Fi 图标</strong>：已连接 / 连接中 / 热点配置中 / 未连接。平时显示"未连接"是正常的，详见第五章问答。</li>
+    <li><strong>室内温度、湿度、气压</strong>：来自设备内置传感器，约每分钟更新一次；气压单位为百帕（显示为 <code>1013p</code>）。</li>
+    <li><strong>时间</strong></li>
+    <li><strong>休眠图标</strong>：显示设备当前是休眠还是唤醒状态。</li>
+    <li><strong>电池</strong>：显示电量百分比；充电时显示闪电图标，接通电源且已充满时显示插头图标。</li>
+  </ul>
+  <blockquote><p>没有安装传感器时，温湿度和气压不显示。</p></blockquote>
+  <figure class="device device-bar">
+    <div class="canvas">
+      <div class="hole">
+        <img class="screen" src="shots/status-bar.png" alt="底部状态栏">
+      </div>
+      <img class="bezel" src="DeviceFrame.svg" alt="">
+    </div>
+  </figure>
+
+  <h3>4. 省电与自动刷新</h3>
+  <ul>
+    <li><strong>自动休眠</strong>：在天气、日历、画报页面，停止操作约 5 秒后，设备会进入休眠。屏幕内容保持不变，时钟照常每分钟走动。休眠时按键会直接生效，不用先唤醒；插拔充电线也能唤醒设备。</li>
+    <li><strong>按需联网</strong>：设备只在获取数据时才打开 Wi-Fi，取完立即关闭。</li>
+    <li><strong>整点更新</strong>：每天 6:00–21:00 的每个整点，设备会自动更新天气、日程和画报；22:00 到次日 6:00 不联网，以免夜间打扰并节省电量。</li>
+    <li><strong>数据缓存</strong>：30 分钟内重复进入页面会直接使用缓存，不会重新联网。</li>
+  </ul>
+  <blockquote><p>日常使用建议把设备停在<strong>天气、日历或画报</strong>页面。主菜单和设置页面不会自动休眠，耗电较多。</p></blockquote>
+
+  <h2 id="menu">二、主菜单</h2>
+  <p>主菜单有四个应用：<strong>天气、日历、画报、设置</strong>。用"上/下"选择，按"中键"进入；在任意页面长按"下"可逐级返回。</p>
+  <figure class="device">
+    <div class="canvas">
+      <div class="hole">
+        <img class="screen" src="shots/menu.png" alt="主菜单">
+      </div>
+      <img class="bezel" src="DeviceFrame.svg" alt="">
+    </div>
+  </figure>
+
+  <h2 id="setup">三、首次配置</h2>
+  <p>首次使用只需三步：<strong>进入设置 → 用手机配置 → 校准时间</strong>。</p>
+
+  <h3>第 1 步：进入设置</h3>
+  <ol>
+    <li>进入主菜单，用"上/下"选中 <strong>设置</strong>，按"中键"进入。</li>
+    <li>选中 <strong>Web 设置</strong>，按"中键"进入。</li>
+    <li>屏幕上会显示热点名称（格式为 <code>Billboard-XXXX</code>）和一个二维码。</li>
+  </ol>
+  <figure class="device">
+    <div class="canvas">
+      <div class="hole">
+        <img class="screen" src="shots/web-setup.png" alt="Web 设置">
+      </div>
+      <img class="bezel" src="DeviceFrame.svg" alt="">
+    </div>
+  </figure>
+
+  <h3>第 2 步：用手机完成配置</h3>
+  <ol>
+    <li>用手机扫描屏幕右侧的二维码，或者在手机 Wi-Fi 列表里找到 <code>Billboard-XXXX</code> 直接连接。<strong>无需密码。</strong></li>
+    <li>连接后通常会自动弹出设置页面。如果没有弹出，用手机浏览器打开屏幕上显示的地址（一般是 <code>http://192.168.4.1</code>）。</li>
+    <li>设置页面分为五个标签，<strong>只有 Wi-Fi 和时区是必填项</strong>：</li>
+  </ol>
+  <figure>
+    <img class="webshot" src="shots/web-config.png" alt="设备设置">
+  </figure>
+  <div class="table-wrap">
+  <table>
+    <thead>
+      <tr><th>标签</th><th>填写内容</th></tr>
+    </thead>
+    <tbody>
+      <tr><td><strong>Wi-Fi</strong>（必填）</td><td>从下拉列表选择网络，或手动输入名称；再填写密码</td></tr>
+      <tr><td><strong>时区</strong>（必填）</td><td>先选地区，再选城市。默认是"亚洲 / 上海"</td></tr>
+      <tr><td><strong>天气</strong></td><td>数据源：国内选"大陆"，国外选"海外"；城市名只用于在屏幕上显示；<strong>纬度、经度</strong>决定天气查询的实际位置（获取方法见下方"如何获取经纬度"）</td></tr>
+      <tr><td><strong>日历</strong></td><td>填写 CalDAV 服务器、账号、密码（例如飞书日历的服务器是 <code>caldav.feishu.cn</code>）。不用日历可以不填</td></tr>
+      <tr><td><strong>硬件</strong></td><td>屏幕型号，默认 A0-2。<strong>一般无需修改</strong>，只有屏幕出现残影或噪点时才需要调整</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <p>4. 点击 <strong>完成配置</strong>。看到"配置已保存"后，即可关闭手机页面。</p>
+  <p><strong>填写提示：</strong></p>
+  <ul>
+    <li>再次配置时，页面会自动带出已保存的内容，只需修改需要变动的项。</li>
+    <li>日历密码留空表示保留原密码；服务器、账号、密码<strong>三项全部清空</strong>则删除日历配置。</li>
+    <li>修改屏幕型号后，设备会自动重启。</li>
+  </ul>
+  <p><strong>如何获取经纬度：</strong></p>
+  <p>任选一种方式，查到想看天气的地点（如家或公司）的坐标：</p>
+  <ul>
+    <li><strong>电脑</strong>：打开 <a class="link" href="https://lbs.amap.com/tools/picker">高德坐标拾取器</a>，搜索地址或在地图上点击位置，右侧会显示一串坐标，如 <code>116.4569,39.9972</code>。<strong>注意顺序是"经度,纬度"</strong>：逗号前的是经度，逗号后的是纬度。</li>
+    <li><strong>手机</strong>：打开 Google 地图，长按目标位置，顶部搜索框会显示坐标，如 <code>39.9972, 116.4569</code>。这里顺序是"纬度, 经度"，与高德<strong>相反</strong>。</li>
+  </ul>
+  <p>填写时注意：</p>
+  <ul>
+    <li>只填数字，不要带"°"、"N""E"等符号或单位，例如纬度 <code>39.9972</code>，经度 <code>116.4569</code>。</li>
+    <li>保留 2–4 位小数即可。天气按区域预报，精确到小区级别已经足够。</li>
+    <li><strong>快速核对</strong>：在中国境内，纬度在 18–54 之间，经度在 73–135 之间。如果两个数填反了，页面会提示"请填写有效的纬度和经度"，或者显示的是别处的天气。</li>
+    <li>南半球的纬度、西半球的经度填负数，例如悉尼纬度 <code>-33.87</code>，纽约经度 <code>-74.01</code>。</li>
+    <li>坐标是"度分秒"格式（如 <code>39°59'50"</code>）时，需要换算成小数：度 + 分 ÷ 60 + 秒 ÷ 3600。例如 39°59'50" ≈ 39.9972。</li>
+    <li>纬度和经度都不填时，默认显示"北京·望京"的天气。</li>
+  </ul>
+
+  <h3>第 3 步：等待联网，并校准时间</h3>
+  <ol>
+    <li>保存后，设备会关闭热点并自动连接 Wi-Fi。连接成功后自动返回设置页面，状态栏的 Wi-Fi 图标变为"已连接"。</li>
+    <li>如果屏幕显示"连接失败"，请检查 Wi-Fi 名称和密码，然后按"中键"点击 <strong>重新配置</strong>。</li>
+    <li>回到设置页面，进入 <strong>NTP 校时</strong>，等待提示"校时完成"。</li>
+  </ol>
+  <blockquote><p>首次配置后请务必校时一次，否则时钟可能不准，画报也会提示"时间未同步"。以后设备重新启动时都会自动校时。</p></blockquote>
+
+  <h4>NTP 校时</h4>
+  <p>进入后自动联网校准时间，并显示当前 <strong>时间</strong> 和 <strong>时区</strong>。</p>
+  <figure class="device">
+    <div class="canvas">
+      <div class="hole">
+        <img class="screen" src="shots/ntp.png" alt="NTP 校时">
+      </div>
+      <img class="bezel" src="DeviceFrame.svg" alt="">
+    </div>
+  </figure>
+  <ul>
+    <li>成功后显示"校时完成"，可以点击 <strong>重新校时</strong> 或 <strong>返回</strong>。</li>
+    <li>未联网时，会提示前往 Web 设置。</li>
+  </ul>
+
+  <h2 id="apps">四、应用功能</h2>
+
+  <h3>1. 天气</h3>
+  <p>页面上半部分固定显示：</p>
+  <ul>
+    <li>当前天气图标、温度、体感温度、天气状况</li>
+    <li>更新时间，如"刚刚""15分钟前"。旁边显示 ✓ 表示最近一次更新成功，✗ 表示更新失败、当前显示的是旧数据</li>
+    <li>右上角的城市和日期</li>
+    <li>未来 5 天的天气和最高 / 最低温度</li>
+  </ul>
+  <p>下半部分有两种模式，<strong>向上或向下拨动切换</strong>：</p>
+  <ul>
+    <li><strong>详情模式</strong>（默认）
+      <ul>
+        <li>左侧 8 项指标：日出、日落、风力（级数和风向）、湿度、紫外线（低 / 中 / 高）、气压、空气质量（优 / 良 / 中 / 差）、能见度</li>
+        <li>右侧未来 24 小时曲线图：温度曲线、湿度，以及每隔几小时的天气图标</li>
+      </ul>
+    </li>
+  </ul>
+  <figure class="device">
+    <div class="canvas">
+      <div class="hole">
+        <img class="screen" src="shots/weather-detail.png" alt="天气详情模式">
+      </div>
+      <img class="bezel" src="DeviceFrame.svg" alt="">
+    </div>
+  </figure>
+  <ul>
+    <li><strong>时钟模式</strong>
+      <ul>
+        <li>大号时钟，下方是室内温度和湿度</li>
+        <li>这时底部状态栏会隐藏重复的温湿度和时间</li>
+      </ul>
+    </li>
+  </ul>
+  <figure class="device">
+    <div class="canvas">
+      <div class="hole">
+        <img class="screen" src="shots/weather-clock.png" alt="天气时钟模式">
+      </div>
+      <img class="bezel" src="DeviceFrame.svg" alt="">
+    </div>
+  </figure>
+  <p><strong>操作：</strong></p>
+  <ul>
+    <li>长按"中键"：强制刷新，忽略缓存，立即重新获取天气。</li>
+    <li>获取失败时，页面会显示原因（如"未连接 Wi-Fi""获取天气失败"）以及 <strong>重试 / Web 设置 / 返回</strong> 按钮。用"上/下"选择，按"中键"确认。</li>
+  </ul>
+  <blockquote><p>每次进入天气页面都会回到详情模式。</p></blockquote>
+
+  <h3>2. 日历</h3>
+  <ul>
+    <li><strong>左栏</strong>：当前天气、温度、体感温度、日期、星期和时钟。</li>
+    <li><strong>右栏</strong>：未来 7 天的日程时间线。今天的日程标注为"今天"，其他日子显示"几月几日 + 星期"。每条日程显示开始时间，全天日程显示"全天"。</li>
+  </ul>
+  <figure class="device">
+    <div class="canvas">
+      <div class="hole">
+        <img class="screen" src="shots/calendar.png" alt="日历">
+      </div>
+      <img class="bezel" src="DeviceFrame.svg" alt="">
+    </div>
+  </figure>
+  <p><strong>操作：</strong></p>
+  <ul>
+    <li>向上拨动：往后翻一页。已经是最后一页时，会自动加载<strong>再往后 7 天</strong>的日程。</li>
+    <li>向下拨动：往前翻一页。</li>
+    <li>长按"中键"：强制刷新日程和天气。</li>
+    <li>右下角的页码（如 <code>2/3</code>）表示当前是第几页。</li>
+  </ul>
+  <p><strong>说明：</strong></p>
+  <ul>
+    <li>需要先在 Web 设置的"日历"标签里填写 CalDAV 账号。</li>
+    <li>支持一个账号下的多个日历，也支持重复日程；已取消的日程不会显示。</li>
+    <li>每次最多显示 40 条日程。</li>
+  </ul>
+
+  <h3>3. 画报</h3>
+  <ul>
+    <li><strong>左栏</strong>：天气、温度、日期、星期和时钟。</li>
+    <li><strong>右栏</strong>：一幅黑白画报（漫画或名句）。</li>
+  </ul>
+  <figure class="device">
+    <div class="canvas">
+      <div class="hole">
+        <img class="screen" src="shots/pictorial.png" alt="画报">
+      </div>
+      <img class="bezel" src="DeviceFrame.svg" alt="">
+    </div>
+  </figure>
+  <p><strong>整点自动换图</strong>：每天 6:00–21:00 的每个整点，会随天气一起从当前系列里随机换一张新图；22:00 到次日 6:00 不换图。同一天内不会重复出现已经看过的图。</p>
+  <blockquote><p>进入画报页面时，会先显示上次的那张图，到下一个整点再换新图。</p></blockquote>
+  <p><strong>操作：</strong></p>
+  <ul>
+    <li>向上或向下拨动：<strong>换一张</strong>（从当前系列中随机挑一张没看过的）。</li>
+    <li>长按"中键"：打开<strong>系列列表</strong>，可以换一个系列：
+      <ol>
+        <li>拨"上"向上移动，拨"下"向下移动，右下角显示当前序号；</li>
+        <li>按"中键"确认，系统会立即换上该系列的一张图；</li>
+        <li>再次长按"中键"可取消，不做更改。</li>
+      </ol>
+    </li>
+  </ul>
+  <figure class="device">
+    <div class="canvas">
+      <div class="hole">
+        <img class="screen" src="shots/pictorial-list.png" alt="画报系列列表">
+      </div>
+      <img class="bezel" src="DeviceFrame.svg" alt="">
+    </div>
+  </figure>
+  <figure class="device">
+    <div class="canvas">
+      <div class="hole">
+        <img class="screen" src="shots/pictorial-series.png" alt="更换系列后的画报">
+      </div>
+      <img class="bezel" src="DeviceFrame.svg" alt="">
+    </div>
+  </figure>
+  <ul>
+    <li>选好的系列会被记住，之后每次整点都从该系列中换图。</li>
+  </ul>
+  <blockquote><p>如果提示"今天都看过了"，说明当前系列今天的图已经全部看完，可以换一个系列，或者等到明天。</p></blockquote>
+
+  <h3>4. 设置</h3>
+  <p>设置共有 5 项，超过一屏时，左右两侧会出现箭头，提示还有更多选项。</p>
+  <figure class="device">
+    <div class="canvas">
+      <div class="hole">
+        <img class="screen" src="shots/settings.png" alt="设置">
+      </div>
+      <img class="bezel" src="DeviceFrame.svg" alt="">
+    </div>
+  </figure>
+
+  <h4>Web 设置</h4>
+  <p>用手机修改 Wi-Fi、时区、天气位置、日历账号和屏幕型号，操作方法见第三章。</p>
+  <ul>
+    <li>按"中键"点击 <strong>取消配置</strong>，或长按"下"退出页面，都会关闭热点，放弃本次配置。</li>
+  </ul>
+
+  <h4>Wi-Fi</h4>
+  <p>查看网络 <strong>状态、名称、IP 地址</strong>。页面会根据当前状态显示不同按钮：</p>
+  <figure class="device">
+    <div class="canvas">
+      <div class="hole">
+        <img class="screen" src="shots/wifi.png" alt="Wi-Fi">
+      </div>
+      <img class="bezel" src="DeviceFrame.svg" alt="">
+    </div>
+  </figure>
+  <ul>
+    <li><strong>重连</strong>：已经保存了网络但没有连上时，点击它重新连接。</li>
+    <li><strong>去 Web 设置</strong>：还没有配置网络，或者需要修改网络时使用。</li>
+    <li><strong>返回</strong></li>
+  </ul>
+  <blockquote><p>设备可以保存多个 Wi-Fi。每在 Web 设置里保存一个新网络，就会加入列表。换了环境后，设备会自动连接附近已保存的网络。</p></blockquote>
+
+  <h4>系统更新</h4>
+  <p>页面显示 <strong>当前版本</strong> 和 <strong>更新说明</strong>。</p>
+  <figure class="device">
+    <div class="canvas">
+      <div class="hole">
+        <img class="screen" src="shots/update.png" alt="系统更新">
+      </div>
+      <img class="bezel" src="DeviceFrame.svg" alt="">
+    </div>
+  </figure>
+  <ol>
+    <li>点击 <strong>检查更新</strong>。</li>
+    <li>如果有新版本，会弹窗显示版本号和更新内容，点击 <strong>更新</strong> 开始，点击 <strong>取消</strong> 放弃。</li>
+    <li>更新过程中会显示进度。这时<strong>不能退出页面，也不要断电</strong>。</li>
+    <li>完成后提示"更新完成，点击确定重启"，按"中键"确认重启即可。</li>
+  </ol>
+  <p>如果提示"已是最新"，说明无需更新。</p>
+
+  <h4>重启</h4>
+  <p>选中后按"中键"，设备立即重启。</p>
+
+  <h2 id="faq">五、常见问题</h2>
+  <dl class="faq">
+    <dt>Q1：状态栏的 Wi-Fi 图标经常显示"未连接"，是不是坏了？</dt>
+    <dd>A：不是。为了省电，设备只在获取数据时才打开 Wi-Fi，平时会关闭。只要天气和日程能正常更新，就说明网络没问题。</dd>
+    <dt>Q2：充满一次电能用多久？</dt>
+    <dd>A：充满电后，停在天气、日历或画报页面静态放置，一般可以使用 <strong>5–7 天</strong>。以下情况会缩短续航：
+      <ul>
+        <li>频繁操作按键、切换页面，或者频繁长按"中键"强制刷新；</li>
+        <li>长时间停在主菜单或设置页面，这些页面不会自动休眠；</li>
+        <li>Wi-Fi 信号较弱，每次联网耗时更长；</li>
+        <li>环境温度较低。</li>
+      </ul>
+      电量不足时，状态栏的电池图标会变空，接上 USB 线充电即可，充电时可以正常使用。
+    </dd>
+    <dt>Q3：手机连上 <code>Billboard-XXXX</code> 后，没有弹出设置页面怎么办？</dt>
+    <dd>A：用手机浏览器手动打开屏幕上显示的地址（一般是 <code>http://192.168.4.1</code>）。如果手机提示"此网络无法上网"，选择"保持连接"即可。</dd>
+    <dt>Q4：在 Wi-Fi 下拉列表里找不到我家的网络？</dt>
+    <dd>A：设备只支持 <strong>2.4GHz</strong> 网络，不支持 5GHz。也可以在下拉框下方手动输入网络名称。</dd>
+    <dt>Q5：配置完成后，屏幕显示"连接失败"？</dt>
+    <dd>A：通常是密码填错，或者设备离路由器太远。请检查后点击"重新配置"。注意 Wi-Fi 名称和密码都区分大小写。</dd>
+    <dt>Q6：时间不准，或者画报提示"时间未同步"？</dt>
+    <dd>A：进入"设置 → NTP 校时"手动校准一次。重启设备也会自动校时。另外，请确认 Web 设置中的时区是否正确。</dd>
+    <dt>Q7：天气显示的地点不对？</dt>
+    <dd>A：天气位置<strong>只由纬度和经度决定</strong>，城市名仅用于显示。请按第三章"如何获取经纬度"重新查询并填写，重点检查经度和纬度是否填反。</dd>
+    <dt>Q8：天气或日程长时间没有更新？</dt>
+    <dd>A：先看更新时间旁的标记，✗ 表示最近一次更新失败。可以长按"中键"强制刷新。另外，22:00 到次日 6:00 设备不会自动联网，这期间不更新属于正常现象。</dd>
+    <dt>Q9：日历提示"未配置日历账号""找不到日历"或"同步失败"？</dt>
+    <dd>A：请在 Web 设置的"日历"标签中检查服务器地址、账号和密码。有些服务（如飞书）需要使用专门生成的 CalDAV 账号和密码，而不是登录密码。</dd>
+    <dt>Q10：屏幕偶尔整屏闪烁一下，正常吗？</dt>
+    <dd>A：正常。墨水屏每隔一段时间、切换页面或模式时，会全屏刷新一次来清除残影。</dd>
+    <dt>Q11：屏幕出现明显残影、噪点或显示异常？</dt>
+    <dd>A：可能是屏幕型号设置不匹配。请在 Web 设置的"硬件"标签中尝试其他型号，保存后设备会自动重启。</dd>
+    <dt>Q12：按键后屏幕反应慢，感觉有延迟？</dt>
+    <dd>A：这是墨水屏的特性，属于正常现象：
+      <ul>
+        <li>墨水屏刷新本身就比手机屏幕慢。普通刷新约需不到 1 秒；切换页面、切换天气模式、换画报时会整屏刷新，需要 2–3 秒，期间屏幕会闪烁。</li>
+        <li>屏幕显示"加载中""正在更新"等提示时，设备正在联网获取数据，需要等待几秒到十几秒。这期间重复长按"中键"强制刷新不会生效。</li>
+        <li>快速连续拨动时，按键会排队依次执行，可能出现"翻过头"的情况。</li>
+      </ul>
+      建议每次操作后，等屏幕刷新完成再进行下一步。
+    </dd>
+    <dt>Q13：状态栏没有显示室内温湿度？</dt>
+    <dd>A：说明没有检测到温湿度传感器，其他功能不受影响。</dd>
+    <dt>Q14：画报提示"未连接 Wi-Fi"或"画报下载失败"？</dt>
+    <dd>A：请先确认网络正常，然后向上或向下拨动重试。下载失败时，屏幕会继续显示上一张图。</dd>
+    <dt>Q15：系统更新中途失败了怎么办？</dt>
+    <dd>A：按提示点击"确定"重启后，再次进入"系统更新"重新检查即可。更新过程中请保持供电，不要退出页面。</dd>
+    <dt>Q16：怎样更换 Wi-Fi，或者修改其他设置？</dt>
+    <dd>A：随时可以进入"设置 → Web 设置"重新配置，已保存的内容会自动带出，只需修改需要变动的项。</dd>
+  </dl>
+</main>
+</body>
+</html>
