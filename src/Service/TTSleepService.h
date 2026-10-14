@@ -18,6 +18,7 @@
 
 class TTSleepService {
 public:
+    void begin();
     void requestLightSleep(void* owner);
     void cancelLightSleep(void* owner);
     bool isLightSleepRequested() const { return _requested; }
@@ -31,6 +32,7 @@ private:
     bool enterSleep(uint64_t sleepUs);
     void consumeRequest();
     void afterWake();
+    void finishWake(const TTRtcLoadPayload& rtc);
     TTSleepWakeReason classifyWake() const;
     void publishWake(TTSleepWakeReason reason);
     void publishSleepState(TTSleepState state);
@@ -40,4 +42,5 @@ private:
     bool _requested = false;
     bool _holdoffAfterInput = false;
     bool _loggedWait = false;
+    bool _rtcPending = false;
 };

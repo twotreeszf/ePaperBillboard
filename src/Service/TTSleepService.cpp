@@ -47,6 +47,15 @@ static void tt_sleep_format_wall(time_t unixTime, char* out, size_t outMax) {
              t.tm_hour, t.tm_min, t.tm_sec);
 }
 
+void TTSleepService::begin() {
+    TTInstanceOf<TTNotificationCenter>().subscribe<TTRtcLoadPayload>(
+        TT_NOTIFICATION_RTC_LOAD,
+        this,
+        [this](const TTRtcLoadPayload& rtc) {
+            finishWake(rtc);
+        });
+}
+
 void TTSleepService::requestLightSleep(void* owner) {
     _owner = owner;
     _requested = true;
@@ -79,7 +88,7 @@ void TTSleepService::tryEnter() {
         _holdoffAfterInput = false;
         return;
     }
-    if (!_requested) {
+    if (!_requested || _rtcPending) {
         return;
     }
     auto& wifi = TTInstanceOf<TTWiFiTask>();
@@ -225,20 +234,26 @@ bool TTSleepService::enterSleep(uint64_t sleepUs) {
 
 void TTSleepService::afterWake() {
     consumeRequest();
-
-    if (TTInstanceOf<TTRtc>().hasHardwareRtc()) {
-        TTInstanceOf<TTRtc>().loadFromHardware();
-    }
+    _rtcPending = true;
+    LOG_I("Sleep: wake, wait rtc load");
+    TTInstanceOf<TTSensorTask>().requestRtcLoadAsync();
 
     publishSleepState(TT_SLEEP_STATE_AWAKE);
     TTInstanceOf<TTLvglEpdDriver>().requestOverlayRefresh();
+}
 
+void TTSleepService::finishWake(const TTRtcLoadPayload& rtc) {
+    if (!_rtcPending) {
+        return;
+    }
+    _rtcPending = false;
     const TTSleepWakeReason reason = classifyWake();
     char nowText[TT_SLEEP_WALL_TEXT_MAX];
     tt_sleep_format_wall(time(nullptr), nowText, sizeof(nowText));
-    LOG_I("Sleep: wake %s at %s",
+    LOG_I("Sleep: wake %s at %s rtc=%d",
           tt_sleep_reason_text(reason),
-          nowText[0] != '\0' ? nowText : "?");
+          nowText[0] != '\0' ? nowText : "?",
+          rtc.loaded ? 1 : 0);
     if (reason == TT_SLEEP_WAKE_INPUT) {
         _holdoffAfterInput = true;
     }

@@ -172,6 +172,17 @@ void TTSensorTask::requestRtcWriteAsync(time_t utc) {
     enqueue(f);
 }
 
+void TTSensorTask::requestRtcLoadAsync() {
+    auto* f = new std::function<void()>([]() {
+        TTRtc& rtc = TTInstanceOf<TTRtc>();
+        const bool loaded = rtc.hasHardwareRtc() && rtc.loadFromHardware();
+        LOG_I("Sensor: rtc load %s", loaded ? "ok" : "skipped");
+        TTRtcLoadPayload payload = { loaded };
+        TTInstanceOf<TTUITask>().postNotification(TT_NOTIFICATION_RTC_LOAD, payload);
+    });
+    enqueue(f);
+}
+
 void TTSensorTask::pollUsbPlug() {
     if (!_usbKnown) {
         return;

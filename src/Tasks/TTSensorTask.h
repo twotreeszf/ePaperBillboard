@@ -47,6 +47,7 @@ public:
 
     void requestSensorUpdateAsync();
     void requestRtcWriteAsync(time_t utc);
+    void requestRtcLoadAsync();
     bool copyLastIndoor(float& temperature, float& humidity) const;
 
 protected:

@@ -15,6 +15,7 @@
 #define TT_NOTIFICATION_CALENDAR           "TTNotify.Calendar"
 #define TT_NOTIFICATION_PICTORIAL          "TTNotify.Pictorial"
 #define TT_NOTIFICATION_OTA                "TTNotify.Ota"
+#define TT_NOTIFICATION_RTC_LOAD           "TTNotify.RtcLoad"
 
 #define TT_OTA_MSG_MAX     192
 
@@ -62,6 +63,10 @@ struct TTSleepStatePayload {
 };
 
 struct TTTimeTickPayload {
+};
+
+struct TTRtcLoadPayload {
+    bool loaded;
 };
 
 struct TTSensorDataPayload {

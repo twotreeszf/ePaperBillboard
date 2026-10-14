@@ -56,6 +56,7 @@ void TTUITask::setup() {
 
     _nav.setRootPage(std::unique_ptr<TTScreenPage>(new TTHomePage()));
     TTInstanceOf<TTTimeService>().begin();
+    TTInstanceOf<TTSleepService>().begin();
 
     LOG_I("UI task started, heap=%u largest=%u",
           (unsigned)Util::heapFree(), (unsigned)Util::heapLargest());
