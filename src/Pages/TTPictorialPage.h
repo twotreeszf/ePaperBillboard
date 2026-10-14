@@ -35,7 +35,6 @@ private:
     void setStatusTimeVisible(bool visible);
     void updateClock(bool refreshIfChanged);
     void showArt(const char* path);
-    void scheduleDaySwitch();
     void openPicker();
     void closePicker(bool apply);
     void showPicker();
@@ -72,7 +71,6 @@ private:
     bool _picking = false;
     int _weatherCode = 0;
     bool _weatherDay = true;
-    uint32_t _dayHandle = 0;
     uint32_t _inputIdleSleepHandle = 0;
     uint32_t _sleepSettleHandle = 0;
     bool _sleepAfterTimeTick = false;

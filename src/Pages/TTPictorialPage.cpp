@@ -36,29 +36,6 @@ lv_obj_t* createLabel(lv_obj_t* parent, const lv_font_t* font, lv_color_t color,
     return label;
 }
 
-uint32_t msUntilDaySwitch() {
-    struct timeval tv;
-    memset(&tv, 0, sizeof(tv));
-    struct tm local = {};
-    if (!TTInstanceOf<TTRtc>().isTimeValid()
-        || !TTInstanceOf<TTRtc>().getLocalTime(local)
-        || gettimeofday(&tv, nullptr) != 0
-        || tv.tv_sec <= 0) {
-        return 60000;
-    }
-    const int secOfDay = local.tm_hour * 3600 + local.tm_min * 60 + local.tm_sec;
-    int remainSec = 24 * 3600 - secOfDay;
-    if (remainSec <= 0) {
-        remainSec = 24 * 3600;
-    }
-    const int msIntoSec = (int)(tv.tv_usec / 1000);
-    int64_t ms = (int64_t)remainSec * 1000 - msIntoSec + TT_PIC_DAY_SWITCH_MS;
-    if (ms < 1) {
-        ms = 24LL * 3600 * 1000;
-    }
-    return (uint32_t)ms;
-}
-
 }  // namespace
 
 void TTPictorialPage::buildContent(lv_obj_t* screen) {
@@ -245,7 +222,6 @@ void TTPictorialPage::willAppear() {
     if (_hit != nullptr) {
         lv_group_focus_obj(_hit);
     }
-    scheduleDaySwitch();
     if (_artFetching) {
         TTInstanceOf<TTPopupLayer>().showLoading(TT_PIC_UPDATING_TEXT);
     }
@@ -265,10 +241,6 @@ void TTPictorialPage::willDisappear() {
     cancelSleepSettle();
     if (_artFetching) {
         TTInstanceOf<TTPopupLayer>().dismissLoading();
-    }
-    if (_dayHandle != 0) {
-        cancelRepeat(_dayHandle);
-        _dayHandle = 0;
     }
     setStatusTimeVisible(true);
     TTInstanceOf<TTLvglEpdDriver>().setAutoDeepRefresh(true);
@@ -440,17 +412,12 @@ void TTPictorialPage::onSleepWake(const TTSleepWakePayload& wake) {
     switch (wake.reason) {
         case TT_SLEEP_WAKE_FETCH:
             requestWeather();
-            if (!TTInstanceOf<TTPictorialService>().hasToday()) {
-                TTInstanceOf<TTPictorialService>().requestDaily();
-            }
+            TTInstanceOf<TTPictorialService>().requestHourly();
             break;
         case TT_SLEEP_WAKE_POWER:
         case TT_SLEEP_WAKE_INPUT:
             _sleepAfterTimeTick = false;
             cancelInputIdleSleep();
-            if (!TTInstanceOf<TTPictorialService>().hasToday()) {
-                TTInstanceOf<TTPictorialService>().requestDaily();
-            }
             if (_weatherFetching || _artFetching || _picking) {
                 break;
             }
@@ -479,10 +446,6 @@ void TTPictorialPage::onTimeTick() {
         _sleepAfterTimeTick = false;
     }
     updateClock(true);
-    if (!TTInstanceOf<TTPictorialService>().hasToday()) {
-        LOG_I("Pictorial page: day changed");
-        TTInstanceOf<TTPictorialService>().requestDaily();
-    }
     if (sleepPending && !_artFetching) {
         tryRequestLightSleep(TT_SLEEP_AFTER_SYNC_MS);
     }
@@ -642,23 +605,6 @@ void TTPictorialPage::showArt(const char* path) {
     if (_hit != nullptr) {
         lv_obj_move_foreground(_hit);
     }
-}
-
-void TTPictorialPage::scheduleDaySwitch() {
-    if (_dayHandle != 0) {
-        cancelRepeat(_dayHandle);
-        _dayHandle = 0;
-    }
-    const uint32_t delayMs = msUntilDaySwitch();
-    LOG_I("Pictorial page: day switch in %u ms", (unsigned)delayMs);
-    _dayHandle = runOnceWall(delayMs, [this]() {
-        _dayHandle = 0;
-        LOG_I("Pictorial page: midnight switch");
-        TTInstanceOf<TTPictorialService>().requestDaily();
-        if (_visible) {
-            scheduleDaySwitch();
-        }
-    });
 }
 
 void TTPictorialPage::openPicker() {

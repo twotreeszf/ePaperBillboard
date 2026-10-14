@@ -14,7 +14,6 @@
 #define TT_PIC_NAME_MAX          48
 #define TT_PIC_PINYIN_MAX        32
 #define TT_PIC_MSG_MAX           48
-#define TT_PIC_DAY_SWITCH_MS     0
 #define PREF_PIC_PINYIN          "pic_pinyin"
 #define PREF_PIC_INDEX           "pic_index"
 #define PREF_PIC_DAY             "pic_day"

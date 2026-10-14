@@ -6,7 +6,7 @@
 enum TTPicJob {
     TT_PIC_JOB_TODAY = 0,
     TT_PIC_JOB_ANOTHER,
-    TT_PIC_JOB_DAILY,
+    TT_PIC_JOB_HOURLY,
     TT_PIC_JOB_SERIES,
     TT_PIC_JOB_MANIFEST,
 };
@@ -15,14 +15,14 @@ class TTPictorialService {
 public:
     void requestToday();
     void requestAnother();
-    void requestDaily();
+    void requestHourly();
     void requestSeries(uint8_t index);
     void requestManifest();
 
     uint8_t seriesCount() const { return _seriesCount; }
     uint8_t selectedIndex() const { return _selected; }
     bool busy() const { return _busy; }
-    bool hasToday() const;
+    bool hasStored() const;
     bool seriesAt(uint8_t index, TTPicSeries* out) const;
 
 private:

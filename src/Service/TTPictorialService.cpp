@@ -142,16 +142,7 @@ int TTPictorialService::todayKey() const {
     return (local.tm_year + 1900) * 1000 + local.tm_yday;
 }
 
-bool TTPictorialService::hasToday() const {
-    const int today = todayKey();
-    if (today == 0) {
-        return false;
-    }
-    int day = 0;
-    TTInstanceOf<TTPreference>().get(PREF_PIC_DAY, day, 0);
-    if (day != today) {
-        return false;
-    }
+bool TTPictorialService::hasStored() const {
     String path;
     TTInstanceOf<TTPreference>().get(PREF_PIC_PATH, path, String(""));
     return path.length() > 0 && tt_file_exists(path.c_str());
@@ -454,8 +445,8 @@ void TTPictorialService::runJob(TTPicJob job, uint8_t seriesIndex) {
         }
         _selected = seriesIndex;
     }
-    if (job == TT_PIC_JOB_TODAY || job == TT_PIC_JOB_DAILY) {
-        if (hasToday()) {
+    if (job == TT_PIC_JOB_TODAY) {
+        if (hasStored()) {
             _busy = false;
             String path;
             String name;
@@ -500,15 +491,13 @@ void TTPictorialService::enqueue(TTPicJob job, uint8_t seriesIndex) {
         LOG_I("Pictorial: ignore job %d, busy", (int)job);
         return;
     }
-    if (todayKey() == 0 && (job == TT_PIC_JOB_TODAY || job == TT_PIC_JOB_DAILY)) {
-        LOG_W("Pictorial: clock invalid, skip day job");
+    if (todayKey() == 0 && job == TT_PIC_JOB_HOURLY) {
+        LOG_W("Pictorial: clock invalid, skip hourly job");
         publish(TT_PIC_FAILED, "时间未同步", "", "");
         return;
     }
     _busy = true;
-    if (job != TT_PIC_JOB_DAILY || !hasToday()) {
-        publish(TT_PIC_FETCHING, "正在获取画报", "", "");
-    }
+    publish(TT_PIC_FETCHING, "正在获取画报", "", "");
     LOG_I("Pictorial: enqueue job=%d series=%u", (int)job, (unsigned)seriesIndex);
     TTInstanceOf<TTWiFiTask>().runWithRadio(
         "pictorial",
@@ -521,7 +510,7 @@ void TTPictorialService::enqueue(TTPicJob job, uint8_t seriesIndex) {
 }
 
 void TTPictorialService::requestToday() {
-    if (hasToday() && _seriesCount > 0) {
+    if (hasStored() && _seriesCount > 0) {
         String path;
         String name;
         TTInstanceOf<TTPreference>().get(PREF_PIC_PATH, path, String(""));
@@ -536,11 +525,9 @@ void TTPictorialService::requestAnother() {
     enqueue(TT_PIC_JOB_ANOTHER, 0);
 }
 
-void TTPictorialService::requestDaily() {
-    if (hasToday()) {
-        return;
-    }
-    enqueue(TT_PIC_JOB_DAILY, 0);
+void TTPictorialService::requestHourly() {
+    LOG_I("Pictorial: hourly update");
+    enqueue(TT_PIC_JOB_HOURLY, 0);
 }
 
 void TTPictorialService::requestSeries(uint8_t index) {
