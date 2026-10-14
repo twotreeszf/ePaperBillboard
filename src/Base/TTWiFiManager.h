@@ -55,6 +55,11 @@ private:
     void _handleSave();
     void _handleStatus();
     void _handleScanWiFi();
+    void _handleShots();
+    void _handleShotFile();
+    void _handleShotsZip();
+    void _handleShotDelete();
+    void _handleShotsClear();
     void _handleNotFound();
     void _sendSaveResult(int code, const char* title, const char* msg);
     String _getHTMLContent();

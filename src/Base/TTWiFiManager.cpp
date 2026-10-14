@@ -1,4 +1,6 @@
 #include "TTWiFiManager.h"
+#include "TTScreenshotDisplay.h"
+#include "TTFile.h"
 #include "Logger.h"
 #include "ErrorCheck.h"
 #include "TTInstance.h"
@@ -45,6 +47,71 @@ String normalizeEpdPanel(const String& panel) {
         return panel;
     }
     return String(TT_EPD_PANEL_DEFAULT);
+}
+
+void appendHtmlText(String& out, const char* text) {
+    if (text == nullptr) {
+        return;
+    }
+    for (const char* p = text; *p != '\0'; p++) {
+        const unsigned char c = (unsigned char)*p;
+        if (c == '&') {
+            out += F("&amp;");
+        } else if (c == '<') {
+            out += F("&lt;");
+        } else if (c == '>') {
+            out += F("&gt;");
+        } else if (c == '"') {
+            out += F("&quot;");
+        } else {
+            out += (char)c;
+        }
+    }
+}
+
+void appendUrlText(String& out, const char* text) {
+    const char* hex = "0123456789ABCDEF";
+    if (text == nullptr) {
+        return;
+    }
+    for (const char* p = text; *p != '\0'; p++) {
+        const unsigned char c = (unsigned char)*p;
+        const bool plain = (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z')
+            || (c >= '0' && c <= '9') || c == '-' || c == '_' || c == '.' || c == '~';
+        if (plain) {
+            out += (char)c;
+            continue;
+        }
+        out += '%';
+        out += hex[c >> 4];
+        out += hex[c & 0x0F];
+    }
+}
+
+struct TTShotHttpBody {
+    WiFiClient client;
+    bool ok;
+};
+
+bool shotHttpWrite(void* ctx, const uint8_t* data, size_t len) {
+    TTShotHttpBody* body = static_cast<TTShotHttpBody*>(ctx);
+    size_t sent = 0;
+    int spins = 0;
+    while (sent < len) {
+        const int n = body->client.write(data + sent, len - sent);
+        if (n > 0) {
+            sent += (size_t)n;
+            spins = 0;
+            continue;
+        }
+        if (!body->client.connected() || ++spins > 40) {
+            body->ok = false;
+            LOG_E("Shot: http write stalled");
+            return false;
+        }
+        delay(10);
+    }
+    return true;
 }
 
 }
@@ -468,6 +535,11 @@ bool TTWiFiManager::_startWebServer() {
         _server.on("/save", HTTP_POST, [this]() { _handleSave(); });
         _server.on("/status", HTTP_GET, [this]() { _handleStatus(); });
         _server.on("/scan", HTTP_GET, [this]() { _handleScanWiFi(); });
+        _server.on("/shots", HTTP_GET, [this]() { _handleShots(); });
+        _server.on("/shots/file", HTTP_GET, [this]() { _handleShotFile(); });
+        _server.on("/shots.zip", HTTP_GET, [this]() { _handleShotsZip(); });
+        _server.on("/shots/delete", HTTP_POST, [this]() { _handleShotDelete(); });
+        _server.on("/shots/clear", HTTP_POST, [this]() { _handleShotsClear(); });
         _server.on("/generate_204", HTTP_GET, [this]() { _handleRoot(); });
         _server.on("/hotspot-detect.html", HTTP_GET, [this]() { _handleRoot(); });
         _server.on("/canonical.html", HTTP_GET, [this]() { _handleRoot(); });
@@ -726,6 +798,116 @@ String TTWiFiManager::_getWiFiListJSON() {
     return result;
 }
 
+void TTWiFiManager::_handleShots() {
+    auto& shots = TTInstanceOf<TTScreenshotDisplay>();
+    char names[TT_SHOT_MAX][TT_SHOT_NAME_MAX];
+    const int count = shots.list(names, TT_SHOT_MAX);
+    String html;
+    html.reserve(1024 + (size_t)count * 220);
+    html += F("<!DOCTYPE html><html><head><meta charset='utf-8'>");
+    html += F("<meta name='viewport' content='width=device-width,initial-scale=1'>");
+    html += F("<title>截图</title><style>");
+    html += F("body{font-family:-apple-system,sans-serif;margin:0;padding:16px;background:#f4f4f4}");
+    html += F(".box{max-width:400px;margin:0 auto;background:#fff;padding:20px;border-radius:8px}");
+    html += F("a{color:#111} li{margin:10px 0} button{margin-left:8px}");
+    html += F("</style></head><body><div class='box'><h2>截图</h2>");
+    html += F("<p>在设备上长按上键保存当前画面。空间不足时不会保存。</p>");
+    if (shots.isBusy()) {
+        html += F("<p>正在保存，请稍后刷新。</p>");
+    } else if (count <= 0) {
+        html += F("<p>还没有截图。</p>");
+    } else {
+        html += F("<p><a href='/shots.zip'>下载全部</a></p><ul>");
+        for (int i = 0; i < count; i++) {
+            html += F("<li><a href='/shots/file?name=");
+            appendUrlText(html, names[i]);
+            html += F("'>");
+            appendHtmlText(html, names[i]);
+            html += F("</a><form style='display:inline' method='post' action='/shots/delete'><input type='hidden' name='name' value='");
+            appendHtmlText(html, names[i]);
+            html += F("'><button type='submit'>删除</button></form></li>");
+        }
+        html += F("</ul><form method='post' action='/shots/clear'><button type='submit'>删除全部</button></form>");
+    }
+    html += F("<p><a href='/'>返回设置</a></p></div></body></html>");
+    _server.send(200, "text/html; charset=utf-8", html);
+    LOG_I("Shot: list page %d", count);
+}
+
+void TTWiFiManager::_handleShotFile() {
+    auto& shots = TTInstanceOf<TTScreenshotDisplay>();
+    if (shots.isBusy()) {
+        _server.send(503, "text/plain; charset=utf-8", "busy");
+        return;
+    }
+    char path[TT_SHOT_PATH_MAX];
+    const String name = _server.arg("name");
+    if (!shots.resolve(name.c_str(), path, sizeof(path))) {
+        LOG_W("Shot: download missing %s", name.c_str());
+        _server.send(404, "text/plain; charset=utf-8", "not found");
+        return;
+    }
+    File file = tt_file_open(path, "r");
+    if (!file) {
+        LOG_E("Shot: download open failed %s", path);
+        _server.send(404, "text/plain; charset=utf-8", "not found");
+        return;
+    }
+    LOG_I("Shot: download %s", path);
+    String header = F("attachment; filename=\"");
+    header += name;
+    header += '"';
+    _server.sendHeader("Content-Disposition", header);
+    _server.streamFile(file, "image/bmp");
+    file.close();
+}
+
+void TTWiFiManager::_handleShotsZip() {
+    auto& shots = TTInstanceOf<TTScreenshotDisplay>();
+    if (shots.isBusy()) {
+        _server.send(503, "text/plain; charset=utf-8", "busy");
+        return;
+    }
+    size_t bytes = 0;
+    if (!shots.zipBytes(&bytes) || bytes == 0) {
+        _server.send(404, "text/plain; charset=utf-8", "no shots");
+        return;
+    }
+    LOG_I("Shot: zip download %u bytes", (unsigned)bytes);
+    _server.sendHeader("Content-Disposition", "attachment; filename=shots.zip");
+    _server.setContentLength(bytes);
+    _server.send(200, "application/zip", "");
+    TTShotHttpBody body;
+    body.client = _server.client();
+    body.ok = true;
+    if (!shots.writeZip(shotHttpWrite, &body) || !body.ok) {
+        LOG_E("Shot: zip download failed");
+    }
+}
+
+void TTWiFiManager::_handleShotDelete() {
+    auto& shots = TTInstanceOf<TTScreenshotDisplay>();
+    const String name = _server.arg("name");
+    if (!shots.isBusy()) {
+        shots.removeOne(name.c_str());
+    } else {
+        LOG_W("Shot: delete skipped, capture busy");
+    }
+    _server.sendHeader("Location", "/shots", true);
+    _server.send(303, "text/plain", "");
+}
+
+void TTWiFiManager::_handleShotsClear() {
+    auto& shots = TTInstanceOf<TTScreenshotDisplay>();
+    if (!shots.isBusy()) {
+        shots.removeAll();
+    } else {
+        LOG_W("Shot: clear skipped, capture busy");
+    }
+    _server.sendHeader("Location", "/shots", true);
+    _server.send(303, "text/plain", "");
+}
+
 void TTWiFiManager::_handleNotFound() {
     if (_state == TT_WIFI_LINK_PROVISIONING) {
         _server.sendHeader("Location", String("http://") + WiFi.softAPIP().toString(), true);
@@ -755,6 +937,7 @@ String TTWiFiManager::_getHTMLContent() {
         .panel { display: none; }
         .panel.on { display: block; }
         button.save { width: 100%; margin-top: 20px; padding: 12px; font-size: 16px; background: #111; color: #fff; border: 0; border-radius: 6px; }
+        a.shots { display: block; margin-top: 16px; text-align: center; color: #111; }
         button.save:disabled { background: #999; }
         .tip { color: #666; font-size: 13px; margin: 8px 0; }
     </style>
@@ -822,6 +1005,7 @@ String TTWiFiManager::_getHTMLContent() {
             </div>
             <button class="save" type="submit">完成配置</button>
         </form>
+        <a class="shots" href="/shots">截图下载与删除</a>
     </div>
     <script>
         const CITIES = {

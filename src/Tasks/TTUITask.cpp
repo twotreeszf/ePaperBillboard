@@ -9,6 +9,7 @@
 #include "../Base/Logger.h"
 #include "../Base/ErrorCheck.h"
 #include "../Base/TTFile.h"
+#include "../Base/TTScreenshotDisplay.h"
 #include "../Base/TTFontManager.h"
 #include "../Base/TTPreference.h"
 #include "../Base/Util.h"
@@ -35,6 +36,9 @@ void TTUITask::setup() {
     ERR_CHECK_FAIL(LittleFS.begin());
     if (!LittleFS.exists(TT_FS_TMP_DIR) && !LittleFS.mkdir(TT_FS_TMP_DIR)) {
         LOG_E("LittleFS mkdir %s failed", TT_FS_TMP_DIR);
+    }
+    if (!LittleFS.exists(TT_SHOT_DIR) && !LittleFS.mkdir(TT_SHOT_DIR)) {
+        LOG_E("LittleFS mkdir %s failed", TT_SHOT_DIR);
     }
     TTInstanceOf<TTOtaService>().applyPending();
     LOG_I("LittleFS initialized, heap=%u largest=%u",

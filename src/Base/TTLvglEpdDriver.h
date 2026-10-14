@@ -4,10 +4,13 @@
 #include <lvgl.h>
 #include "TTRefreshLevel.h"
 
+class TTScreenshotDisplay;
+
 class TTLvglEpdDriver {
 public:
 
     bool begin(EPaperDisplay& display);
+    void setCapture(TTScreenshotDisplay* capture) { _capture = capture; }
     void requestRefresh(TTRefreshLevel level = TT_REFRESH_PARTIAL);
     void requestOverlayRefresh();
     void setAutoDeepRefresh(bool enabled);
@@ -26,4 +29,5 @@ private:
     bool _deepRefreshPending = false;
     bool _flushingOverlay = false;
     bool _navTouched = false;
+    TTScreenshotDisplay* _capture = nullptr;
 };

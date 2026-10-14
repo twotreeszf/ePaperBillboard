@@ -1,4 +1,6 @@
 #include "TTKeypadInput.h"
+#include "TTScreenshotDisplay.h"
+#include "TTPopupLayer.h"
 #include <Arduino.h>
 #include "ITTNavigationController.h"
 #include "ITTScreenPage.h"
@@ -61,6 +63,9 @@ void TTKeypadInput::init() {
     _btnR->attachClick([](void* param) {
         static_cast<TTKeypadInput*>(param)->post(TT_KEY_RIGHT, TT_KEY_CLICK);
     }, this);
+    _btnR->attachLongPressStart([](void* param) {
+        static_cast<TTKeypadInput*>(param)->post(TT_KEY_RIGHT, TT_KEY_LONG_PRESS);
+    }, this);
     _btnC->attachClick([](void* param) {
         static_cast<TTKeypadInput*>(param)->post(TT_KEY_CENTER, TT_KEY_CLICK);
     }, this);
@@ -94,6 +99,10 @@ void TTKeypadInput::resume() {
 }
 
 void TTKeypadInput::sample() {
+    if (_suppressUpLongPress && digitalRead(PIN_BUTTONR) == LOW) {
+        _suppressUpLongPress = false;
+        LOG_I("Keypad: up long press accepted again");
+    }
     if (_suspended) {
         idleButton(_btnL);
         idleButton(_btnR);
@@ -112,6 +121,13 @@ void TTKeypadInput::sample() {
 }
 
 void TTKeypadInput::post(uint8_t key, uint8_t gesture) {
+    if (key == TT_KEY_RIGHT && gesture == TT_KEY_LONG_PRESS) {
+        if (_suppressUpLongPress || TTInstanceOf<TTScreenshotDisplay>().isBusy()) {
+            LOG_I("Keypad: ignore up long press during shot");
+            return;
+        }
+        _suppressUpLongPress = true;
+    }
     TTInstanceOf<TTUITask>().requestKeyGestureAsync(key, gesture);
 }
 
@@ -124,6 +140,22 @@ void TTKeypadInput::apply(uint8_t key, uint8_t gesture) {
     if (key == TT_KEY_LEFT && gesture == TT_KEY_LONG_PRESS) {
         if (_nav != nullptr) {
             _nav->pop();
+        }
+        return;
+    }
+    if (key == TT_KEY_RIGHT && gesture == TT_KEY_LONG_PRESS) {
+        const char* pageName = "page";
+        if (_nav != nullptr) {
+            ITTScreenPage* page = _nav->getCurrentPage();
+            if (page != nullptr && page->getName() != nullptr && page->getName()[0] != '\0') {
+                pageName = page->getName();
+            }
+        }
+        const TTShotResult shot = TTInstanceOf<TTScreenshotDisplay>().capture(pageName);
+        if (shot == TT_SHOT_OK) {
+            TTInstanceOf<TTPopupLayer>().showToast(TT_SHOT_TOAST_TEXT, TT_SHOT_TOAST_MS);
+        } else if (shot == TT_SHOT_NO_ROOM) {
+            TTInstanceOf<TTPopupLayer>().showToast(TT_SHOT_NO_ROOM_TEXT, TT_SHOT_TOAST_MS);
         }
         return;
     }

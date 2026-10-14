@@ -1,4 +1,5 @@
 #include "TTLvglEpdDriver.h"
+#include "TTScreenshotDisplay.h"
 #include "TTDrawBufPassthroughDecoder.h"
 #include "TTInstance.h"
 #include "Tasks/TTUITask.h"
@@ -96,7 +97,13 @@ void TTLvglEpdDriver::_flushCallback(lv_display_t* disp, const lv_area_t* area, 
         lv_display_flush_ready(disp);
         return;
     }
-    
+
+    if (pThis->_capture != nullptr) {
+        pThis->_capture->blit(area, px_map + 8);
+        lv_display_flush_ready(disp);
+        return;
+    }
+
     // Skip the 8-byte palette header for monochrome format
     px_map += 8;
     

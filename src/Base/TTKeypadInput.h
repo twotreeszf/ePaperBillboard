@@ -30,6 +30,8 @@ private:
     void post(uint8_t key, uint8_t gesture);
     void emitKey(uint32_t key);
 
+    volatile bool _suppressUpLongPress = false;
+
     OneButton* _btnL = nullptr;
     OneButton* _btnR = nullptr;
     OneButton* _btnC = nullptr;
