@@ -320,6 +320,53 @@ tools/venv/bin/python tools/publish_firmware.py
 
 `data/res/manifest.json` is generated locally for packaging and is gitignored; do not commit it.
 
+## User manual publish
+
+The user manual is maintained as a static page and published to TOS as one long mobile JPEG.
+
+Public URL: <https://epaper-board.tos-cn-beijing.volces.com/manual/manual.jpg>
+
+The TOS default domain returns `Content-Disposition: attachment` for every object, so browsers download the image instead of displaying it. Bind a custom domain to the bucket to open it inline; the object key stays the same.
+
+### Sources
+
+| Path | Content |
+|------|---------|
+| `docs/index.html` | Manual page (the only source of truth; edit this) |
+| `docs/shots/` | Screenshots and photos, one file per screen, English names |
+| `docs/DeviceFrame.svg` | Device bezel drawn over e-paper screenshots by CSS |
+| `docs/publish/` | Generated output, gitignored |
+
+### Prerequisites
+
+- Project root `.env` with the same TOS keys as firmware publish
+- Python venv from `tools/requirements.txt` (uses `tos` and `Pillow`)
+- Google Chrome at `/Applications/Google Chrome.app` (override with `--chrome`)
+
+### Steps
+
+1. Edit `docs/index.html` and add or replace images under `docs/shots/`. Preview locally:
+
+```bash
+cd docs && python3 -m http.server 8768
+```
+
+2. Build and publish:
+
+```bash
+tools/venv/bin/python tools/build_manual.py --publish
+```
+
+The script:
+
+- Inlines every local `src` image as Base64 into `docs/publish/index.html`. It stops and lists the file if an image is missing.
+- Renders that page with headless Chrome at 390 px width and 2× scale. The page height is detected automatically. Output is `docs/publish/manual.jpg` (780 px wide).
+- With `--publish`, uploads the JPEG to `manual/manual.jpg` as public-read with `Cache-Control: no-cache`, then prints the public URL.
+
+Run without `--publish` to build locally only. Use `--key` to upload to another object key.
+
+3. Download the public URL and check the image, then commit `docs/`.
+
 ## E-Ink Refresh Strategy
 
 ```
