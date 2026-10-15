@@ -59,6 +59,84 @@ lv_obj_t* TTAboutPage::addLine(lv_obj_t* parent, const char* title, const char* 
     return block;
 }
 
+void TTAboutPage::placeShop(lv_obj_t* panel, lv_font_t* titleFont, lv_font_t* bodyFont) {
+    lv_obj_t* column = lv_obj_create(panel);
+    lv_obj_set_width(column, TT_ABOUT_BODY_W);
+    lv_obj_set_height(column, LV_SIZE_CONTENT);
+    lv_obj_set_style_bg_opa(column, LV_OPA_TRANSP, 0);
+    lv_obj_set_style_border_width(column, 0, 0);
+    lv_obj_set_style_pad_all(column, 0, 0);
+    lv_obj_set_style_radius(column, 0, 0);
+    lv_obj_set_layout(column, LV_LAYOUT_FLEX);
+    lv_obj_set_flex_flow(column, LV_FLEX_FLOW_COLUMN);
+    lv_obj_set_flex_align(column, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
+    lv_obj_set_style_pad_row(column, TT_ABOUT_QR_GAP, 0);
+    lv_obj_set_scrollable(column, false);
+    lv_obj_align(column, LV_ALIGN_CENTER, 0, -TT_ABOUT_INDEX_BOTTOM);
+
+    lv_obj_t* titleLabel = lv_label_create(column);
+    lv_label_set_text(titleLabel, "闲鱼");
+    lv_obj_set_width(titleLabel, lv_pct(100));
+    styleText(titleLabel, titleFont, LV_TEXT_ALIGN_CENTER);
+
+    lv_obj_t* row = lv_obj_create(column);
+    lv_obj_set_width(row, lv_pct(100));
+    lv_obj_set_height(row, LV_SIZE_CONTENT);
+    lv_obj_set_style_bg_opa(row, LV_OPA_TRANSP, 0);
+    lv_obj_set_style_border_width(row, 0, 0);
+    lv_obj_set_style_pad_all(row, 0, 0);
+    lv_obj_set_style_radius(row, 0, 0);
+    lv_obj_set_layout(row, LV_LAYOUT_FLEX);
+    lv_obj_set_flex_flow(row, LV_FLEX_FLOW_ROW);
+    lv_obj_set_flex_align(row, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
+    lv_obj_set_style_pad_column(row, TT_ABOUT_QR_GAP, 0);
+    lv_obj_set_scrollable(row, false);
+
+    const int32_t qrSize = TTQrCode::pixelSize(TT_ABOUT_XIANYU_QR_VERSION);
+    lv_obj_t* text = lv_obj_create(row);
+    lv_obj_set_width(text, TT_ABOUT_BODY_W - qrSize - TT_ABOUT_QR_GAP);
+    lv_obj_set_height(text, LV_SIZE_CONTENT);
+    lv_obj_set_style_bg_opa(text, LV_OPA_TRANSP, 0);
+    lv_obj_set_style_border_width(text, 0, 0);
+    lv_obj_set_style_pad_all(text, 0, 0);
+    lv_obj_set_style_radius(text, 0, 0);
+    lv_obj_set_layout(text, LV_LAYOUT_FLEX);
+    lv_obj_set_flex_flow(text, LV_FLEX_FLOW_COLUMN);
+    lv_obj_set_flex_align(text, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_START);
+    lv_obj_set_style_pad_row(text, TT_ABOUT_QR_GAP, 0);
+    lv_obj_set_scrollable(text, false);
+
+    const char* lines[] = {
+        TT_ABOUT_XIANYU_SHOP,
+        TT_ABOUT_XIANYU_TAGS,
+        TT_ABOUT_XIANYU_STATS,
+        TT_ABOUT_XIANYU_BIO,
+    };
+    lv_font_t* lineFonts[] = { titleFont, bodyFont, bodyFont, bodyFont };
+    for (int i = 0; i < 4; i++) {
+        lv_obj_t* label = lv_label_create(text);
+        lv_label_set_text(label, lines[i]);
+        lv_label_set_long_mode(label, LV_LABEL_LONG_WRAP);
+        lv_obj_set_width(label, lv_pct(100));
+        styleText(label, lineFonts[i], LV_TEXT_ALIGN_LEFT);
+    }
+
+    lv_obj_t* qr = TTQrCode::create(row, TT_ABOUT_XIANYU_QR_VERSION);
+    if (TTQrCode::setText(qr, TT_ABOUT_XIANYU_URL)) {
+        lv_obj_set_hidden(qr, false);
+    } else {
+        lv_obj_t* failed = lv_label_create(row);
+        lv_label_set_text(failed, "二维码生成失败");
+        styleText(failed, bodyFont, LV_TEXT_ALIGN_LEFT);
+        LOG_E("About: Xianyu QR failed");
+    }
+
+    lv_obj_t* hint = lv_label_create(column);
+    lv_label_set_text(hint, "打开闲鱼扫一扫");
+    lv_obj_set_width(hint, lv_pct(100));
+    styleText(hint, bodyFont, LV_TEXT_ALIGN_CENTER);
+}
+
 void TTAboutPage::placeQr(lv_obj_t* panel, const char* title, const char* caption, const char* payload,
                           lv_font_t* titleFont, lv_font_t* captionFont) {
     lv_obj_t* column = lv_obj_create(panel);
@@ -127,15 +205,17 @@ void TTAboutPage::buildContent(lv_obj_t* screen) {
     lv_obj_align(info, LV_ALIGN_CENTER, 0, -TT_ABOUT_INDEX_BOTTOM);
     addLine(info, "设备名称", TT_ABOUT_DEVICE_NAME, fontBody, fontTitle, lineGap);
     addLine(info, "系统版本", TT_FW_VERSION, fontBody, fontTitle, lineGap);
-    addLine(info, "闲鱼店铺", TT_ABOUT_XIANYU_SHOP, fontBody, fontTitle, lineGap);
 
     _panels[1] = makePanel(screen);
-    placeQr(_panels[1], "使用说明", "扫码查看说明书", TT_ABOUT_MANUAL_URL, fontTitle, fontBody);
+    placeShop(_panels[1], fontTitle, fontBody);
+
+    _panels[2] = makePanel(screen);
+    placeQr(_panels[2], "使用说明", "扫码查看说明书", TT_ABOUT_MANUAL_URL, fontTitle, fontBody);
 
     char qqCaption[48];
     snprintf(qqCaption, sizeof(qqCaption), "%s  %s", TT_ABOUT_QQ_NAME, TT_ABOUT_QQ_NUMBER);
-    _panels[2] = makePanel(screen);
-    placeQr(_panels[2], "QQ群", qqCaption, TT_ABOUT_QQ_URL, fontTitle, fontBody);
+    _panels[3] = makePanel(screen);
+    placeQr(_panels[3], "QQ群", qqCaption, TT_ABOUT_QQ_URL, fontTitle, fontBody);
 
     _indexLabel = lv_label_create(screen);
     styleText(_indexLabel, fontBody, LV_TEXT_ALIGN_CENTER);

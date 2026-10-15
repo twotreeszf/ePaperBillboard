@@ -7,11 +7,16 @@
 #define TT_ABOUT_DEVICE_NAME   "墨鱼桌搭"
 #define TT_ABOUT_MANUAL_URL    "https://epaper-board.tos-cn-beijing.volces.com/manual/manual.jpg"
 #define TT_ABOUT_XIANYU_SHOP   "TTStudio"
+#define TT_ABOUT_XIANYU_TAGS   "鱼小铺 · 电子创客和3D打印"
+#define TT_ABOUT_XIANYU_STATS  "166 宝贝    1421 粉丝"
+#define TT_ABOUT_XIANYU_BIO    "折腾和制作各种数码产品"
+#define TT_ABOUT_XIANYU_URL    "https://p.goofish.com/p/w5pcMB2W"
+#define TT_ABOUT_XIANYU_QR_VERSION  4
 #define TT_ABOUT_QQ_NAME       "TT Studio"
 #define TT_ABOUT_QQ_NUMBER     "703058070"
-#define TT_ABOUT_QQ_URL        "mqqapi://card/show_pslcard?src_type=internal&version=1&uin=703058070&card_type=group&source=qrcode"
+#define TT_ABOUT_QQ_URL        "https://qm.qq.com/q/ashf7IZUOY"
 #define TT_ABOUT_QR_VERSION    6
-#define TT_ABOUT_PAGE_COUNT    3
+#define TT_ABOUT_PAGE_COUNT    4
 #define TT_ABOUT_PAD           16
 #define TT_ABOUT_TITLE_FONT    16
 #define TT_ABOUT_BODY_FONT     12
@@ -40,6 +45,7 @@ private:
     lv_obj_t* makePanel(lv_obj_t* parent);
     void placeQr(lv_obj_t* panel, const char* title, const char* caption, const char* payload,
                  lv_font_t* titleFont, lv_font_t* captionFont);
+    void placeShop(lv_obj_t* panel, lv_font_t* titleFont, lv_font_t* bodyFont);
 
     lv_obj_t* _panels[TT_ABOUT_PAGE_COUNT] = {};
     lv_obj_t* _indexLabel = nullptr;
