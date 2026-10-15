@@ -4,6 +4,7 @@
 #include "TTFile.h"
 #include "TTInstance.h"
 #include "TTLvglEpdDriver.h"
+#include "TTPreference.h"
 #include "TTRtc.h"
 #include "Util.h"
 #include <LittleFS.h>
@@ -326,7 +327,17 @@ bool TTScreenshotDisplay::save(const char* pageName) {
     return true;
 }
 
+bool TTScreenshotDisplay::shotsEnabled() const {
+    bool enabled = false;
+    TTInstanceOf<TTPreference>().get(PREF_DEV_SHOT, enabled, false);
+    return enabled;
+}
+
 TTShotResult TTScreenshotDisplay::capture(const char* pageName) {
+    if (!shotsEnabled()) {
+        LOG_I("Shot: skip, screenshot option off");
+        return TT_SHOT_FAILED;
+    }
     if (_busy) {
         LOG_W("Shot: capture already running");
         return TT_SHOT_FAILED;

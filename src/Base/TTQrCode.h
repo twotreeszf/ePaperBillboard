@@ -9,10 +9,10 @@
 
 class TTQrCode {
 public:
-    static lv_obj_t* create(lv_obj_t* parent);
+    static lv_obj_t* create(lv_obj_t* parent, uint8_t version = TT_QR_VERSION);
     static bool setText(lv_obj_t* qr, const char* text);
     static bool setWifiOpen(lv_obj_t* qr, const char* ssid);
-    static int32_t pixelSize();
+    static int32_t pixelSize(uint8_t version = TT_QR_VERSION);
 
 private:
     static void onDraw(lv_event_t* e);

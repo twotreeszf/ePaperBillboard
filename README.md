@@ -382,7 +382,7 @@ Display size and rotation come from `EPDConfig.h`. Buffer is one I1 frame (`EPD_
 |-------|------|-------|-----|
 | `TT_REFRESH_PARTIAL` | Dirty areas | Partial LUT | Clock ticks, sensor, focus |
 | `TT_REFRESH_FULL` | Invalidate page content | Partial LUT, full page | Content change without flashing the film |
-| `TT_REFRESH_DEEP` | Invalidate + full window | Full waveform | First weather paint, mode switch; also every `EPD_FULL_REFRESH_INTERVAL` (64) partials |
+| `TT_REFRESH_DEEP` | Invalidate + full window | Full waveform | First weather paint, mode switch; also every `EPD_FULL_REFRESH_INTERVAL` (128) partials |
 
 ```cpp
 TTInstanceOf<TTLvglEpdDriver>().requestRefresh(TT_REFRESH_PARTIAL);

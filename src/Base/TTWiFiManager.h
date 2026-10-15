@@ -13,6 +13,7 @@
 #define TT_WIFI_APPLY_DELAY_MS      800
 #define TT_WIFI_DNS_PORT  53
 #define TT_WIFI_TX_POWER  WIFI_POWER_11dBm
+#define TT_DEV_PASSWORD   "bagemima"
 
 class TTWiFiManager {
 public:
@@ -32,6 +33,7 @@ public:
     bool isProvisioning() const { return _state == TT_WIFI_LINK_PROVISIONING; }
     bool hasConfiguredNetwork() const { return _hasNetworks; }
     TTWiFiLinkState linkState() const { return _state; }
+    bool takeNtpAfterConnect();
 
 private:
     bool resumeRadio();
@@ -55,6 +57,8 @@ private:
     void _handleSave();
     void _handleStatus();
     void _handleScanWiFi();
+    void _handleDevOpen();
+    void _handleDevSave();
     void _handleShots();
     void _handleShotFile();
     void _handleShotsZip();
@@ -62,7 +66,9 @@ private:
     void _handleShotsClear();
     void _handleNotFound();
     void _sendSaveResult(int code, const char* title, const char* msg);
-    String _getHTMLContent();
+    String _getHTMLContent(bool devOpen = false, bool devDenied = false, const String& devPassword = "");
+    String _devPanelHtml(bool devOpen, bool devDenied, const String& devPassword);
+    bool _devPasswordOk();
     String _getWiFiListJSON();
 
     WebServer _server;
@@ -75,6 +81,7 @@ private:
     bool _serverStarted = false;
     bool _applyPending = false;
     bool _restartOnApply = false;
+    bool _ntpAfterConnect = false;
     bool _fallbackScan = false;
     bool _driverHeld = false;
     uint32_t _applyAt = 0;

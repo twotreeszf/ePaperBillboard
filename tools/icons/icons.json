@@ -68,6 +68,12 @@
       "file": "restart.i1",
       "size": 48,
       "strokeWidth": 1.5
+    },
+    {
+      "id": "info",
+      "file": "info.i1",
+      "size": 48,
+      "strokeWidth": 1.5
     }
   ]
 }

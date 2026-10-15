@@ -1,4 +1,5 @@
 #include "TTSettingsPage.h"
+#include "TTAboutPage.h"
 #include "TTWiFiConfigPage.h"
 #include "TTWiFiStatusPage.h"
 #include "TTNtpSyncPage.h"
@@ -35,6 +36,9 @@ void TTSettingsPage::buildContent(lv_obj_t* screen) {
 
     MenuItem::create(&_items[4], container, this, TT_FS_RES_DIR "/icons/restart.i1", "重启", fontBtn,
         [this]() { onRebootClicked(); });
+
+    MenuItem::create(&_items[5], container, this, TT_ABOUT_ICON, "关于", fontBtn,
+        [this]() { getNavigationController()->pushPage(std::unique_ptr<TTScreenPage>(new TTAboutPage())); });
 
     _row.bind(_items.data(), (int)_items.size());
 }

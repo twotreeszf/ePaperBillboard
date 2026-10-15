@@ -14,6 +14,7 @@
 #define TT_SHOT_TOAST_MS         2000
 #define TT_SHOT_TOAST_TEXT       "已截图"
 #define TT_SHOT_NO_ROOM_TEXT     "空间不足"
+#define PREF_DEV_SHOT            "dev_shot"
 
 enum TTShotResult {
     TT_SHOT_OK = 0,
@@ -30,6 +31,7 @@ typedef bool (*TTShotWriter)(void* ctx, const uint8_t* data, size_t len);
 class TTScreenshotDisplay {
 public:
     TTShotResult capture(const char* pageName);
+    bool shotsEnabled() const;
     bool isBusy() const { return _busy; }
 
     int list(char names[][TT_SHOT_NAME_MAX], int max);

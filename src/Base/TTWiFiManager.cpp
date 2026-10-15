@@ -170,6 +170,7 @@ bool TTWiFiManager::sleepRadio() {
     _state = TT_WIFI_LINK_IDLE;
     _connectStartedAt = 0;
     _fallbackScan = false;
+    _ntpAfterConnect = false;
     if (_driverHeld || WiFi.getMode() == WIFI_OFF) {
         return true;
     }
@@ -239,9 +240,18 @@ bool TTWiFiManager::startProvisioning() {
     return true;
 }
 
+bool TTWiFiManager::takeNtpAfterConnect() {
+    if (!_ntpAfterConnect) {
+        return false;
+    }
+    _ntpAfterConnect = false;
+    return true;
+}
+
 bool TTWiFiManager::stopProvisioning() {
     _applyPending = false;
     _restartOnApply = false;
+    _ntpAfterConnect = false;
     _applyAt = 0;
     if (_state != TT_WIFI_LINK_PROVISIONING) {
         return true;
@@ -268,7 +278,10 @@ void TTWiFiManager::process() {
                 TTInstanceOf<TTUITask>().requestRestartAsync();
                 return;
             }
-            tryConnectSaved();
+            if (tryConnectSaved()) {
+                _ntpAfterConnect = true;
+                LOG_I("WiFi: NTP armed after portal connect");
+            }
         }
         return;
     }
@@ -535,6 +548,8 @@ bool TTWiFiManager::_startWebServer() {
         _server.on("/save", HTTP_POST, [this]() { _handleSave(); });
         _server.on("/status", HTTP_GET, [this]() { _handleStatus(); });
         _server.on("/scan", HTTP_GET, [this]() { _handleScanWiFi(); });
+        _server.on("/dev/open", HTTP_POST, [this]() { _handleDevOpen(); });
+        _server.on("/dev/save", HTTP_POST, [this]() { _handleDevSave(); });
         _server.on("/shots", HTTP_GET, [this]() { _handleShots(); });
         _server.on("/shots/file", HTTP_GET, [this]() { _handleShotFile(); });
         _server.on("/shots.zip", HTTP_GET, [this]() { _handleShotsZip(); });
@@ -552,7 +567,8 @@ bool TTWiFiManager::_startWebServer() {
 }
 
 void TTWiFiManager::_handleRoot() {
-    _server.send(200, "text/html; charset=utf-8", _getHTMLContent());
+    const bool denied = _server.hasArg("dev") && _server.arg("dev") == "denied";
+    _server.send(200, "text/html; charset=utf-8", _getHTMLContent(false, denied));
 }
 
 void TTWiFiManager::_sendSaveResult(int code, const char* title, const char* msg) {
@@ -798,7 +814,74 @@ String TTWiFiManager::_getWiFiListJSON() {
     return result;
 }
 
+bool TTWiFiManager::_devPasswordOk() {
+    return _server.arg("password") == TT_DEV_PASSWORD;
+}
+
+void TTWiFiManager::_handleDevOpen() {
+    if (!_devPasswordOk()) {
+        LOG_W("Dev: open rejected");
+        _server.send(200, "text/html; charset=utf-8", _getHTMLContent(false, true));
+        return;
+    }
+    LOG_I("Dev: options opened");
+    _server.send(200, "text/html; charset=utf-8", _getHTMLContent(true, false, _server.arg("password")));
+}
+
+void TTWiFiManager::_handleDevSave() {
+    if (!_devPasswordOk()) {
+        LOG_W("Dev: save rejected");
+        _server.send(200, "text/html; charset=utf-8", _getHTMLContent(false, true));
+        return;
+    }
+    const bool enabled = _server.arg("shot") == "1";
+    auto& pref = TTInstanceOf<TTPreference>();
+    if (!pref.set(PREF_DEV_SHOT, enabled) || !pref.sync()) {
+        LOG_E("Dev: save failed");
+        _sendSaveResult(500, "保存失败", "无法保存开发者选项");
+        return;
+    }
+    LOG_I("Dev: screenshot %s", enabled ? "on" : "off");
+    _server.send(200, "text/html; charset=utf-8", _getHTMLContent(true, false, _server.arg("password")));
+}
+
+String TTWiFiManager::_devPanelHtml(bool devOpen, bool devDenied, const String& devPassword) {
+    String html;
+    html += F("<div class='panel' id='panel-dev'>");
+    if (!devOpen) {
+        html += F("<p class='tip'>输入密码后才能查看开发者选项。</p>");
+        if (devDenied) {
+            html += F("<p class='err'>密码不正确</p>");
+        }
+        html += F("<form method='post' action='/dev/open'>");
+        html += F("<label>密码</label>");
+        html += F("<input type='password' id='dev-password' name='password' autocomplete='off'>");
+        html += F("<button class='devbtn' type='submit'>解锁</button></form></div>");
+        return html;
+    }
+    const bool enabled = TTInstanceOf<TTScreenshotDisplay>().shotsEnabled();
+    html += F("<form method='post' action='/dev/save'>");
+    html += F("<input type='hidden' name='password' value='");
+    appendHtmlText(html, devPassword.c_str());
+    html += F("'>");
+    html += F("<label class='row'><input type='checkbox' name='shot' value='1'");
+    if (enabled) {
+        html += F(" checked");
+    }
+    html += F(">长按上键截图</label>");
+    html += F("<button class='devbtn' type='submit'>保存</button></form>");
+    if (enabled) {
+        html += F("<a class='shots' href='/shots'>截图下载与删除</a>");
+    }
+    html += F("</div>");
+    return html;
+}
+
 void TTWiFiManager::_handleShots() {
+    if (!TTInstanceOf<TTScreenshotDisplay>().shotsEnabled()) {
+        _server.send(404, "text/plain", "Not found");
+        return;
+    }
     auto& shots = TTInstanceOf<TTScreenshotDisplay>();
     char names[TT_SHOT_MAX][TT_SHOT_NAME_MAX];
     const int count = shots.list(names, TT_SHOT_MAX);
@@ -810,8 +893,13 @@ void TTWiFiManager::_handleShots() {
     html += F("body{font-family:-apple-system,sans-serif;margin:0;padding:16px;background:#f4f4f4}");
     html += F(".box{max-width:400px;margin:0 auto;background:#fff;padding:20px;border-radius:8px}");
     html += F("a{color:#111} li{margin:10px 0} button{margin-left:8px}");
+    html += F("input{padding:8px;font-size:16px;box-sizing:border-box}");
+    html += F(".err{color:#b00020}");
     html += F("</style></head><body><div class='box'><h2>截图</h2>");
-    html += F("<p>在设备上长按上键保存当前画面。空间不足时不会保存。</p>");
+    html += F("<p>在设备上长按上键保存当前画面。空间不足时不会保存。删除时必须填写密码。</p>");
+    if (_server.hasArg("dev") && _server.arg("dev") == "denied") {
+        html += F("<p class='err'>密码不正确，未删除</p>");
+    }
     if (shots.isBusy()) {
         html += F("<p>正在保存，请稍后刷新。</p>");
     } else if (count <= 0) {
@@ -825,9 +913,9 @@ void TTWiFiManager::_handleShots() {
             appendHtmlText(html, names[i]);
             html += F("</a><form style='display:inline' method='post' action='/shots/delete'><input type='hidden' name='name' value='");
             appendHtmlText(html, names[i]);
-            html += F("'><button type='submit'>删除</button></form></li>");
+            html += F("'><input type='password' name='password' placeholder='密码' autocomplete='off'><button type='submit'>删除</button></form></li>");
         }
-        html += F("</ul><form method='post' action='/shots/clear'><button type='submit'>删除全部</button></form>");
+        html += F("</ul><form method='post' action='/shots/clear'><input type='password' name='password' placeholder='密码' autocomplete='off'><button type='submit'>删除全部</button></form>");
     }
     html += F("<p><a href='/'>返回设置</a></p></div></body></html>");
     _server.send(200, "text/html; charset=utf-8", html);
@@ -835,6 +923,10 @@ void TTWiFiManager::_handleShots() {
 }
 
 void TTWiFiManager::_handleShotFile() {
+    if (!TTInstanceOf<TTScreenshotDisplay>().shotsEnabled()) {
+        _server.send(404, "text/plain", "Not found");
+        return;
+    }
     auto& shots = TTInstanceOf<TTScreenshotDisplay>();
     if (shots.isBusy()) {
         _server.send(503, "text/plain; charset=utf-8", "busy");
@@ -863,6 +955,10 @@ void TTWiFiManager::_handleShotFile() {
 }
 
 void TTWiFiManager::_handleShotsZip() {
+    if (!TTInstanceOf<TTScreenshotDisplay>().shotsEnabled()) {
+        _server.send(404, "text/plain", "Not found");
+        return;
+    }
     auto& shots = TTInstanceOf<TTScreenshotDisplay>();
     if (shots.isBusy()) {
         _server.send(503, "text/plain; charset=utf-8", "busy");
@@ -886,6 +982,16 @@ void TTWiFiManager::_handleShotsZip() {
 }
 
 void TTWiFiManager::_handleShotDelete() {
+    if (!TTInstanceOf<TTScreenshotDisplay>().shotsEnabled()) {
+        _server.send(404, "text/plain", "Not found");
+        return;
+    }
+    if (!_devPasswordOk()) {
+        LOG_W("Shot: delete rejected");
+        _server.sendHeader("Location", "/shots?dev=denied", true);
+        _server.send(303, "text/plain", "");
+        return;
+    }
     auto& shots = TTInstanceOf<TTScreenshotDisplay>();
     const String name = _server.arg("name");
     if (!shots.isBusy()) {
@@ -898,6 +1004,16 @@ void TTWiFiManager::_handleShotDelete() {
 }
 
 void TTWiFiManager::_handleShotsClear() {
+    if (!TTInstanceOf<TTScreenshotDisplay>().shotsEnabled()) {
+        _server.send(404, "text/plain", "Not found");
+        return;
+    }
+    if (!_devPasswordOk()) {
+        LOG_W("Shot: clear rejected");
+        _server.sendHeader("Location", "/shots?dev=denied", true);
+        _server.send(303, "text/plain", "");
+        return;
+    }
     auto& shots = TTInstanceOf<TTScreenshotDisplay>();
     if (!shots.isBusy()) {
         shots.removeAll();
@@ -917,8 +1033,8 @@ void TTWiFiManager::_handleNotFound() {
     _server.send(404, "text/plain", "Not found");
 }
 
-String TTWiFiManager::_getHTMLContent() {
-    return String(R"html(
+String TTWiFiManager::_getHTMLContent(bool devOpen, bool devDenied, const String& devPassword) {
+    String html = String(R"html(
 <!DOCTYPE html>
 <html>
 <head>
@@ -931,13 +1047,17 @@ String TTWiFiManager::_getHTMLContent() {
         h2 { margin: 0 0 8px; text-align: center; }
         label { display: block; margin: 12px 0 6px; }
         select, input { width: 100%; padding: 10px; font-size: 16px; box-sizing: border-box; }
-        .tabs { display: flex; gap: 6px; margin: 12px 0 4px; }
-        .tab { flex: 1; margin: 0; padding: 8px 4px; font-size: 14px; background: #eee; color: #111; border: 0; border-radius: 6px; }
+        .tabs { display: flex; flex-wrap: nowrap; gap: 6px; margin: 12px 0 4px; overflow-x: auto; -webkit-overflow-scrolling: touch; }
+        .tab { flex: 0 0 auto; margin: 0; padding: 8px 12px; font-size: 14px; white-space: nowrap; background: #eee; color: #111; border: 0; border-radius: 6px; }
         .tab.on { background: #111; color: #fff; }
         .panel { display: none; }
         .panel.on { display: block; }
         button.save { width: 100%; margin-top: 20px; padding: 12px; font-size: 16px; background: #111; color: #fff; border: 0; border-radius: 6px; }
-        a.shots { display: block; margin-top: 16px; text-align: center; color: #111; }
+        a.shots { display: block; margin-top: 12px; text-align: center; color: #111; }
+        #panel-dev input[type=checkbox] { width: auto; margin-right: 8px; }
+        #panel-dev label.row { display: flex; align-items: center; }
+        button.devbtn { width: 100%; margin-top: 8px; padding: 10px; font-size: 15px; background: #eee; color: #111; border: 0; border-radius: 6px; }
+        .err { color: #b00020; }
         button.save:disabled { background: #999; }
         .tip { color: #666; font-size: 13px; margin: 8px 0; }
     </style>
@@ -946,14 +1066,15 @@ String TTWiFiManager::_getHTMLContent() {
     <div class="box">
         <h2>设备设置</h2>
         <p class="tip">按分类填写。完成配置后设备将关闭热点并以 STA 模式连接。</p>
+        <div class="tabs">
+            <button type="button" class="tab on" data-tab="wifi">Wi-Fi</button>
+            <button type="button" class="tab" data-tab="tz">时区</button>
+            <button type="button" class="tab" data-tab="weather">天气</button>
+            <button type="button" class="tab" data-tab="cal">日历</button>
+            <button type="button" class="tab" data-tab="hw">硬件</button>
+            <button type="button" class="tab" data-tab="dev">开发者</button>
+        </div>
         <form method="post" action="/save" onsubmit="return onSubmit()">
-            <div class="tabs">
-                <button type="button" class="tab on" data-tab="wifi">Wi-Fi</button>
-                <button type="button" class="tab" data-tab="tz">时区</button>
-                <button type="button" class="tab" data-tab="weather">天气</button>
-                <button type="button" class="tab" data-tab="cal">日历</button>
-                <button type="button" class="tab" data-tab="hw">硬件</button>
-            </div>
             <div class="panel on" id="panel-wifi">
                 <label>名称</label>
                 <select id="ssid-select" onchange="document.getElementById('ssid').value=this.value">
@@ -1005,7 +1126,7 @@ String TTWiFiManager::_getHTMLContent() {
             </div>
             <button class="save" type="submit">完成配置</button>
         </form>
-        <a class="shots" href="/shots">截图下载与删除</a>
+        <!--DEV-->
     </div>
     <script>
         const CITIES = {
@@ -1122,10 +1243,20 @@ String TTWiFiManager::_getHTMLContent() {
             document.querySelectorAll('.panel').forEach(el => {
                 el.classList.toggle('on', el.id === 'panel-' + name);
             });
+            const save = document.querySelector('button.save');
+            if (save) save.style.display = name === 'dev' ? 'none' : '';
+            const tab = document.querySelector('.tab[data-tab="' + name + '"]');
+            if (tab) tab.scrollIntoView({ inline: 'nearest', block: 'nearest' });
+            if (name === 'dev') {
+                const pw = document.getElementById('dev-password');
+                if (pw) pw.focus();
+            }
         }
         document.querySelectorAll('.tab').forEach(el => {
             el.addEventListener('click', () => showTab(el.dataset.tab));
         });
+        const devState = "<!--DEV_STATE-->";
+        if (devState === "open" || devState === "denied") showTab("dev");
         function onSubmit() {
             applyCity();
             const ssid = document.getElementById('ssid').value.replace(/^\s+|\s+$/g, '');
@@ -1155,4 +1286,7 @@ String TTWiFiManager::_getHTMLContent() {
 </body>
 </html>
 )html");
+    html.replace("<!--DEV_STATE-->", devOpen ? "open" : (devDenied ? "denied" : "idle"));
+    html.replace("<!--DEV-->", _devPanelHtml(devOpen, devDenied, devPassword));
+    return html;
 }

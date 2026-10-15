@@ -58,6 +58,10 @@ void TTWiFiTask::handleLinkChange() {
     if (becameConnected) {
         LOG_I("WiFi: connected jobs=%u", (unsigned)_jobs.size());
         _wakeFailed = false;
+        if (_wifiManager.takeNtpAfterConnect()) {
+            LOG_I("WiFi: portal connected, start NTP");
+            postWorkJob("ntp", [this]() { startNtpSync(); }, {});
+        }
         return;
     }
     if (connectFailed || linkLost) {

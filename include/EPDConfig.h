@@ -34,7 +34,7 @@ using EPaperDisplay = GxEPD2_BW<GxEPD2_420_HinkE042A13Select, GxEPD2_420_HinkE04
 #endif
 
 #define EPD_BUF_SIZE ((EPD_WIDTH * EPD_HEIGHT / 8) + 8)
-#define EPD_FULL_REFRESH_INTERVAL 64
+#define EPD_FULL_REFRESH_INTERVAL 128
 
 #define PREF_EPD_PANEL "epd_panel"
 #define TT_EPD_PANEL_A0_1 "a0-1"

@@ -11,6 +11,7 @@
 struct TTQrCodeData {
     QRCode qr;
     uint8_t* modules;
+    uint8_t version;
 };
 
 static void appendEscaped(char* out, size_t outMax, size_t* pos, const char* s) {
@@ -26,14 +27,14 @@ static void appendEscaped(char* out, size_t outMax, size_t* pos, const char* s) 
     }
 }
 
-int32_t TTQrCode::pixelSize() {
-    const int32_t modules = 4 * TT_QR_VERSION + 17 + TT_QR_QUIET * 2;
+int32_t TTQrCode::pixelSize(uint8_t version) {
+    const int32_t modules = 4 * (int32_t)version + 17 + TT_QR_QUIET * 2;
     return modules * TT_QR_MODULE_PX;
 }
 
-lv_obj_t* TTQrCode::create(lv_obj_t* parent) {
+lv_obj_t* TTQrCode::create(lv_obj_t* parent, uint8_t version) {
     lv_obj_t* qr = lv_obj_create(parent);
-    const int32_t px = pixelSize();
+    const int32_t px = pixelSize(version);
     lv_obj_set_size(qr, px, px);
     lv_obj_set_style_bg_color(qr, lv_color_white(), 0);
     lv_obj_set_style_bg_opa(qr, LV_OPA_COVER, 0);
@@ -49,6 +50,7 @@ lv_obj_t* TTQrCode::create(lv_obj_t* parent) {
         return qr;
     }
     memset(data, 0, sizeof(TTQrCodeData));
+    data->version = version;
     lv_obj_set_user_data(qr, data);
     lv_obj_add_event_cb(qr, onDraw, LV_EVENT_DRAW_MAIN, nullptr);
     lv_obj_add_event_cb(qr, onDelete, LV_EVENT_DELETE, nullptr);
@@ -64,7 +66,7 @@ bool TTQrCode::setText(lv_obj_t* qr, const char* text) {
         return false;
     }
 
-    const uint16_t bufSize = qrcode_getBufferSize(TT_QR_VERSION);
+    const uint16_t bufSize = qrcode_getBufferSize(data->version);
     uint8_t* modules = (uint8_t*)heap_caps_malloc(bufSize, MALLOC_CAP_8BIT);
     if (modules == nullptr) {
         LOG_E("QR: module buffer alloc failed %u", (unsigned)bufSize);
@@ -72,7 +74,7 @@ bool TTQrCode::setText(lv_obj_t* qr, const char* text) {
     }
 
     QRCode encoded;
-    int err = qrcode_initText(&encoded, modules, TT_QR_VERSION, ECC_MEDIUM, text);
+    int err = qrcode_initText(&encoded, modules, data->version, ECC_MEDIUM, text);
     if (err != 0) {
         LOG_E("QR: encode failed err=%d len=%u", err, (unsigned)strlen(text));
         heap_caps_free(modules);
@@ -84,8 +86,8 @@ bool TTQrCode::setText(lv_obj_t* qr, const char* text) {
     }
     data->modules = modules;
     data->qr = encoded;
-    LOG_I("QR: encoded version=%d size=%d payload_len=%u",
-          TT_QR_VERSION, encoded.size, (unsigned)strlen(text));
+    LOG_I("QR: encoded version=%u size=%d payload_len=%u",
+          (unsigned)data->version, encoded.size, (unsigned)strlen(text));
     lv_obj_invalidate(qr);
     return true;
 }
