@@ -1,23 +1,23 @@
 #pragma once
 
 #include <WiFi.h>
-#include <WebServer.h>
 #include <DNSServer.h>
 #include <vector>
+#include "TTConfigServer.h"
 #include "../Models/TTNotificationPayloads.h"
 
-#define PREF_WIFI_NETWORKS   "wifi_networks"
-#define PREF_WIFI_LAST_SSID  "wifi_last_ssid"
+#define PREF_WIFI_NETWORKS      "wifi_networks"
+#define PREF_WIFI_LAST_SSID     "wifi_last_ssid"
 #define TT_WIFI_AP_SSID_PREFIX  "Billboard"
 #define TT_WIFI_CONNECT_TIMEOUT_MS  15000
-#define TT_WIFI_APPLY_DELAY_MS      800
 #define TT_WIFI_DNS_PORT  53
 #define TT_WIFI_TX_POWER  WIFI_POWER_11dBm
-#define TT_DEV_PASSWORD   "bagemima"
 
 class TTWiFiManager {
+    friend class TTConfigServer;
+
 public:
-    TTWiFiManager() : _server(80) {}
+    TTWiFiManager();
 
     bool tryConnectSaved();
     bool refreshSavedNetwork();
@@ -36,6 +36,9 @@ public:
     bool takeNtpAfterConnect();
 
 private:
+    void noteSavedNetwork(const char* ssid);
+    const char* savedSsid() const { return _savedSsid; }
+
     bool resumeRadio();
     bool _startConnect(const String& ssid, const String& password);
     void _pollConnect();
@@ -50,40 +53,18 @@ private:
     void _persistLastSsid(const String& ssid);
     void _applyTxPower();
     bool _startAP();
-    bool _startWebServer();
     void _stopAP();
     void _buildApSsid();
-    void _handleRoot();
-    void _handleSave();
-    void _handleStatus();
-    void _handleScanWiFi();
-    void _handleDevOpen();
-    void _handleDevSave();
-    void _handleShots();
-    void _handleShotFile();
-    void _handleShotsZip();
-    void _handleShotDelete();
-    void _handleShotsClear();
-    void _handleNotFound();
-    void _sendSaveResult(int code, const char* title, const char* msg);
-    String _getHTMLContent(bool devOpen = false, bool devDenied = false, const String& devPassword = "");
-    String _devPanelHtml(bool devOpen, bool devDenied, const String& devPassword);
-    bool _devPasswordOk();
-    String _getWiFiListJSON();
 
-    WebServer _server;
+    TTConfigServer _portal;
     DNSServer _dnsServer;
     TTWiFiLinkState _state = TT_WIFI_LINK_IDLE;
     std::vector<String> _ssidList;
     char _apSsid[TT_WIFI_SSID_MAX + 1] = {0};
     char _savedSsid[TT_WIFI_SSID_MAX + 1] = {0};
     bool _hasNetworks = false;
-    bool _serverStarted = false;
-    bool _applyPending = false;
-    bool _restartOnApply = false;
     bool _ntpAfterConnect = false;
     bool _fallbackScan = false;
     bool _driverHeld = false;
-    uint32_t _applyAt = 0;
     uint32_t _connectStartedAt = 0;
 };
