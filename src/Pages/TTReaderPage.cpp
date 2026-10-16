@@ -7,6 +7,7 @@
 #include "../Base/TTPopupLayer.h"
 #include "../Reader/TTReaderTextView.h"
 #include "../Service/TTSdCardService.h"
+#include "../Service/TTSleepService.h"
 #include <EPDConfig.h>
 #include <esp_heap_caps.h>
 #include <cstdio>
@@ -57,7 +58,14 @@ void TTReaderPage::setup() {
     if (_error != nullptr) {
         LOG_E("Reader: open %s failed: %s", _book.name.c_str(), _error);
         closeBook();
+        return;
     }
+    subscribe<TTSleepWakePayload>(TT_NOTIFICATION_SLEEP_WAKE, [this](const TTSleepWakePayload& wake) {
+        onSleepWake(wake);
+    });
+    subscribe<TTTimeTickPayload>(TT_NOTIFICATION_TIME_TICK, [this](const TTTimeTickPayload&) {
+        onTimeTick();
+    });
 }
 
 void TTReaderPage::willAppear() {
@@ -72,10 +80,13 @@ void TTReaderPage::willAppear() {
     _deepRefreshPaused = true;
     startIndexing();
     _pollHandle = runRepeat(TT_SD_DETECT_POLL_MS, [this]() { pollCard(); }, false);
+    armIdleSleep();
 }
 
 void TTReaderPage::willDisappear() {
     _visible = false;
+    _sleepAfterTimeTick = false;
+    cancelIdleSleep();
     stopIndexing();
     if (_pollHandle != 0) {
         cancelRepeat(_pollHandle);
@@ -107,21 +118,27 @@ void TTReaderPage::willDestroy() {
 }
 
 bool TTReaderPage::handleKeyAction(TTKeyId key, TTKeyGesture gesture) {
+    cancelLightSleep();
+    _sleepAfterTimeTick = false;
+    cancelIdleSleep();
+    bool handled = false;
     if (gesture == TT_KEY_CLICK && (key == TT_KEY_LEFT || key == TT_KEY_RIGHT)) {
         if (TTInstanceOf<TTPopupLayer>().isDialogShown()) {
             return false;
         }
-        if (_error != nullptr || _leaving || _cardLost || !_page) {
-            return true;
+        if (_error == nullptr && !_leaving && !_cardLost && _page) {
+            if (key == TT_KEY_RIGHT) {
+                nextPage();
+            } else {
+                prevPage();
+            }
         }
-        if (key == TT_KEY_RIGHT) {
-            nextPage();
-        } else {
-            prevPage();
-        }
-        return true;
+        handled = true;
+    } else {
+        handled = TTScreenPage::handleKeyAction(key, gesture);
     }
-    return TTScreenPage::handleKeyAction(key, gesture);
+    armIdleSleep();
+    return handled;
 }
 
 const char* TTReaderPage::openBook() {
@@ -432,6 +449,8 @@ void TTReaderPage::leaveWithMessage(const char* msg) {
     }
     _leaving = true;
     LOG_W("Reader: leave with message: %s", msg);
+    cancelLightSleep();
+    cancelIdleSleep();
     stopIndexing();
     if (_pollHandle != 0) {
         cancelRepeat(_pollHandle);
@@ -450,4 +469,74 @@ void TTReaderPage::leaveWithMessage(const char* msg) {
             }
         });
     });
+}
+
+void TTReaderPage::armIdleSleep() {
+    cancelIdleSleep();
+    if (!_visible || _leaving || _cardLost || _error != nullptr) {
+        return;
+    }
+    _idleSleepHandle = runOnce(TT_SLEEP_INPUT_IDLE_MS, [this]() {
+        _idleSleepHandle = 0;
+        enterIdleSleep();
+    });
+    LOG_I("Reader: sleep in %d s if idle", TT_SLEEP_INPUT_IDLE_MS / 1000);
+}
+
+void TTReaderPage::cancelIdleSleep() {
+    if (_idleSleepHandle == 0) {
+        return;
+    }
+    cancelRepeat(_idleSleepHandle);
+    _idleSleepHandle = 0;
+}
+
+void TTReaderPage::enterIdleSleep() {
+    if (!_visible || _leaving || _cardLost || _error != nullptr) {
+        return;
+    }
+    if (_indexHandle != 0) {
+        LOG_I("Reader: indexing, delay sleep");
+        armIdleSleep();
+        return;
+    }
+    if (_saveHandle != 0) {
+        cancelRepeat(_saveHandle);
+        _saveHandle = 0;
+    }
+    saveProgress();
+    LOG_I("Reader: request light sleep");
+    requestLightSleep();
+}
+
+void TTReaderPage::onSleepWake(const TTSleepWakePayload& wake) {
+    if (!_visible || _leaving) {
+        return;
+    }
+    LOG_I("Reader: sleep wake reason=%d", (int)wake.reason);
+    switch (wake.reason) {
+        case TT_SLEEP_WAKE_FETCH:
+            cancelIdleSleep();
+            enterIdleSleep();
+            break;
+        case TT_SLEEP_WAKE_TIME:
+            _sleepAfterTimeTick = true;
+            armIdleSleep();
+            break;
+        case TT_SLEEP_WAKE_INPUT:
+        case TT_SLEEP_WAKE_POWER:
+            _sleepAfterTimeTick = false;
+            armIdleSleep();
+            break;
+    }
+}
+
+void TTReaderPage::onTimeTick() {
+    if (!_visible || !_sleepAfterTimeTick) {
+        return;
+    }
+    _sleepAfterTimeTick = false;
+    LOG_I("Reader: time tick after wake, sleep again");
+    cancelIdleSleep();
+    enterIdleSleep();
 }

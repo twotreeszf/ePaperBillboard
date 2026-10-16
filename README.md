@@ -376,7 +376,7 @@ Run without `--publish` to build locally only. Use `--key` to upload to another 
 └─────────────┘     └──────────────────┘     └─────────────┘
 ```
 
-Display size and rotation come from `EPDConfig.h`. Buffer is one I1 frame (`EPD_BUF_SIZE`), render mode `PARTIAL`. Flush skips the 8-byte I1 palette, then writes GxEPD2 pixels (LVGL 1 = white paper). Page paints are clipped above the nav bar; the bar is redrawn as an overlay when a flush overlaps it.
+Display size and rotation come from `EPDConfig.h`. The LVGL draw buffer holds `EPD_DRAW_BUF_ROWS` rows (`EPD_BUF_SIZE`), render mode `PARTIAL`, so LVGL renders in strips. Each strip skips the 8-byte I1 palette and is copied into the GxEPD2 full-frame buffer (LVGL 1 = white paper); the panel is refreshed once on the last strip, over the union of the strips (`displayWindow`, or `display` for a deep refresh). Page paints are clipped above the nav bar; the bar is redrawn as an overlay when a flush overlaps it.
 
 | Level | LVGL | Panel | Use |
 |-------|------|-------|-----|

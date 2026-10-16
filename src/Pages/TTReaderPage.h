@@ -1,6 +1,7 @@
 #pragma once
 
 #include "../Base/TTScreenPage.h"
+#include "../Models/TTNotificationPayloads.h"
 #include "../Reader/TTBookStore.h"
 #include "../Reader/TTReaderIndex.h"
 #include "../Reader/TTReaderLayout.h"
@@ -68,6 +69,11 @@ private:
     void saveProgress();
     void pollCard();
     void leaveWithMessage(const char* msg);
+    void armIdleSleep();
+    void cancelIdleSleep();
+    void enterIdleSleep();
+    void onSleepWake(const TTSleepWakePayload& wake);
+    void onTimeTick();
 
     TTBookEntry _book;
     char _title[TT_READER_TITLE_MAX] = {};
@@ -87,6 +93,7 @@ private:
     uint32_t _indexHandle = 0;
     uint32_t _pollHandle = 0;
     uint32_t _saveHandle = 0;
+    uint32_t _idleSleepHandle = 0;
     uint32_t _indexStartMs = 0;
     uint16_t _turns = 0;
     int32_t _pageIndex = -1;
@@ -96,4 +103,5 @@ private:
     bool _progressDirty = false;
     bool _cardLost = false;
     bool _leaving = false;
+    bool _sleepAfterTimeTick = false;
 };

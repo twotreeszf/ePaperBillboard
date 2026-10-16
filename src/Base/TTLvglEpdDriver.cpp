@@ -46,6 +46,9 @@ static void invalidateTopLayerWidgets(lv_display_t* disp) {
 
 bool TTLvglEpdDriver::begin(EPaperDisplay& display) {
     _epd = &display;
+    _epd->setRotation(EPD_ROTATION);
+    _epd->setFullWindow();
+    _epd->fillScreen(GxEPD_WHITE);
 
     // Initialize LVGL
     lv_init();
@@ -86,7 +89,8 @@ bool TTLvglEpdDriver::begin(EPaperDisplay& display) {
     // Note: Keep the refresh timer active, but we'll only update when content changes
     // The timer is needed for lv_refr_now() to work properly
     
-    LOG_I("LVGL display initialized: %dx%d, 1bpp", EPD_WIDTH, EPD_HEIGHT);
+    LOG_I("LVGL display initialized: %dx%d, 1bpp, draw buf %u bytes (%d rows)",
+          EPD_WIDTH, EPD_HEIGHT, (unsigned)EPD_BUF_SIZE, EPD_DRAW_BUF_ROWS);
     return true;
 }
 
@@ -99,14 +103,14 @@ void TTLvglEpdDriver::_flushCallback(lv_display_t* disp, const lv_area_t* area, 
     }
 
     if (pThis->_capture != nullptr) {
-        pThis->_capture->blit(area, px_map + 8);
+        pThis->_capture->blit(area, px_map + EPD_I1_PALETTE_SIZE);
         lv_display_flush_ready(disp);
         return;
     }
 
-    // Skip the 8-byte palette header for monochrome format
-    px_map += 8;
-    
+    px_map += EPD_I1_PALETTE_SIZE;
+    const bool isLast = lv_display_flush_is_last(disp);
+
     const int32_t src_x1 = area->x1;
     const int32_t src_y1 = area->y1;
     int32_t x1 = area->x1;
@@ -115,6 +119,7 @@ void TTLvglEpdDriver::_flushCallback(lv_display_t* disp, const lv_area_t* area, 
     int32_t y2 = area->y2;
 
     const int32_t navTop = EPD_HEIGHT - TT_NAV_PAGE_INSET;
+    bool paint = true;
     if (!pThis->_flushingOverlay && y1 >= navTop) {
         if (!pThis->_needDeepRefresh) {
             pThis->_navTouched = true;
@@ -122,70 +127,95 @@ void TTLvglEpdDriver::_flushCallback(lv_display_t* disp, const lv_area_t* area, 
             LOG_I("Flush: defer nav until page deep refresh");
         }
         LOG_I("Flush: skip page paint in nav bar region");
-        lv_display_flush_ready(disp);
-        return;
+        paint = false;
     }
-    if (!pThis->_needDeepRefresh && !pThis->_flushingOverlay && y2 >= navTop) {
+    if (paint && !pThis->_needDeepRefresh && !pThis->_flushingOverlay && y2 >= navTop) {
         y2 = navTop - 1;
         LOG_I("Flush: clip page above nav bar y<%d", navTop);
     }
-
-    int32_t w = x2 - x1 + 1;
-    int32_t h = y2 - y1 + 1;
-    if (w <= 0 || h <= 0) {
-        lv_display_flush_ready(disp);
-        return;
+    if (x2 < x1 || y2 < y1) {
+        paint = false;
     }
 
-    LOG_I("Flush area: (%d,%d)-(%d,%d), size %dx%d", x1, y1, x2, y2, w, h);
-    uint32_t flushStart = millis();
-
-    pThis->_epd->setRotation(EPD_ROTATION);
-    const int32_t pageBottom = navTop - 1;
-    const bool coversPage = x1 <= 0 && y1 <= 0 && x2 >= EPD_WIDTH - 1 && y2 >= pageBottom;
-    const bool doDeepFull = pThis->_needDeepRefresh && !pThis->_flushingOverlay && coversPage;
-    if (pThis->_needDeepRefresh && !pThis->_flushingOverlay && !coversPage) {
-        LOG_I("Flush: hold deep refresh for the page");
-    }
-    if (doDeepFull) {
-        pThis->_epd->setFullWindow();
-        pThis->_needDeepRefresh = false;
-        pThis->_partialCount = 0;
-        pThis->_deepRefreshPending = false;
-        LOG_I("E-Paper deep full refresh (with nav bar)");
-    } else {
-        pThis->_epd->setPartialWindow(x1, y1, (uint16_t)w, (uint16_t)h);
-        if (!pThis->_needDeepRefresh) {
-            pThis->_partialCount++;
-        }
-        LOG_I("E-Paper partial refresh at (%d,%d) %dx%d, partial count: %d", x1, y1, w, h, pThis->_partialCount);
-    }
-
-    const int32_t buf_stride = ((area->x2 - area->x1 + 1) + 7) / 8;
-
-    pThis->_epd->firstPage();
-    do {
+    if (paint) {
+        LOG_D("Flush chunk: (%d,%d)-(%d,%d) last=%d", x1, y1, x2, y2, isLast ? 1 : 0);
+        const int32_t buf_stride = ((area->x2 - area->x1 + 1) + 7) / 8;
         for (int32_t y = y1; y <= y2; y++) {
+            const uint8_t* row = px_map + (y - src_y1) * buf_stride;
             for (int32_t x = x1; x <= x2; x++) {
-                int32_t rel_x = x - src_x1;
-                int32_t rel_y = y - src_y1;
-                int32_t byte_idx = rel_y * buf_stride + (rel_x / 8);
-                int32_t bit_idx = 7 - (rel_x % 8);
-                bool isSet = (px_map[byte_idx] >> bit_idx) & 0x01;
-                uint16_t color = isSet ? GxEPD_WHITE : GxEPD_BLACK;
-                pThis->_epd->drawPixel(x, y, color);
+                const int32_t rel_x = x - src_x1;
+                const bool isSet = (row[rel_x / 8] >> (7 - (rel_x % 8))) & 0x01;
+                pThis->_epd->drawPixel(x, y, isSet ? GxEPD_WHITE : GxEPD_BLACK);
             }
         }
-    } while (pThis->_epd->nextPage());
+        pThis->addDirty(x1, y1, x2, y2);
+    }
 
+    if (isLast) {
+        pThis->presentDirty();
+    }
+    lv_display_flush_ready(disp);
+}
+
+void TTLvglEpdDriver::addDirty(int32_t x1, int32_t y1, int32_t x2, int32_t y2) {
+    if (!_hasDirty) {
+        _dirty.x1 = x1;
+        _dirty.y1 = y1;
+        _dirty.x2 = x2;
+        _dirty.y2 = y2;
+        _hasDirty = true;
+        return;
+    }
+    if (x1 < _dirty.x1) _dirty.x1 = x1;
+    if (y1 < _dirty.y1) _dirty.y1 = y1;
+    if (x2 > _dirty.x2) _dirty.x2 = x2;
+    if (y2 > _dirty.y2) _dirty.y2 = y2;
+}
+
+void TTLvglEpdDriver::presentDirty() {
+    if (!_hasDirty) {
+        return;
+    }
+    _hasDirty = false;
+    int32_t x1 = _dirty.x1;
+    int32_t y1 = _dirty.y1;
+    int32_t x2 = _dirty.x2;
+    int32_t y2 = _dirty.y2;
+
+    const int32_t pageBottom = EPD_HEIGHT - TT_NAV_PAGE_INSET - 1;
+    const bool coversPage = x1 <= 0 && y1 <= 0 && x2 >= EPD_WIDTH - 1 && y2 >= pageBottom;
+    const bool doDeepFull = _needDeepRefresh && !_flushingOverlay && coversPage;
+    if (_needDeepRefresh && !_flushingOverlay && !coversPage) {
+        LOG_I("Flush: hold deep refresh for the page");
+    }
+
+    const uint32_t flushStart = millis();
+    if (doDeepFull) {
+        _needDeepRefresh = false;
+        _partialCount = 0;
+        _deepRefreshPending = false;
+        LOG_I("E-Paper deep full refresh (with nav bar)");
+        _epd->display(false);
+    } else {
+        if (EPD_ROTATION % 2 == 1) {
+            y1 &= ~0x7;
+            y2 |= 0x7;
+            if (y2 > EPD_HEIGHT - 1) y2 = EPD_HEIGHT - 1;
+        }
+        const int32_t w = x2 - x1 + 1;
+        const int32_t h = y2 - y1 + 1;
+        if (!_needDeepRefresh) {
+            _partialCount++;
+        }
+        LOG_I("E-Paper partial refresh at (%d,%d) %dx%d, partial count: %d", x1, y1, w, h, _partialCount);
+        _epd->displayWindow((uint16_t)x1, (uint16_t)y1, (uint16_t)w, (uint16_t)h);
+    }
     LOG_I("E-Paper flush complete in %u ms", (unsigned)(millis() - flushStart));
 
-    lv_display_flush_ready(disp);
-
-    if (pThis->_autoDeepRefresh
-        && pThis->_partialCount >= EPD_FULL_REFRESH_INTERVAL
-        && !pThis->_deepRefreshPending) {
-        pThis->_deepRefreshPending = true;
+    if (_autoDeepRefresh
+        && _partialCount >= EPD_FULL_REFRESH_INTERVAL
+        && !_deepRefreshPending) {
+        _deepRefreshPending = true;
         TTInstanceOf<TTUITask>().requestDeepRefreshAsync();
     }
 }

@@ -33,7 +33,9 @@ using EPaperDisplay = GxEPD2_BW<GxEPD2_420_HinkE042A13Select, GxEPD2_420_HinkE04
 #error "EPDConfig.h: define exactly one EPD_PANEL_* macro"
 #endif
 
-#define EPD_BUF_SIZE ((EPD_WIDTH * EPD_HEIGHT / 8) + 8)
+#define EPD_I1_PALETTE_SIZE 8
+#define EPD_DRAW_BUF_ROWS   48
+#define EPD_BUF_SIZE (((EPD_WIDTH + 7) / 8) * EPD_DRAW_BUF_ROWS + EPD_I1_PALETTE_SIZE)
 #define EPD_FULL_REFRESH_INTERVAL 128
 
 #define PREF_EPD_PANEL "epd_panel"

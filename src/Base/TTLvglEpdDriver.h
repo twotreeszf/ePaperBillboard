@@ -20,8 +20,12 @@ public:
 
 private:
     static void _flushCallback(lv_display_t* disp, const lv_area_t* area, uint8_t* px_map);
+    void addDirty(int32_t x1, int32_t y1, int32_t x2, int32_t y2);
+    void presentDirty();
 
     EPaperDisplay* _epd = nullptr;
+    lv_area_t _dirty = {};
+    bool _hasDirty = false;
     lv_display_t* _lvDisplay = nullptr;
     uint8_t _partialCount = 0;
     bool _needDeepRefresh = true;

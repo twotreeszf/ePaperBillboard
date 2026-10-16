@@ -32,7 +32,9 @@ void TTUITask::setup() {
 
     _selectPanel();
     LOG_I("Initializing E-Paper display...");
-    _display.init(115200, true, 2, false, SPI, SPISettings(4000000, MSBFIRST, SPI_MODE0));
+    // initial=false skips the driver's clear-screen full refresh; the first LVGL refresh is
+    // always a deep full refresh that writes both controller RAM buffers.
+    _display.init(115200, false, 2, false, SPI, SPISettings(4000000, MSBFIRST, SPI_MODE0));
 
     ERR_CHECK_FAIL(LittleFS.begin());
     if (!LittleFS.exists(TT_FS_TMP_DIR) && !LittleFS.mkdir(TT_FS_TMP_DIR)) {
