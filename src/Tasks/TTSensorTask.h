@@ -17,22 +17,23 @@
 #define TT_BATTERY_ADC_MAX          4096
 #define TT_BATTERY_USB_MV           4400
 #define TT_BATTERY_USB_OFF_MV       4300
-#define TT_BATTERY_EMPTY_MV         3350
+#define TT_BATTERY_EMPTY_MV         3280
 #define TT_BATTERY_LOW_MV           3500
 #define TT_BATTERY_MEDIUM_MV        3660
 #define TT_BATTERY_FULL_MV          4120
-#define TT_BATTERY_SOC_PAIRS        11
+#define TT_BATTERY_SOC_PAIRS        12
 #define TT_BATTERY_SOC_MAP \
-    2750, 0, \
-    3380, 12, \
-    3500, 23, \
-    3560, 34, \
-    3600, 45, \
-    3660, 56, \
-    3730, 67, \
-    3820, 78, \
-    3930, 89, \
-    4050, 96, \
+    3280, 0, \
+    3420, 4, \
+    3550, 10, \
+    3650, 18, \
+    3730, 28, \
+    3800, 38, \
+    3860, 48, \
+    3920, 58, \
+    3980, 68, \
+    4040, 76, \
+    4090, 84, \
     4120, 100
 
 class TTAHT20 : public Adafruit_AHTX0 {
