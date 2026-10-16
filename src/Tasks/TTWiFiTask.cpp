@@ -23,6 +23,7 @@ static void tt_wifi_copy_tag(char* out, size_t outMax, const char* tag) {
 
 void TTWiFiTask::setup() {
     LOG_I("WiFi task starting");
+    _wifiManager.seedDefaultNetwork();
     _wifiManager.refreshSavedNetwork();
     if (!_wifiManager.hasConfiguredNetwork()) {
         LOG_I("WiFi: no SSID, radio stays off");
@@ -38,6 +39,7 @@ void TTWiFiTask::setup() {
 void TTWiFiTask::loop() {
     _wifiManager.process();
     handleLinkChange();
+    processBookTransfer();
     processRadioJobs();
 }
 
@@ -66,6 +68,10 @@ void TTWiFiTask::handleLinkChange() {
     }
     if (connectFailed || linkLost) {
         LOG_I("WiFi: %s", connectFailed ? "connect failed" : "link lost");
+        if (_bookTransferWanted) {
+            stopBookTransfer(TT_BOOK_TRANSFER_FAILED, connectFailed
+                ? TT_BOOK_TRANSFER_ERROR_CONNECT_FAILED : TT_BOOK_TRANSFER_ERROR_LINK_LOST);
+        }
         _wakeFailed = true;
         endWake();
         return;
@@ -133,6 +139,18 @@ void TTWiFiTask::requestKeepRadio(bool keep) {
     enqueue(f);
 }
 
+void TTWiFiTask::requestReleaseDriverWhenIdle(bool release) {
+    auto* f = new std::function<void()>([this, release]() {
+        _wifiManager.setReleaseDriverOnSleep(release);
+        const bool active = isRadioActive();
+        LOG_I("WiFi: release driver when idle=%d active=%d", release ? 1 : 0, active ? 1 : 0);
+        if (release && !active) {
+            _wifiManager.sleepRadio();
+        }
+    });
+    enqueue(f);
+}
+
 void TTWiFiTask::requestConnectAsync() {
     LOG_I("WiFi: page requested connect");
     runWithRadio("status", [this]() {
@@ -156,6 +174,113 @@ void TTWiFiTask::requestNtpSyncAsync() {
     runWithRadio("ntp", [this]() {
         startNtpSync();
     });
+}
+
+void TTWiFiTask::requestStartBookTransferAsync() {
+    auto* f = new std::function<void()>([this]() {
+        startBookTransfer();
+    });
+    enqueue(f);
+}
+
+void TTWiFiTask::requestStopBookTransferAsync() {
+    _bookTransfer.requestAbort();
+    auto* f = new std::function<void()>([this]() {
+        if (!_bookTransferWanted && !_bookTransfer.isRunning()) {
+            return;
+        }
+        stopBookTransfer(TT_BOOK_TRANSFER_STOPPED, TT_BOOK_TRANSFER_ERROR_NONE);
+    });
+    enqueue(f);
+}
+
+void TTWiFiTask::startBookTransfer() {
+    if (_bookTransferWanted) {
+        LOG_I("Transfer: already active running=%d", _bookTransfer.isRunning() ? 1 : 0);
+        publishBookTransfer(_bookTransfer.isRunning() ? TT_BOOK_TRANSFER_READY : TT_BOOK_TRANSFER_CONNECTING,
+                            TT_BOOK_TRANSFER_ERROR_NONE);
+        return;
+    }
+    if (_wifiManager.isProvisioning()) {
+        LOG_W("Transfer: refused, provisioning");
+        publishBookTransfer(TT_BOOK_TRANSFER_FAILED, TT_BOOK_TRANSFER_ERROR_BUSY);
+        return;
+    }
+    if (!_wifiManager.refreshSavedNetwork()) {
+        LOG_W("Transfer: refused, no saved network");
+        publishBookTransfer(TT_BOOK_TRANSFER_FAILED, TT_BOOK_TRANSFER_ERROR_NO_NETWORK);
+        return;
+    }
+    _bookTransferWanted = true;
+    LOG_I("Transfer: start, link state=%d", (int)_wifiManager.linkState());
+    if (!_wifiManager.isConnected() && !_wifiManager.isConnecting()) {
+        beginWake();
+        if (_wakeFailed) {
+            stopBookTransfer(TT_BOOK_TRANSFER_FAILED, TT_BOOK_TRANSFER_ERROR_CONNECT_FAILED);
+            return;
+        }
+    }
+    publishBookTransfer(TT_BOOK_TRANSFER_CONNECTING, TT_BOOK_TRANSFER_ERROR_NONE);
+}
+
+void TTWiFiTask::processBookTransfer() {
+    if (!_bookTransferWanted) {
+        return;
+    }
+    if (_bookTransfer.isRunning()) {
+        _bookTransfer.handleClient();
+        return;
+    }
+    if (!_wifiManager.isConnected()) {
+        return;
+    }
+    const TTBookTransferError error = _bookTransfer.begin(
+        [this](TTBookTransferState state, const char* name, uint32_t size, const char* message) {
+            publishBookTransfer(state, TT_BOOK_TRANSFER_ERROR_NONE, name, size, message);
+        });
+    if (error != TT_BOOK_TRANSFER_ERROR_NONE) {
+        stopBookTransfer(TT_BOOK_TRANSFER_FAILED, error);
+        return;
+    }
+    WiFi.setSleep(false);
+    publishBookTransfer(TT_BOOK_TRANSFER_READY, TT_BOOK_TRANSFER_ERROR_NONE);
+}
+
+void TTWiFiTask::stopBookTransfer(TTBookTransferState state, TTBookTransferError error) {
+    const bool wasRunning = _bookTransfer.isRunning();
+    _bookTransfer.stop();
+    if (wasRunning) {
+        WiFi.setSleep(true);
+    }
+    _bookTransferWanted = false;
+    LOG_I("Transfer: stop state=%d error=%d running=%d", (int)state, (int)error, wasRunning ? 1 : 0);
+    publishBookTransfer(state, error);
+}
+
+void TTWiFiTask::publishBookTransfer(TTBookTransferState state, TTBookTransferError error,
+                                     const char* name, uint32_t size, const char* message) {
+    TTBookTransferPayload payload;
+    memset(&payload, 0, sizeof(payload));
+    payload.state = state;
+    payload.error = error;
+    payload.fileSize = size;
+    payload.receivedCount = _bookTransfer.receivedCount();
+    TTWiFiStatusPayload link;
+    _wifiManager.fillStatus(link);
+    strncpy(payload.ssid, link.ssid, TT_WIFI_SSID_MAX);
+    if (_bookTransfer.isRunning() && link.ip[0] != '\0') {
+        snprintf(payload.url, sizeof(payload.url), "http://%s/", link.ip);
+    }
+    if (name != nullptr) {
+        strncpy(payload.fileName, name, TT_BOOK_TRANSFER_NAME_MAX);
+    }
+    if (message != nullptr) {
+        strncpy(payload.message, message, TT_STATUS_MSG_MAX);
+    }
+    LOG_I("Transfer: publish state=%d error=%d ssid=%s url=%s file=%s size=%u count=%u msg=%s",
+          (int)state, (int)error, payload.ssid, payload.url, payload.fileName,
+          (unsigned)size, (unsigned)payload.receivedCount, payload.message);
+    TTInstanceOf<TTUITask>().postNotification(TT_NOTIFICATION_BOOK_TRANSFER, payload);
 }
 
 void TTWiFiTask::postWorkJob(const char* tag, std::function<void()> work,
@@ -216,7 +341,7 @@ void TTWiFiTask::processRadioJobs() {
         ranWork = true;
     }
 
-    if (connected && !ranWork && _jobs.empty() && !connecting && !_keepRadio) {
+    if (connected && !ranWork && _jobs.empty() && !connecting && !_keepRadio && !_bookTransferWanted) {
         LOG_I("WiFi: idle, radio off");
         endWake();
     }
@@ -301,6 +426,7 @@ void TTWiFiTask::endWake() {
 
 bool TTWiFiTask::isRadioActive() const {
     return _keepRadio
+        || _bookTransferWanted
         || !_jobs.empty()
         || _wifiManager.isProvisioning()
         || _wifiManager.isConnecting()

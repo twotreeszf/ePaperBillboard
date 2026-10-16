@@ -78,6 +78,8 @@ private:
             uint8_t type;
         };
         uint16_t cmapCount = 0;
+        std::unique_ptr<uint32_t[]> cmapStarts;
+        std::unique_ptr<uint16_t[]> cmapLengths;
         
         // Bit-stream reader state
         uint8_t bitBuf = 0;
@@ -114,6 +116,9 @@ private:
     // Font data access helpers
     bool _seekToTable(FontData& fd, const char* tag);
     bool _readCmapSubtable(FontData& fd, uint16_t index, FontData::CMAPSubtable& out);
+    void _loadCmapRanges(FontData& fd);
+    int32_t _findCmapSubtable(FontData& fd, uint32_t unicode);
+    uint32_t _glyphIdInSubtable(FontData& fd, const FontData::CMAPSubtable& cmap, uint32_t unicode);
     uint32_t _getGlyphID(FontData& fd, uint32_t unicode);
     uint32_t _getGlyphOffset(FontData& fd, uint32_t glyphId);
     uint32_t _readBits(FontData& fd, uint8_t bits);

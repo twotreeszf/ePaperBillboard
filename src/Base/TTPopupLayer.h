@@ -40,6 +40,7 @@ public:
     void setDialogMessage(const char* msg);
     void dismissDialog();
     bool isBusy() const;
+    bool isDialogShown() const { return _dialogPanel != nullptr; }
 
 private:
     static void toastTimerCallback(lv_timer_t* timer);

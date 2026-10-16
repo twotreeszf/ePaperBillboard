@@ -16,6 +16,7 @@
 #include "../Service/TTSleepService.h"
 #include "../Service/TTTimeService.h"
 #include "../Service/TTOtaService.h"
+#include "../Service/TTSdCardService.h"
 #include <freertos/FreeRTOS.h>
 #include <freertos/task.h>
 
@@ -43,6 +44,7 @@ void TTUITask::setup() {
     TTInstanceOf<TTOtaService>().applyPending();
     LOG_I("LittleFS initialized, heap=%u largest=%u",
           (unsigned)Util::heapFree(), (unsigned)Util::heapLargest());
+    TTInstanceOf<TTSdCardService>().begin();
 
     LOG_I("Initializing LVGL...");
     ERR_CHECK_FAIL(TTInstanceOf<TTLvglEpdDriver>().begin(_display));

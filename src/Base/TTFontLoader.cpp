@@ -44,6 +44,7 @@ bool TTFontLoader::_loadFontData(FontData& fd, const char* path) {
     uint32_t subtablesCount;
     fd.file.read((uint8_t*)&subtablesCount, 4);
     fd.cmapCount = (uint16_t)subtablesCount;
+    _loadCmapRanges(fd);
 
     // 3. Locate tables
     if (_seekToTable(fd, "loca")) fd.locaOffset = fd.file.position() - 8;
@@ -54,7 +55,75 @@ bool TTFontLoader::_loadFontData(FontData& fd, const char* path) {
 
 void TTFontLoader::_freeFontData(FontData& fd) {
     fd.cmapCount = 0;
+    fd.cmapStarts.reset();
+    fd.cmapLengths.reset();
     fd.file.close();
+}
+
+void TTFontLoader::_loadCmapRanges(FontData& fd) {
+    fd.cmapStarts.reset();
+    fd.cmapLengths.reset();
+    if (fd.cmapCount == 0) {
+        return;
+    }
+    std::unique_ptr<uint32_t[]> starts(new (std::nothrow) uint32_t[fd.cmapCount]);
+    std::unique_ptr<uint16_t[]> lengths(new (std::nothrow) uint16_t[fd.cmapCount]);
+    if (!starts || !lengths) {
+        LOG_W("Font cmap ranges alloc failed: %u subtables, linear lookup", (unsigned)fd.cmapCount);
+        return;
+    }
+    if (!fd.file.seek(fd.cmapOffset + 12)) {
+        LOG_W("Font cmap ranges seek failed, linear lookup");
+        return;
+    }
+    uint8_t rec[TT_FONT_CMAP_RECORD_SIZE];
+    for (uint16_t i = 0; i < fd.cmapCount; i++) {
+        if (fd.file.read(rec, sizeof(rec)) != sizeof(rec)) {
+            LOG_W("Font cmap ranges read failed at %u, linear lookup", (unsigned)i);
+            return;
+        }
+        memcpy(&starts[i], rec + 4, 4);
+        memcpy(&lengths[i], rec + 8, 2);
+        if (i > 0 && starts[i] < starts[i - 1] + lengths[i - 1]) {
+            LOG_W("Font cmap subtable %u not sorted, linear lookup", (unsigned)i);
+            return;
+        }
+    }
+    fd.cmapStarts = std::move(starts);
+    fd.cmapLengths = std::move(lengths);
+    LOG_I("Font cmap ranges cached: %u subtables, %u bytes",
+          (unsigned)fd.cmapCount, (unsigned)(fd.cmapCount * (sizeof(uint32_t) + sizeof(uint16_t))));
+}
+
+int32_t TTFontLoader::_findCmapSubtable(FontData& fd, uint32_t unicode) {
+    if (fd.cmapStarts && fd.cmapLengths) {
+        int32_t lo = 0;
+        int32_t hi = (int32_t)fd.cmapCount - 1;
+        int32_t found = -1;
+        while (lo <= hi) {
+            const int32_t mid = (lo + hi) / 2;
+            if (fd.cmapStarts[mid] <= unicode) {
+                found = mid;
+                lo = mid + 1;
+            } else {
+                hi = mid - 1;
+            }
+        }
+        if (found >= 0 && unicode < fd.cmapStarts[found] + fd.cmapLengths[found]) {
+            return found;
+        }
+        return -1;
+    }
+    FontData::CMAPSubtable cmap;
+    for (uint16_t i = 0; i < fd.cmapCount; i++) {
+        if (!_readCmapSubtable(fd, i, cmap)) {
+            return -1;
+        }
+        if (unicode >= cmap.startUnicode && unicode < cmap.startUnicode + cmap.length) {
+            return i;
+        }
+    }
+    return -1;
 }
 
 bool TTFontLoader::_readCmapSubtable(FontData& fd, uint16_t index, FontData::CMAPSubtable& out) {
@@ -156,42 +225,55 @@ void TTFontLoader::end() {
 }
 
 uint32_t TTFontLoader::_getGlyphID(FontData& fd, uint32_t unicode) {
+    const int32_t index = _findCmapSubtable(fd, unicode);
+    if (index < 0) {
+        return 0;
+    }
     FontData::CMAPSubtable cmap;
-    for (uint16_t i = 0; i < fd.cmapCount; i++) {
-        if (!_readCmapSubtable(fd, i, cmap)) {
+    if (!_readCmapSubtable(fd, (uint16_t)index, cmap)) {
+        return 0;
+    }
+    return _glyphIdInSubtable(fd, cmap, unicode);
+}
+
+uint32_t TTFontLoader::_glyphIdInSubtable(FontData& fd, const FontData::CMAPSubtable& cmap, uint32_t unicode) {
+    const uint32_t offset = unicode - cmap.startUnicode;
+    const uint32_t dataBase = fd.cmapOffset + cmap.dataOffset;
+
+    if (cmap.type == 2) {
+        return cmap.glyphIdOffset + offset;
+    }
+    if (cmap.type == 0) {
+        fd.file.seek(dataBase + offset);
+        return cmap.glyphIdOffset + fd.file.read();
+    }
+    if (cmap.type != 1 && cmap.type != 3) {
+        return 0;
+    }
+    int32_t lo = 0;
+    int32_t hi = (int32_t)cmap.entriesCount - 1;
+    while (lo <= hi) {
+        const int32_t mid = (lo + hi) / 2;
+        fd.file.seek(dataBase + (uint32_t)mid * 2);
+        uint16_t diff = 0;
+        if (fd.file.read((uint8_t*)&diff, 2) != 2) {
             return 0;
         }
-        if (unicode < cmap.startUnicode ||
-            unicode >= cmap.startUnicode + cmap.length) {
+        if (diff < offset) {
+            lo = mid + 1;
             continue;
         }
-        const uint32_t offset = unicode - cmap.startUnicode;
-        const uint32_t dataBase = fd.cmapOffset + cmap.dataOffset;
-
-        if (cmap.type == 0 || cmap.type == 2) {
-            if (cmap.type == 2) {
-                return cmap.glyphIdOffset + offset;
-            }
-            fd.file.seek(dataBase + offset);
-            return cmap.glyphIdOffset + fd.file.read();
+        if (diff > offset) {
+            hi = mid - 1;
+            continue;
         }
-        if (cmap.type == 1 || cmap.type == 3) {
-            for (uint16_t j = 0; j < cmap.entriesCount; j++) {
-                fd.file.seek(dataBase + j * 2);
-                uint16_t diff = 0;
-                fd.file.read((uint8_t*)&diff, 2);
-                if (diff != offset) {
-                    continue;
-                }
-                if (cmap.type == 3) {
-                    return cmap.glyphIdOffset + j;
-                }
-                fd.file.seek(dataBase + cmap.entriesCount * 2 + j * 2);
-                uint16_t gid = 0;
-                fd.file.read((uint8_t*)&gid, 2);
-                return gid;
-            }
+        if (cmap.type == 3) {
+            return cmap.glyphIdOffset + (uint32_t)mid;
         }
+        fd.file.seek(dataBase + (uint32_t)cmap.entriesCount * 2 + (uint32_t)mid * 2);
+        uint16_t gid = 0;
+        fd.file.read((uint8_t*)&gid, 2);
+        return gid;
     }
     return 0;
 }

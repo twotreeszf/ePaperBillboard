@@ -7,6 +7,7 @@
 #include "TTInstance.h"
 
 #define TT_FONT_GLYPH_CACHE_CJK    64
+#define TT_FONT_GLYPH_CACHE_READER 256
 #define TT_FONT_GLYPH_CACHE_LATIN  24
 
 class TTFontManager {
@@ -17,6 +18,7 @@ public:
     void releaseResFonts();
 
     lv_font_t* getFont(int size);
+    TTFontLoader* getLoader(int size);
 
 private:
     std::map<int, std::unique_ptr<TTFontLoader>> _fonts;

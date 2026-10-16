@@ -42,7 +42,8 @@ bool TTRtc::begin() {
     if (loadTimezone(tz, sizeof(tz))) {
         applyTimezone(tz);
     } else {
-        LOG_I("RTC: no saved timezone");
+        LOG_I("RTC: no saved timezone, use default %s", TT_TZ_DEFAULT);
+        applyTimezone(TT_TZ_DEFAULT);
     }
     if (_hasDs3231) {
         loadFromHardware();

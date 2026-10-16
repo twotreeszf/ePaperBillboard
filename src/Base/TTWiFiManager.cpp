@@ -34,6 +34,27 @@ void TTWiFiManager::_rememberSsid(const String& ssid) {
     _savedSsid[TT_WIFI_SSID_MAX] = '\0';
 }
 
+void TTWiFiManager::seedDefaultNetwork() {
+    auto& pref = TTInstanceOf<TTPreference>();
+    bool seeded = false;
+    pref.get(PREF_WIFI_DEFAULT_SEEDED, seeded, false);
+    if (seeded) {
+        return;
+    }
+    if (pref.kvSize(PREF_WIFI_NETWORKS) > 0) {
+        LOG_I("WiFi: networks already saved, skip default");
+    } else if (!pref.setKv(PREF_WIFI_NETWORKS, TT_WIFI_DEFAULT_SSID, String(TT_WIFI_DEFAULT_PASSWORD))
+               || !pref.set(PREF_WIFI_LAST_SSID, String(TT_WIFI_DEFAULT_SSID))) {
+        LOG_E("WiFi: save default network failed");
+        return;
+    } else {
+        LOG_I("WiFi: default network saved ssid=%s", TT_WIFI_DEFAULT_SSID);
+    }
+    if (!pref.set(PREF_WIFI_DEFAULT_SEEDED, true) || !pref.sync()) {
+        LOG_E("WiFi: persist default seed flag failed");
+    }
+}
+
 bool TTWiFiManager::refreshSavedNetwork() {
     std::vector<String> keys;
     ERR_CHECK_RET(networkKeys(keys));
@@ -85,6 +106,9 @@ bool TTWiFiManager::sleepRadio() {
     _fallbackScan = false;
     _ntpAfterConnect = false;
     if (_driverHeld || WiFi.getMode() == WIFI_OFF) {
+        if (_driverHeld && _releaseDriverOnSleep) {
+            releaseDriver();
+        }
         return true;
     }
     LOG_I("WiFi: radio stop");
@@ -100,6 +124,32 @@ bool TTWiFiManager::sleepRadio() {
     LOG_I("WiFi: radio stopped held=%d heap=%u largest=%u",
           _driverHeld ? 1 : 0,
           (unsigned)Util::heapFree(), (unsigned)Util::heapLargest());
+    if (_driverHeld && _releaseDriverOnSleep) {
+        releaseDriver();
+    }
+    return true;
+}
+
+bool TTWiFiManager::releaseDriver() {
+    if (_state != TT_WIFI_LINK_IDLE) {
+        LOG_W("WiFi: driver release skipped, state=%d", (int)_state);
+        return false;
+    }
+    if (WiFi.getMode() == WIFI_OFF) {
+        _driverHeld = false;
+        return true;
+    }
+    const uint32_t before = Util::heapFree();
+    if (!WiFi.mode(WIFI_OFF)) {
+        LOG_W("WiFi: driver release failed, retry after start");
+        if (!_driverHeld || !resumeRadio() || !WiFi.mode(WIFI_OFF)) {
+            LOG_E("WiFi: driver release failed");
+            return false;
+        }
+    }
+    _driverHeld = false;
+    LOG_I("WiFi: driver released heap=%u->%u largest=%u",
+          (unsigned)before, (unsigned)Util::heapFree(), (unsigned)Util::heapLargest());
     return true;
 }
 

@@ -8,6 +8,9 @@
 
 #define PREF_WIFI_NETWORKS      "wifi_networks"
 #define PREF_WIFI_LAST_SSID     "wifi_last_ssid"
+#define PREF_WIFI_DEFAULT_SEEDED "wifi_default_seeded"
+#define TT_WIFI_DEFAULT_SSID     "TTStudio24"
+#define TT_WIFI_DEFAULT_PASSWORD "bagemima"
 #define TT_WIFI_AP_SSID_PREFIX  "Billboard"
 #define TT_WIFI_CONNECT_TIMEOUT_MS  15000
 #define TT_WIFI_DNS_PORT  53
@@ -20,9 +23,11 @@ public:
     TTWiFiManager();
 
     bool tryConnectSaved();
+    void seedDefaultNetwork();
     bool refreshSavedNetwork();
     bool sleepRadio();
     bool isRadioParked() const;
+    void setReleaseDriverOnSleep(bool release) { _releaseDriverOnSleep = release; }
     bool startProvisioning();
     bool stopProvisioning();
     void process();
@@ -40,6 +45,7 @@ private:
     const char* savedSsid() const { return _savedSsid; }
 
     bool resumeRadio();
+    bool releaseDriver();
     bool _startConnect(const String& ssid, const String& password);
     void _pollConnect();
     bool _startPreferredConnect();
@@ -66,5 +72,6 @@ private:
     bool _ntpAfterConnect = false;
     bool _fallbackScan = false;
     bool _driverHeld = false;
+    bool _releaseDriverOnSleep = false;
     uint32_t _connectStartedAt = 0;
 };

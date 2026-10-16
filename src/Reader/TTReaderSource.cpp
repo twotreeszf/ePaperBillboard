@@ -1,0 +1,87 @@
+#include "TTReaderSource.h"
+#include "TTReaderText.h"
+#include "../Base/Logger.h"
+#include "../Base/TTFile.h"
+
+bool TTReaderSource::open(fs::FS& fs, const char* path) {
+    close();
+    _file = tt_file_open(fs, path, "r");
+    if (!_file) {
+        return false;
+    }
+    _size = (uint32_t)_file.size();
+    _failed = false;
+    LOG_I("Reader source: open %s size=%u", path, (unsigned)_size);
+    return true;
+}
+
+void TTReaderSource::close() {
+    if (_file) {
+        LOG_I("Reader source: close, %u buffer loads", (unsigned)_loads);
+        _file.close();
+    }
+    _size = 0;
+    _bufStart = 0;
+    _bufLen = 0;
+    _loads = 0;
+}
+
+bool TTReaderSource::ensure(uint32_t offset, uint32_t need) {
+    if (offset >= _bufStart && offset + need <= _bufStart + _bufLen) {
+        return true;
+    }
+    if (!_file || offset >= _size) {
+        return false;
+    }
+    if (!_file.seek(offset)) {
+        LOG_E("Reader source: seek %u failed", (unsigned)offset);
+        _failed = true;
+        return false;
+    }
+    const uint32_t want = _size - offset < TT_READER_SOURCE_BUF_SIZE ? _size - offset : TT_READER_SOURCE_BUF_SIZE;
+    const size_t got = _file.read(_buf, want);
+    if (got == 0) {
+        LOG_E("Reader source: read at %u failed", (unsigned)offset);
+        _failed = true;
+        _bufLen = 0;
+        return false;
+    }
+    _bufStart = offset;
+    _bufLen = (uint32_t)got;
+    _loads++;
+    return offset + need <= _bufStart + _bufLen;
+}
+
+bool TTReaderSource::byteAt(uint32_t offset, uint8_t& out) {
+    if (!ensure(offset, 1)) {
+        return false;
+    }
+    out = _buf[offset - _bufStart];
+    return true;
+}
+
+uint32_t TTReaderSource::next(uint32_t& offset) {
+    if (offset >= _size) {
+        return 0;
+    }
+    const uint32_t remain = _size - offset;
+    const uint32_t need = remain < TT_UTF8_MAX_BYTES ? remain : TT_UTF8_MAX_BYTES;
+    if (!ensure(offset, need)) {
+        offset = _size;
+        return 0;
+    }
+    uint32_t cp = 0;
+    const size_t n = tt_utf8_decode(_buf + (offset - _bufStart), need, &cp);
+    offset += (uint32_t)(n > 0 ? n : 1);
+    return cp;
+}
+
+size_t TTReaderSource::probeInvalidUtf8(size_t& probed) {
+    probed = 0;
+    const uint32_t want = _size < TT_READER_SOURCE_BUF_SIZE ? _size : TT_READER_SOURCE_BUF_SIZE;
+    if (want == 0 || !ensure(0, want)) {
+        return 0;
+    }
+    probed = want;
+    return tt_utf8_count_invalid(_buf, want);
+}

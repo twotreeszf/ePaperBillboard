@@ -6,6 +6,7 @@
 #define PREF_TIMEZONE           "timezone"
 #define PREF_TIMEZONE_LABEL     "timezone_label"
 #define TT_TZ_MAX               32
+#define TT_TZ_DEFAULT           "CST-8"
 #define TT_RTC_DS3231_ADDR      0x68
 #define TT_RTC_MIN_YEAR         2020
 #define TT_RTC_MIN_UNIX         1577836800L

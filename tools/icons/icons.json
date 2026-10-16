@@ -46,6 +46,12 @@
       "strokeWidth": 1.5
     },
     {
+      "id": "book-open",
+      "file": "reader.i1",
+      "size": 48,
+      "strokeWidth": 1.5
+    },
+    {
       "id": "chevron-left",
       "file": "back.i1",
       "size": 14,

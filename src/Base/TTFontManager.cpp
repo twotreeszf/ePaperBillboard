@@ -11,7 +11,7 @@ static const struct {
 } TT_FONT_ENTRIES[] = {
     { 10, TT_FS_FONT_DIR "/all_10.bin", nullptr, TT_FONT_GLYPH_CACHE_CJK },
     { 12, TT_FS_FONT_DIR "/all_12.bin", nullptr, TT_FONT_GLYPH_CACHE_CJK },
-    { 16, TT_FS_FONT_DIR "/all_16.bin", nullptr, TT_FONT_GLYPH_CACHE_CJK },
+    { 16, TT_FS_FONT_DIR "/all_16.bin", nullptr, TT_FONT_GLYPH_CACHE_READER },
     { 32, TT_FS_RES_DIR "/fonts/en_32.bin", nullptr, TT_FONT_GLYPH_CACHE_LATIN },
     { 40, TT_FS_RES_DIR "/fonts/en_40.bin", nullptr, TT_FONT_GLYPH_CACHE_LATIN },
     { 48, TT_FS_RES_DIR "/fonts/en_48.bin", nullptr, TT_FONT_GLYPH_CACHE_LATIN },
@@ -57,4 +57,9 @@ void TTFontManager::releaseResFonts() {
 lv_font_t* TTFontManager::getFont(int size) {
     auto it = _fonts.find(size);
     return (it != _fonts.end()) ? it->second->getLvglFont() : nullptr;
+}
+
+TTFontLoader* TTFontManager::getLoader(int size) {
+    auto it = _fonts.find(size);
+    return (it != _fonts.end()) ? it->second.get() : nullptr;
 }

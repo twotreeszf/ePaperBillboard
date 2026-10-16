@@ -16,6 +16,7 @@
 #define TT_NOTIFICATION_PICTORIAL          "TTNotify.Pictorial"
 #define TT_NOTIFICATION_OTA                "TTNotify.Ota"
 #define TT_NOTIFICATION_RTC_LOAD           "TTNotify.RtcLoad"
+#define TT_NOTIFICATION_BOOK_TRANSFER      "TTNotify.BookTransfer"
 
 #define TT_OTA_MSG_MAX     192
 
@@ -26,6 +27,7 @@
 #define TT_TZ_TEXT_MAX     32
 #define TT_TIME_TEXT_MAX   20
 #define TT_STATUS_MSG_MAX  48
+#define TT_BOOK_TRANSFER_NAME_MAX  128
 
 enum TTWiFiLinkState {
     TT_WIFI_LINK_IDLE = 0,
@@ -100,6 +102,37 @@ struct TTOtaPayload {
     TTOtaPhase phase;
     char version[16];
     char message[TT_OTA_MSG_MAX];
+};
+
+enum TTBookTransferState {
+    TT_BOOK_TRANSFER_CONNECTING = 0,
+    TT_BOOK_TRANSFER_READY,
+    TT_BOOK_TRANSFER_RECEIVING,
+    TT_BOOK_TRANSFER_RECEIVED,
+    TT_BOOK_TRANSFER_UPLOAD_FAILED,
+    TT_BOOK_TRANSFER_DELETED,
+    TT_BOOK_TRANSFER_FAILED,
+    TT_BOOK_TRANSFER_STOPPED,
+};
+
+enum TTBookTransferError {
+    TT_BOOK_TRANSFER_ERROR_NONE = 0,
+    TT_BOOK_TRANSFER_ERROR_NO_NETWORK,
+    TT_BOOK_TRANSFER_ERROR_BUSY,
+    TT_BOOK_TRANSFER_ERROR_CONNECT_FAILED,
+    TT_BOOK_TRANSFER_ERROR_LINK_LOST,
+    TT_BOOK_TRANSFER_ERROR_SD_FAILED,
+};
+
+struct TTBookTransferPayload {
+    TTBookTransferState state;
+    TTBookTransferError error;
+    uint32_t fileSize;
+    uint16_t receivedCount;
+    char ssid[TT_WIFI_SSID_MAX + 1];
+    char url[TT_WIFI_URL_MAX + 1];
+    char fileName[TT_BOOK_TRANSFER_NAME_MAX + 1];
+    char message[TT_STATUS_MSG_MAX + 1];
 };
 
 struct TTTimeSyncPayload {

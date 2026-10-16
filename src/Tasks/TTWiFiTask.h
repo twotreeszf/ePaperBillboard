@@ -2,6 +2,7 @@
 
 #include "../Base/TTVTask.h"
 #include "../Base/TTWiFiManager.h"
+#include "../Service/TTBookTransferServer.h"
 #include <functional>
 #include <vector>
 
@@ -24,8 +25,11 @@ public:
     void requestStopProvisioningAsync();
     void requestStatusAsync();
     void requestKeepRadio(bool keep);
+    void requestReleaseDriverWhenIdle(bool release);
     void requestConnectAsync();
     void requestNtpSyncAsync();
+    void requestStartBookTransferAsync();
+    void requestStopBookTransferAsync();
     void runWithRadio(const char* tag, std::function<void()> work,
                       std::function<void()> onFailed = {});
     bool isRadioActive() const;
@@ -48,8 +52,15 @@ private:
     void postWorkJob(const char* tag, std::function<void()> work, std::function<void()> onFailed);
     void dropFailedJobs();
     void runAllWorkJobs();
+    void startBookTransfer();
+    void processBookTransfer();
+    void stopBookTransfer(TTBookTransferState state, TTBookTransferError error);
+    void publishBookTransfer(TTBookTransferState state, TTBookTransferError error,
+                             const char* name = nullptr, uint32_t size = 0, const char* message = nullptr);
 
     TTWiFiManager _wifiManager;
+    TTBookTransferServer _bookTransfer;
+    bool _bookTransferWanted = false;
     TTWiFiLinkState _publishedState = TT_WIFI_LINK_IDLE;
     bool _wakeFailed = false;
     bool _keepRadio = false;

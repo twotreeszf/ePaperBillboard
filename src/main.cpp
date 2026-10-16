@@ -51,6 +51,9 @@ void setup() {
     TTInstanceOf<TTWiFiTask>().start(TT_WIFI_TASK_CORE, TT_WIFI_LOOP_DELAY_MS);
     TTInstanceOf<TTUITask>().start(0, TT_UI_LOOP_DELAY_MS);
     LOG_I("Tasks started: Sensor/WiFi then UI");
+    LOG_I("Deleting idle Arduino loop task, heap=%u largest=%u",
+          (unsigned)Util::heapFree(), (unsigned)Util::heapLargest());
+    vTaskDelete(nullptr);
 }
 
 void loop() {

@@ -54,5 +54,5 @@ protected:
 
 private:
     MenuRow _row;
-    std::array<MenuItem, 4> _items;
+    std::array<MenuItem, 5> _items;
 };
