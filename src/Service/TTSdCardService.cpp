@@ -104,7 +104,8 @@ bool TTSdCardService::mount() {
 }
 
 bool TTSdCardService::tryMount(uint32_t freqHz) {
-    if (SD.begin(TT_SD_PIN_CS, _spi, freqHz, TT_SD_MOUNT_POINT, TT_SD_MAX_FILES, false)) {
+    LOG_I("SD: begin at %u kHz, format if no FAT", (unsigned)(freqHz / 1000));
+    if (SD.begin(TT_SD_PIN_CS, _spi, freqHz, TT_SD_MOUNT_POINT, TT_SD_MAX_FILES, TT_SD_FORMAT_IF_EMPTY)) {
         return true;
     }
     LOG_W("SD: begin failed at %u kHz", (unsigned)(freqHz / 1000));

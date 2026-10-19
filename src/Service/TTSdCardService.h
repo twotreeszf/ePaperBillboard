@@ -16,6 +16,7 @@
 #define TT_SD_POWER_OFF_LEVEL   HIGH
 #define TT_SD_POWER_SETTLE_MS   50
 #define TT_SD_MOUNT_RETRY_MS    100
+#define TT_SD_FORMAT_IF_EMPTY   true
 #define TT_SD_SPI_FREQ_HZ       20000000
 #define TT_SD_SPI_SAFE_FREQ_HZ  4000000
 #define TT_SD_MOUNT_POINT       "/sd"
