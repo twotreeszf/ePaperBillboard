@@ -14,7 +14,7 @@
 #define TT_TRANSFER_INVALID_CHARS    "\\/:*?\"<>|"
 
 #define TT_TRANSFER_MSG_BAD_NAME     "文件名无效"
-#define TT_TRANSFER_MSG_NOT_TXT      "只支持 TXT 文件"
+#define TT_TRANSFER_MSG_BAD_TYPE     "只支持 TXT 和 Markdown 文件"
 #define TT_TRANSFER_MSG_OPEN_FAILED  "无法创建文件"
 #define TT_TRANSFER_MSG_WRITE_FAILED "写入 SD 卡失败"
 #define TT_TRANSFER_MSG_SAVE_FAILED  "保存文件失败"

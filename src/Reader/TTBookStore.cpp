@@ -7,9 +7,24 @@
 #include <algorithm>
 #include <strings.h>
 
-static bool tt_book_has_ext(const char* name) {
+static bool tt_book_ends_with(const char* name, const char* ext) {
     const size_t len = strlen(name);
-    return len > TT_BOOKS_EXT_LEN && strcasecmp(name + len - TT_BOOKS_EXT_LEN, TT_BOOKS_EXT) == 0;
+    const size_t extLen = strlen(ext);
+    return len > extLen && strcasecmp(name + len - extLen, ext) == 0;
+}
+
+size_t TTBookStore::bookExtLength(const char* name) {
+    if (tt_book_ends_with(name, TT_BOOKS_EXT_TXT)) {
+        return strlen(TT_BOOKS_EXT_TXT);
+    }
+    if (tt_book_ends_with(name, TT_BOOKS_EXT_MD)) {
+        return strlen(TT_BOOKS_EXT_MD);
+    }
+    return 0;
+}
+
+bool TTBookStore::isMarkdownName(const char* name) {
+    return tt_book_ends_with(name, TT_BOOKS_EXT_MD);
 }
 
 fs::FS& TTBookStore::fs() {
@@ -50,7 +65,7 @@ bool TTBookStore::listBooks(std::vector<TTBookEntry>& out) {
             break;
         }
         const char* name = f.name();
-        if (!f.isDirectory() && name != nullptr && name[0] != '.' && tt_book_has_ext(name)) {
+        if (!f.isDirectory() && name != nullptr && name[0] != '.' && bookExtLength(name) > 0) {
             TTBookEntry entry;
             entry.name = name;
             entry.size = (uint32_t)f.size();
@@ -200,8 +215,9 @@ String TTBookStore::indexPath(const TTBookEntry& book, uint32_t configHash) cons
 }
 
 String TTBookStore::displayName(const String& name) const {
-    if (tt_book_has_ext(name.c_str())) {
-        return name.substring(0, name.length() - TT_BOOKS_EXT_LEN);
+    const size_t ext = bookExtLength(name.c_str());
+    if (ext > 0) {
+        return name.substring(0, name.length() - ext);
     }
     return name;
 }

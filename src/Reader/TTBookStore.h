@@ -10,8 +10,8 @@
 #define TT_BOOKS_PROGRESS_FILE     "progress.bin"
 #define TT_BOOKS_INDEX_PREFIX      "pages_"
 #define TT_BOOKS_INDEX_SUFFIX      ".bin"
-#define TT_BOOKS_EXT               ".txt"
-#define TT_BOOKS_EXT_LEN           4
+#define TT_BOOKS_EXT_TXT           ".txt"
+#define TT_BOOKS_EXT_MD            ".md"
 #define TT_BOOKS_RECENT_MAX        10
 #define TT_BOOKS_MAX               200
 #define TT_BOOKS_ID_TEXT_MAX       12
@@ -45,6 +45,9 @@ public:
     String cacheDir(const TTBookEntry& book) const;
     String indexPath(const TTBookEntry& book, uint32_t configHash) const;
     String displayName(const String& name) const;
+
+    static size_t bookExtLength(const char* name);
+    static bool isMarkdownName(const char* name);
 
 private:
     fs::FS& fs();

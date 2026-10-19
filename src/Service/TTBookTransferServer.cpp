@@ -99,9 +99,8 @@ const char* TTBookTransferServer::nameError(const String& name) const {
     if (tt_utf8_count_invalid((const uint8_t*)name.c_str(), name.length()) > 0) {
         return TT_TRANSFER_MSG_BAD_NAME;
     }
-    if (name.length() <= TT_BOOKS_EXT_LEN
-        || strcasecmp(name.c_str() + name.length() - TT_BOOKS_EXT_LEN, TT_BOOKS_EXT) != 0) {
-        return TT_TRANSFER_MSG_NOT_TXT;
+    if (TTBookStore::bookExtLength(name.c_str()) == 0) {
+        return TT_TRANSFER_MSG_BAD_TYPE;
     }
     return nullptr;
 }
@@ -356,8 +355,8 @@ progress { width: 100%; height: 8px; margin: 6px 0 2px; }
 <body>
 <div class="box">
 <h2>上传电子书</h2>
-<p class="tip">只支持 UTF-8 编码的 TXT 文件，同名文件会被覆盖。上传完成前，请不要离开设备上的传书页面。</p>
-<input type="file" id="file" multiple accept=".txt,text/plain">
+<p class="tip">支持 UTF-8 编码的 TXT 和 Markdown（.md）文件，同名文件会被覆盖。上传完成前，请不要离开设备上的传书页面。</p>
+<input type="file" id="file" multiple accept=".txt,.md,text/plain,text/markdown">
 <button id="go" onclick="start()">上传</button>
 <ul id="jobs"></ul>
 <h3>书架（<span id="count">-</span> 本）</h3>
@@ -372,7 +371,7 @@ function fmt(n) {
   return n >= 1048576 ? (n / 1048576).toFixed(1) + ' MB' : Math.ceil(n / 1024) + ' KB';
 }
 function removeBook(name) {
-  if (!confirm('确定删除《' + name.replace(/\.txt$/i, '') + '》吗？阅读进度也会一并删除。')) return;
+  if (!confirm('确定删除《' + name.replace(/\.(txt|md)$/i, '') + '》吗？阅读进度也会一并删除。')) return;
   fetch('/delete?name=' + encodeURIComponent(name), { method: 'POST' })
     .then(r => r.json())
     .then(j => { if (!j.ok) alert('删除失败：' + (j.error || '未知错误')); })
@@ -439,7 +438,7 @@ async function start() {
     const msg = document.createElement('div');
     msg.className = 'msg';
     li.append(bar, msg);
-    if (!/\.txt$/i.test(f.name)) { msg.textContent = '跳过：只支持 TXT 文件'; continue; }
+    if (!/\.(txt|md)$/i.test(f.name)) { msg.textContent = '跳过：只支持 TXT 和 Markdown 文件'; continue; }
     if (freeBytes >= 0 && f.size > freeBytes) { msg.textContent = '跳过：SD 卡空间不足'; continue; }
     msg.textContent = '上传中...';
     await uploadOne(f, bar, msg);

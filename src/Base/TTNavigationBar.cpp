@@ -278,38 +278,36 @@ void TTNavigationBar::layoutTitle(bool showBack) {
             ? (TT_NAV_BAR_PAD + TT_NAV_ARROW_W + TT_NAV_BAR_PAD)
             : TT_NAV_BAR_PAD;
         const int32_t statusW = lv_obj_get_width(_statusRow);
-        int32_t customW = 0;
-        if (_custom != nullptr && !lv_obj_is_hidden(_custom)) {
-            lv_obj_update_layout(_custom);
-            customW = lv_obj_get_width(_custom) + TT_NAV_CUSTOM_TITLE_GAP;
-        }
-        int32_t percentW = 0;
+        _trailingRight = TT_NAV_BAR_PAD + statusW + TT_NAV_TRAILING_GAP;
+        int32_t rightLimit = EPD_WIDTH - _trailingRight;
         if (_trailing != nullptr && !lv_obj_is_hidden(_trailing)) {
             lv_obj_update_layout(_trailing);
-            percentW = lv_obj_get_width(_trailing);
+            rightLimit -= lv_obj_get_width(_trailing) + TT_NAV_STATUS_GAP;
+        }
+        if (_center != nullptr && !lv_obj_is_hidden(_center)) {
+            lv_obj_update_layout(_center);
+            const int32_t centerLeft = (EPD_WIDTH - lv_obj_get_width(_center)) / 2 - TT_NAV_STATUS_GAP;
+            if (centerLeft < rightLimit) {
+                rightLimit = centerLeft;
+            }
         }
         lv_obj_t* leftBracket = lv_obj_get_child(_titleBox, 0);
         lv_obj_t* rightBracket = lv_obj_get_child(_titleBox, 2);
         const int32_t bracketW = lv_obj_get_width(leftBracket) + lv_obj_get_width(rightBracket)
             + TT_NAV_TITLE_BRACKET_GAP * 2;
-        int32_t rightLimit = EPD_WIDTH - TT_NAV_BAR_PAD - statusW - TT_NAV_STATUS_GAP;
-        if (percentW > 0) {
-            const int32_t percentLeft = (EPD_WIDTH - percentW) / 2 - TT_NAV_STATUS_GAP;
-            if (percentLeft < rightLimit) {
-                rightLimit = percentLeft;
-            }
-        }
-        int32_t maxTitle = rightLimit - left - customW - bracketW;
+        int32_t maxTitle = rightLimit - left - bracketW;
         if (maxTitle < 24) {
             maxTitle = 24;
         }
-        lv_obj_set_width(_title, LV_SIZE_CONTENT);
+        lv_obj_set_size(_title, LV_SIZE_CONTENT, LV_SIZE_CONTENT);
         lv_obj_update_layout(_title);
         if (lv_obj_get_width(_title) > maxTitle) {
-            lv_obj_set_width(_title, maxTitle);
+            const lv_font_t* titleFont = lv_obj_get_style_text_font(_title, LV_PART_MAIN);
+            lv_obj_set_size(_title, maxTitle, lv_font_get_line_height(titleFont));
+            LOG_D("NavBar: title truncated to %dpx", (int)maxTitle);
         }
         lv_obj_update_layout(_titleBox);
-        placeCustom();
+        placeCenter();
         placeTrailing();
     }
 }
@@ -361,16 +359,16 @@ void TTNavigationBar::setSensorsVisible(bool visible) {
     LOG_I("NavBar: sensors visible=%d", visible ? 1 : 0);
 }
 
-void TTNavigationBar::setCustomContainer(lv_obj_t* container) {
+void TTNavigationBar::setCenterContainer(lv_obj_t* container) {
     if (_bar == nullptr) {
-        LOG_W("NavBar: custom container ignored, bar missing");
+        LOG_W("NavBar: center container ignored, bar missing");
         return;
     }
-    const bool changed = _custom != container;
-    if (_custom != nullptr && _custom != container) {
-        lv_obj_set_hidden(_custom, true);
+    const bool changed = _center != container;
+    if (_center != nullptr && _center != container) {
+        lv_obj_set_hidden(_center, true);
     }
-    _custom = container;
+    _center = container;
     if (container != nullptr) {
         if (lv_obj_get_parent(container) != _bar) {
             lv_obj_set_parent(container, _bar);
@@ -381,15 +379,15 @@ void TTNavigationBar::setCustomContainer(lv_obj_t* container) {
         layoutTitle(!lv_obj_is_hidden(_backBtn));
     }
     if (changed) {
-        LOG_I("NavBar: custom container %s", container != nullptr ? "set" : "cleared");
+        LOG_I("NavBar: center container %s", container != nullptr ? "set" : "cleared");
     }
 }
 
-void TTNavigationBar::placeCustom() {
-    if (_custom == nullptr || lv_obj_is_hidden(_custom) || _titleBox == nullptr) {
+void TTNavigationBar::placeCenter() {
+    if (_center == nullptr || lv_obj_is_hidden(_center)) {
         return;
     }
-    lv_obj_align_to(_custom, _titleBox, LV_ALIGN_OUT_RIGHT_MID, TT_NAV_CUSTOM_TITLE_GAP, 0);
+    lv_obj_align(_center, LV_ALIGN_CENTER, 0, TT_NAV_BAR_CONTENT_Y);
 }
 
 void TTNavigationBar::setTrailingContainer(lv_obj_t* container) {
@@ -420,7 +418,7 @@ void TTNavigationBar::placeTrailing() {
     if (_trailing == nullptr || lv_obj_is_hidden(_trailing) || _statusRow == nullptr) {
         return;
     }
-    lv_obj_align(_trailing, LV_ALIGN_CENTER, 0, TT_NAV_BAR_CONTENT_Y);
+    lv_obj_align(_trailing, LV_ALIGN_RIGHT_MID, -_trailingRight, TT_NAV_BAR_CONTENT_Y);
 }
 
 void TTNavigationBar::applyStatusVisibility() {

@@ -203,7 +203,9 @@ const char* TTReaderPage::openBook() {
     readerTextFrame(textFont, textTop, textH);
     lv_obj_set_pos(_textView, TT_READER_MARGIN_X, textTop);
     lv_obj_set_size(_textView, TT_READER_TEXT_W, textH);
-    if (!_layout.begin(textFont, TT_READER_TEXT_W, (int16_t)textH)) {
+    const bool markdown = TTBookStore::isMarkdownName(_book.name.c_str());
+    TTFontLoader* codeFont = markdown ? TTFontManager::instance().getLoader(TT_READER_CODE_FONT_SIZE) : nullptr;
+    if (!_layout.begin(textFont, codeFont, TT_READER_TEXT_W, (int16_t)textH, markdown)) {
         return TT_READER_TEXT_OPEN_FAILED;
     }
 
@@ -390,7 +392,7 @@ void TTReaderPage::updateFooter() {
     ITTNavigationController* nav = getNavigationController();
     TTNavigationBar* bar = nav != nullptr ? nav->getNavBar() : nullptr;
     if (bar != nullptr && bar->trailingContainer() == _percent) {
-        bar->setCustomContainer(pages[0] == '\0' ? nullptr : _footer);
+        bar->setCenterContainer(pages[0] == '\0' ? nullptr : _footer);
         bar->setTrailingContainer(_percent);
     }
 }
@@ -403,7 +405,7 @@ void TTReaderPage::attachStatus() {
     }
     bar->setSensorsVisible(false);
     bar->setTrailingContainer(_percent);
-    bar->setCustomContainer(_footer);
+    bar->setCenterContainer(_footer);
     updateFooter();
     LOG_I("Reader: progress attached to status bar");
 }
@@ -414,8 +416,8 @@ void TTReaderPage::detachStatus() {
     if (bar == nullptr) {
         return;
     }
-    if (bar->customContainer() == _footer) {
-        bar->setCustomContainer(nullptr);
+    if (bar->centerContainer() == _footer) {
+        bar->setCenterContainer(nullptr);
     }
     if (bar->trailingContainer() == _percent) {
         bar->setTrailingContainer(nullptr);
