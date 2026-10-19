@@ -27,28 +27,39 @@ void TTReaderSource::close() {
 }
 
 bool TTReaderSource::ensure(uint32_t offset, uint32_t need) {
+    if (need == 0 || offset >= _size) {
+        return false;
+    }
     if (offset >= _bufStart && offset + need <= _bufStart + _bufLen) {
         return true;
     }
-    if (!_file || offset >= _size) {
+    if (!_file) {
         return false;
     }
-    if (!_file.seek(offset)) {
-        LOG_E("Reader source: seek %u failed", (unsigned)offset);
+    uint32_t start = offset;
+    if (_bufLen > 0 && offset < _bufStart && TT_READER_SOURCE_BUF_SIZE > need) {
+        const uint32_t room = TT_READER_SOURCE_BUF_SIZE - need;
+        start = offset > room ? offset - room : 0;
+    }
+    if (!_file.seek(start)) {
+        LOG_E("Reader source: seek %u failed", (unsigned)start);
         _failed = true;
         return false;
     }
-    const uint32_t want = _size - offset < TT_READER_SOURCE_BUF_SIZE ? _size - offset : TT_READER_SOURCE_BUF_SIZE;
+    const uint32_t want = _size - start < TT_READER_SOURCE_BUF_SIZE ? _size - start : TT_READER_SOURCE_BUF_SIZE;
     const size_t got = _file.read(_buf, want);
     if (got == 0) {
-        LOG_E("Reader source: read at %u failed", (unsigned)offset);
+        LOG_E("Reader source: read at %u failed", (unsigned)start);
         _failed = true;
         _bufLen = 0;
         return false;
     }
-    _bufStart = offset;
+    _bufStart = start;
     _bufLen = (uint32_t)got;
     _loads++;
+    if (start != offset) {
+        LOG_D("Reader source: rewind window %u covering %u", (unsigned)start, (unsigned)offset);
+    }
     return offset + need <= _bufStart + _bufLen;
 }
 
