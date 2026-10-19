@@ -80,22 +80,29 @@ static bool mdIsRule(TTReaderSource& src, uint32_t offset) {
     return false;
 }
 
-static bool mdHasLinkEnd(TTReaderSource& src, uint32_t offset) {
-    for (uint32_t i = 0; i < TT_MD_LINK_SCAN_MAX; i++) {
-        const int b = mdByte(src, offset + i);
+static int mdByteEnd(TTReaderSource& src, uint32_t offset, uint32_t end) {
+    if (offset >= end) {
+        return -1;
+    }
+    return mdByte(src, offset);
+}
+
+static bool mdHasLinkEnd(TTReaderSource& src, uint32_t offset, uint32_t end) {
+    for (uint32_t i = 0; i < TT_MD_LINK_SCAN_MAX && offset + i < end; i++) {
+        const int b = mdByteEnd(src, offset + i, end);
         if (mdIsLineEnd(b)) {
             return false;
         }
-        if (b == ']' && mdByte(src, offset + i + 1) == '(') {
+        if (b == ']' && mdByteEnd(src, offset + i + 1, end) == '(') {
             return true;
         }
     }
     return false;
 }
 
-static bool mdMatch(TTReaderSource& src, uint32_t offset, const char* text) {
+static bool mdMatch(TTReaderSource& src, uint32_t offset, const char* text, uint32_t end) {
     for (uint32_t i = 0; text[i] != '\0'; i++) {
-        if (mdByte(src, offset + i) != (uint8_t)text[i]) {
+        if (mdByteEnd(src, offset + i, end) != (uint8_t)text[i]) {
             return false;
         }
     }
@@ -240,9 +247,12 @@ TTMdBlock tt_md_parse_block(TTReaderSource& src, uint32_t& offset, uint8_t colum
     return block;
 }
 
-uint32_t tt_md_next(TTReaderSource& src, uint32_t& offset, TTMdInline& state) {
+uint32_t tt_md_next(TTReaderSource& src, uint32_t& offset, TTMdInline& state, uint32_t end) {
     const uint32_t size = src.size();
-    while (offset < size) {
+    if (end > size) {
+        end = size;
+    }
+    while (offset < end) {
         if (state.literal > 0) {
             state.literal--;
             offset++;
@@ -273,7 +283,7 @@ uint32_t tt_md_next(TTReaderSource& src, uint32_t& offset, TTMdInline& state) {
             }
             return cp;
         }
-        const int after = mdByte(src, next);
+        const int after = mdByteEnd(src, next, end);
         switch (cp) {
             case '\\':
                 if (mdIsPunct(after)) {
@@ -292,13 +302,13 @@ uint32_t tt_md_next(TTReaderSource& src, uint32_t& offset, TTMdInline& state) {
             case '*':
             case '_': {
                 uint8_t run = 1;
-                uint32_t end = next;
-                while (run < TT_MD_EMPHASIS_RUN_MAX && mdByte(src, end) == (int)cp) {
+                uint32_t runEnd = next;
+                while (run < TT_MD_EMPHASIS_RUN_MAX && mdByteEnd(src, runEnd, end) == (int)cp) {
                     run++;
-                    end++;
+                    runEnd++;
                 }
-                const int prev = offset > 0 ? mdByte(src, offset - 1) : ' ';
-                const int follow = mdByte(src, end);
+                const int prev = offset > 0 ? mdByteEnd(src, offset - 1, end) : ' ';
+                const int follow = mdByteEnd(src, runEnd, end);
                 const bool loose = mdIsBlankByte(prev) && mdIsBlankByte(follow);
                 const bool intraword = cp == '_' && mdIsWordByte(prev) && mdIsWordByte(follow);
                 if (loose || intraword) {
@@ -307,7 +317,7 @@ uint32_t tt_md_next(TTReaderSource& src, uint32_t& offset, TTMdInline& state) {
                     offset = next;
                     return cp;
                 }
-                offset = end;
+                offset = runEnd;
                 if (run >= 2) {
                     state.toggles ^= TT_READER_STYLE_BOLD;
                 }
@@ -324,14 +334,14 @@ uint32_t tt_md_next(TTReaderSource& src, uint32_t& offset, TTMdInline& state) {
                 }
                 break;
             case '!':
-                if (after == '[' && !state.link && mdHasLinkEnd(src, next + 1)) {
+                if (after == '[' && !state.link && mdHasLinkEnd(src, next + 1, end)) {
                     offset = next + 1;
                     state.link = true;
                     continue;
                 }
                 break;
             case '[':
-                if (!state.link && mdHasLinkEnd(src, next)) {
+                if (!state.link && mdHasLinkEnd(src, next, end)) {
                     offset = next;
                     state.link = true;
                     continue;
@@ -349,12 +359,12 @@ uint32_t tt_md_next(TTReaderSource& src, uint32_t& offset, TTMdInline& state) {
                 }
                 break;
             case '<':
-                if (mdMatch(src, next, "u>")) {
+                if (mdMatch(src, next, "u>", end)) {
                     offset = next + 2;
                     state.toggles |= TT_READER_STYLE_UNDERLINE;
                     continue;
                 }
-                if (mdMatch(src, next, "/u>")) {
+                if (mdMatch(src, next, "/u>", end)) {
                     offset = next + 3;
                     state.toggles &= (uint8_t)~TT_READER_STYLE_UNDERLINE;
                     continue;
@@ -367,6 +377,244 @@ uint32_t tt_md_next(TTReaderSource& src, uint32_t& offset, TTMdInline& state) {
         return cp;
     }
     return 0;
+}
+
+uint32_t tt_md_line_start(TTReaderSource& src, uint32_t offset) {
+    if (offset > src.size()) {
+        offset = src.size();
+    }
+    while (offset > 0) {
+        uint8_t b = 0;
+        if (!src.byteAt(offset - 1, b)) {
+            return offset;
+        }
+        if (b == '\n' || b == '\r') {
+            return offset;
+        }
+        offset--;
+    }
+    return 0;
+}
+
+static uint32_t mdPrevLine(TTReaderSource& src, uint32_t line) {
+    if (line == 0) {
+        return 0;
+    }
+    uint32_t p = line - 1;
+    uint8_t b = 0;
+    if (!src.byteAt(p, b)) {
+        return line;
+    }
+    if (b == '\n' && p > 0) {
+        uint8_t prev = 0;
+        if (src.byteAt(p - 1, prev) && prev == '\r') {
+            if (p == 1) {
+                return 0;
+            }
+            p--;
+        }
+    }
+    if (p == 0) {
+        return 0;
+    }
+    return tt_md_line_start(src, p);
+}
+
+static uint32_t mdTrimStart(TTReaderSource& src, uint32_t start, uint32_t end) {
+    while (start < end) {
+        const int b = mdByte(src, start);
+        if (b != ' ' && b != '\t') {
+            break;
+        }
+        start++;
+    }
+    return start;
+}
+
+static uint32_t mdTrimEnd(TTReaderSource& src, uint32_t start, uint32_t end) {
+    while (end > start) {
+        const int b = mdByte(src, end - 1);
+        if (b != ' ' && b != '\t') {
+            break;
+        }
+        end--;
+    }
+    return end;
+}
+
+bool tt_md_split_cells(TTReaderSource& src, uint32_t line, TTMdCell* cells, uint8_t maxCells, uint8_t& count) {
+    count = 0;
+    uint8_t columns = 0;
+    uint32_t p = tt_md_skip_indent(src, line, columns);
+    if (p >= src.size() || mdIsLineEnd(mdByte(src, p))) {
+        return false;
+    }
+    bool pipe = false;
+    bool inCode = false;
+    bool afterPipe = false;
+    if (mdByte(src, p) == '|') {
+        pipe = true;
+        afterPipe = true;
+        p++;
+    }
+    uint32_t cellStart = p;
+    for (uint16_t n = 0; n < TT_MD_TABLE_LINE_MAX && p < src.size(); n++) {
+        const int b = mdByte(src, p);
+        if (mdIsLineEnd(b)) {
+            break;
+        }
+        if (!inCode && b == '\\' && mdIsPunct(mdByte(src, p + 1))) {
+            afterPipe = false;
+            p += 2;
+            continue;
+        }
+        if (b == '`') {
+            inCode = !inCode;
+            afterPipe = false;
+            p++;
+            continue;
+        }
+        if (!inCode && b == '|') {
+            if (count >= maxCells) {
+                return false;
+            }
+            cells[count].start = mdTrimStart(src, cellStart, p);
+            cells[count].end = mdTrimEnd(src, cells[count].start, p);
+            count++;
+            pipe = true;
+            afterPipe = true;
+            p++;
+            cellStart = p;
+            continue;
+        }
+        afterPipe = false;
+        p++;
+    }
+    if (!pipe) {
+        return false;
+    }
+    if (!afterPipe) {
+        if (count >= maxCells) {
+            return false;
+        }
+        cells[count].start = mdTrimStart(src, cellStart, p);
+        cells[count].end = mdTrimEnd(src, cells[count].start, p);
+        count++;
+    }
+    return count > 0;
+}
+
+bool tt_md_is_separator(TTReaderSource& src, const TTMdCell* cells, uint8_t count) {
+    if (count == 0) {
+        return false;
+    }
+    for (uint8_t i = 0; i < count; i++) {
+        uint32_t p = cells[i].start;
+        const uint32_t end = cells[i].end;
+        if (p < end && mdByte(src, p) == ':') {
+            p++;
+        }
+        uint8_t dashes = 0;
+        while (p < end && mdByte(src, p) == '-') {
+            dashes++;
+            p++;
+        }
+        if (dashes < TT_MD_RULE_MIN) {
+            return false;
+        }
+        if (p < end && mdByte(src, p) == ':') {
+            p++;
+        }
+        if (p != end) {
+            return false;
+        }
+    }
+    return true;
+}
+
+static bool mdIsTableRow(TTReaderSource& src, uint32_t line) {
+    TTMdCell cells[TT_MD_TABLE_COLS_MAX];
+    uint8_t count = 0;
+    return tt_md_split_cells(src, line, cells, TT_MD_TABLE_COLS_MAX, count);
+}
+
+bool tt_md_find_table(TTReaderSource& src, uint32_t offset, TTMdTable& table) {
+    const uint32_t line = tt_md_line_start(src, offset);
+    uint32_t separator = 0;
+    uint32_t p = line;
+    for (uint16_t i = 0; i < TT_MD_TABLE_SCAN_ROWS; i++) {
+        TTMdCell cells[TT_MD_TABLE_COLS_MAX];
+        uint8_t count = 0;
+        if (!tt_md_split_cells(src, p, cells, TT_MD_TABLE_COLS_MAX, count)) {
+            break;
+        }
+        if (tt_md_is_separator(src, cells, count)) {
+            const uint32_t header = mdPrevLine(src, p);
+            if (p == 0 || header == p || !mdIsTableRow(src, header)) {
+                return false;
+            }
+            separator = p;
+            table.header = header;
+            table.cols = count;
+            break;
+        }
+        if (p == 0) {
+            break;
+        }
+        const uint32_t prev = mdPrevLine(src, p);
+        if (prev == p || !mdIsTableRow(src, prev)) {
+            break;
+        }
+        p = prev;
+    }
+    if (separator == 0) {
+        p = tt_md_skip_line(src, line);
+        for (uint16_t i = 0; i < TT_MD_TABLE_SCAN_ROWS && p < src.size(); i++) {
+            TTMdCell cells[TT_MD_TABLE_COLS_MAX];
+            uint8_t count = 0;
+            if (!tt_md_split_cells(src, p, cells, TT_MD_TABLE_COLS_MAX, count)) {
+                break;
+            }
+            if (tt_md_is_separator(src, cells, count)) {
+                const uint32_t header = mdPrevLine(src, p);
+                if (header == p || !mdIsTableRow(src, header)) {
+                    return false;
+                }
+                separator = p;
+                table.header = header;
+                table.cols = count;
+                break;
+            }
+            const uint32_t next = tt_md_skip_line(src, p);
+            if (next <= p) {
+                break;
+            }
+            p = next;
+        }
+    }
+    if (separator == 0 || table.cols == 0) {
+        return false;
+    }
+    table.separator = separator;
+    table.body = tt_md_skip_line(src, separator);
+    uint32_t end = table.body;
+    for (uint16_t i = 0; i < TT_MD_TABLE_SCAN_ROWS && end < src.size(); i++) {
+        TTMdCell cells[TT_MD_TABLE_COLS_MAX];
+        uint8_t count = 0;
+        if (!tt_md_split_cells(src, end, cells, TT_MD_TABLE_COLS_MAX, count)) {
+            break;
+        }
+        if (tt_md_is_separator(src, cells, count)) {
+            break;
+        }
+        const uint32_t next = tt_md_skip_line(src, end);
+        if (next <= end) {
+            break;
+        }
+        end = next;
+    }
+    table.end = end;
+    return !src.failed();
 }
 
 uint8_t tt_md_style(const TTMdCursor& cursor) {

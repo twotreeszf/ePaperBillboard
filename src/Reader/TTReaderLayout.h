@@ -12,7 +12,7 @@
 #define TT_READER_JUSTIFY_MAX_GAP   12
 #define TT_READER_INDENT_CHARS      2
 #define TT_READER_INDENT_REF_CHAR   0x4E2D
-#define TT_READER_MAX_LINES         24
+#define TT_READER_MAX_LINES         64
 #define TT_READER_PAGE_TEXT_MAX     2048
 #define TT_READER_LINE_BYTES_MAX    512
 #define TT_READER_MISSING_GLYPH     0x25A1
@@ -31,12 +31,20 @@
 #define TT_READER_CODE_INSET_Y      (TT_READER_CODE_BORDER + TT_READER_CODE_PAD_Y)
 #define TT_READER_LINE_FLAG_BOX_TOP     0x01
 #define TT_READER_LINE_FLAG_BOX_BOTTOM  0x02
+#define TT_READER_LINE_FLAG_EXACT       0x04
+#define TT_READER_TABLE_MIN_CHARS       2
+#define TT_READER_TABLE_PAD_X           3
+#define TT_READER_TABLE_PAD_Y           4
+#define TT_READER_TABLE_BORDER          1
+#define TT_READER_TABLE_BANDS_MAX       32
 
 enum TTReaderLineKind : uint8_t {
     TT_READER_LINE_TEXT = 0,
     TT_READER_LINE_BULLET,
     TT_READER_LINE_RULE,
     TT_READER_LINE_CODE,
+    TT_READER_LINE_TABLE,
+    TT_READER_LINE_VRULE,
 };
 
 struct TTReaderLine {
@@ -87,6 +95,13 @@ private:
         TT_LINE_END_BUFFER,
     };
 
+    enum TableLay : uint8_t {
+        TT_TABLE_NONE = 0,
+        TT_TABLE_DONE,
+        TT_TABLE_BREAK,
+        TT_TABLE_FAIL,
+    };
+
     bool glyph(TTFontLoader* font, uint32_t cp, uint32_t& shown, TTFontLoader::GlyphInfo& info);
     bool isParagraphStart(TTReaderSource& src, uint32_t offset);
     uint32_t skipSpaces(TTReaderSource& src, uint32_t offset, bool paragraph);
@@ -97,6 +112,12 @@ private:
     bool markdownTailEmpty(TTReaderSource& src, uint32_t offset);
     int16_t blockX(const TTMdBlock& block, bool first) const;
     int16_t codeX(uint8_t columns) const;
+    uint8_t cellStyle(const TTMdInline& inl, bool header) const;
+    int32_t cellWidth(TTReaderSource& src, uint32_t start, uint32_t end, bool header);
+    bool appendRule(TTReaderPageLayout& page, TTReaderLineKind kind, int16_t x, int16_t y, int16_t mark);
+    bool appendTableCell(TTReaderSource& src, const TTMdCell& cell, int16_t x, int16_t colW, bool header,
+                         uint8_t bandCap, TTReaderPageLayout& page, uint8_t& bands, bool& clipped);
+    TableLay layoutTable(TTReaderSource& src, uint32_t offset, TTReaderPageLayout& page, int16_t& y, uint32_t& end);
 
     TTFontLoader* _font = nullptr;
     TTFontLoader* _codeFont = nullptr;
@@ -109,6 +130,7 @@ private:
     int16_t _bulletX = 0;
     uint16_t _spaceAdv = 0;
     uint16_t _codeSpaceAdv = 0;
+    uint16_t _codeUnit = 0;
     int16_t _codeBaseline = 0;
     uint32_t _configHash = 0;
     bool _markdown = false;

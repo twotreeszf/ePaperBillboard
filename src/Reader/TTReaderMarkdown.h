@@ -12,7 +12,10 @@
 #define TT_READER_STYLE_MARK_FLAG   0x80
 #define TT_READER_STYLE_MARK_BYTES  2
 
-#define TT_MD_LAYOUT_VERSION        3
+#define TT_MD_LAYOUT_VERSION        4
+#define TT_MD_TABLE_COLS_MAX        16
+#define TT_MD_TABLE_SCAN_ROWS       200
+#define TT_MD_TABLE_LINE_MAX        1024
 #define TT_MD_HEADING_MAX           6
 #define TT_MD_QUOTE_MAX             2
 #define TT_MD_LIST_LEVEL_MAX        3
@@ -59,11 +62,28 @@ struct TTMdCursor {
     bool fence = false;
 };
 
+struct TTMdCell {
+    uint32_t start = 0;
+    uint32_t end = 0;
+};
+
+struct TTMdTable {
+    uint32_t header = 0;
+    uint32_t separator = 0;
+    uint32_t body = 0;
+    uint32_t end = 0;
+    uint8_t cols = 0;
+};
+
 uint32_t tt_md_skip_indent(TTReaderSource& src, uint32_t offset, uint8_t& columns);
 uint32_t tt_md_skip_blank(TTReaderSource& src, uint32_t offset, uint8_t& columns);
 uint32_t tt_md_skip_line(TTReaderSource& src, uint32_t offset);
 bool tt_md_is_fence(TTReaderSource& src, uint32_t offset);
 void tt_md_line_context(TTReaderSource& src, uint32_t offset, uint32_t& lineStart, bool& fence);
 TTMdBlock tt_md_parse_block(TTReaderSource& src, uint32_t& offset, uint8_t columns);
-uint32_t tt_md_next(TTReaderSource& src, uint32_t& offset, TTMdInline& state);
+uint32_t tt_md_next(TTReaderSource& src, uint32_t& offset, TTMdInline& state, uint32_t end = 0xFFFFFFFF);
 uint8_t tt_md_style(const TTMdCursor& cursor);
+uint32_t tt_md_line_start(TTReaderSource& src, uint32_t offset);
+bool tt_md_split_cells(TTReaderSource& src, uint32_t line, TTMdCell* cells, uint8_t maxCells, uint8_t& count);
+bool tt_md_is_separator(TTReaderSource& src, const TTMdCell* cells, uint8_t count);
+bool tt_md_find_table(TTReaderSource& src, uint32_t offset, TTMdTable& table);

@@ -103,6 +103,17 @@ static void put_pixel(const TTReaderCanvas& canvas, int32_t x, int32_t y) {
     row[bx >> 3] &= (uint8_t)~(0x80 >> (bx & 7));
 }
 
+static void draw_vline(const TTReaderCanvas& canvas, int32_t x, int32_t y1, int32_t y2) {
+    if (x < canvas.clip.x1 || x > canvas.clip.x2) {
+        return;
+    }
+    const int32_t from = y1 > canvas.clip.y1 ? y1 : canvas.clip.y1;
+    const int32_t to = y2 < canvas.clip.y2 ? y2 : canvas.clip.y2;
+    for (int32_t y = from; y <= to; y++) {
+        put_pixel(canvas, x, y);
+    }
+}
+
 static void draw_hline(const TTReaderCanvas& canvas, int32_t x1, int32_t x2, int32_t y) {
     if (y < canvas.clip.y1 || y > canvas.clip.y2) {
         return;
@@ -286,17 +297,29 @@ static void draw_main(lv_event_t* e) {
 
     for (uint8_t i = 0; i < page.lineCount; i++) {
         const TTReaderLine& line = page.lines[i];
+        if (line.kind == TT_READER_LINE_VRULE) {
+            const int32_t y1 = coords.y1 + line.y;
+            const int32_t y2 = coords.y1 + line.markX;
+            if (y1 <= canvas.clip.y2 && y2 >= canvas.clip.y1) {
+                draw_vline(canvas, coords.x1 + line.x, y1, y2);
+            }
+            continue;
+        }
         const int32_t top = coords.y1 + line.y;
         if (top > canvas.clip.y2 || top + lineHeight + TT_READER_LINE_GAP < canvas.clip.y1) {
             continue;
         }
         if (line.kind == TT_READER_LINE_RULE) {
-            draw_hline(canvas, coords.x1, coords.x1 + view->layout->width() - 1, top + lineHeight / 2);
+            if ((line.flags & TT_READER_LINE_FLAG_EXACT) != 0) {
+                draw_hline(canvas, coords.x1 + line.x, coords.x1 + line.markX, top);
+            } else {
+                draw_hline(canvas, coords.x1, coords.x1 + view->layout->width() - 1, top + lineHeight / 2);
+            }
             continue;
         }
-        const bool code = line.kind == TT_READER_LINE_CODE;
-        const int32_t baseline = top + (code ? codeBaseline : ascent);
-        TTFontLoader* font = code ? codeFont : textFont;
+        const bool small = line.kind == TT_READER_LINE_CODE || line.kind == TT_READER_LINE_TABLE;
+        const int32_t baseline = top + (small ? codeBaseline : ascent);
+        TTFontLoader* font = small ? codeFont : textFont;
         TTFontLoader::GlyphInfo info = {};
         if (line.kind == TT_READER_LINE_BULLET) {
             draw_glyph(canvas, font, bits, TT_READER_BULLET_GLYPH, coords.x1 + line.markX, baseline, 0, info);

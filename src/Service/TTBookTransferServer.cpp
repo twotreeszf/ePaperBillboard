@@ -335,7 +335,9 @@ void TTBookTransferServer::handleRoot() {
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>上传电子书</title>
 <style>
-body { font-family: -apple-system, sans-serif; margin: 0; padding: 16px; background: #f4f4f4; }
+body { font-family: -apple-system, sans-serif; margin: 0; padding: 16px; background: #f4f4f4; min-height: 100vh; box-sizing: border-box; }
+.mask { display: none; position: fixed; inset: 8px; border: 3px dashed #111; border-radius: 12px; background: rgba(255,255,255,.88); z-index: 2; align-items: center; justify-content: center; font-size: 20px; pointer-events: none; }
+body.drag .mask { display: flex; }
 .box { max-width: 420px; margin: 0 auto; background: #fff; padding: 20px; border-radius: 8px; }
 h2 { margin: 0 0 8px; text-align: center; }
 h3 { margin: 20px 0 8px; font-size: 16px; }
@@ -353,9 +355,10 @@ progress { width: 100%; height: 8px; margin: 6px 0 2px; }
 </style>
 </head>
 <body>
+<div class="mask">松开以上传</div>
 <div class="box">
 <h2>上传电子书</h2>
-<p class="tip">支持 UTF-8 编码的 TXT 和 Markdown（.md）文件，同名文件会被覆盖。上传完成前，请不要离开设备上的传书页面。</p>
+<p class="tip">把 TXT 或 Markdown（.md）文件拖到页面任意位置，或点选后按上传。同名文件会被覆盖。请使用 UTF-8 编码。上传完成前，请不要离开设备上的传书页面。</p>
 <input type="file" id="file" multiple accept=".txt,.md,text/plain,text/markdown">
 <button id="go" onclick="start()">上传</button>
 <ul id="jobs"></ul>
@@ -424,9 +427,34 @@ function uploadOne(file, bar, msg) {
     x.send(form);
   });
 }
-async function start() {
-  const files = Array.from($('file').files);
+function isFileDrag(e) {
+  const types = e.dataTransfer && e.dataTransfer.types;
+  if (!types) return false;
+  for (let i = 0; i < types.length; i++) if (types[i] === 'Files') return true;
+  return false;
+}
+let dragDepth = 0;
+window.addEventListener('dragenter', e => {
+  if (!isFileDrag(e) || $('go').disabled) return;
+  e.preventDefault();
+  if (dragDepth++ === 0) document.body.classList.add('drag');
+});
+window.addEventListener('dragover', e => { if (isFileDrag(e)) e.preventDefault(); });
+window.addEventListener('dragleave', e => {
+  if (!isFileDrag(e) || dragDepth === 0) return;
+  if (--dragDepth <= 0) { dragDepth = 0; document.body.classList.remove('drag'); }
+});
+window.addEventListener('drop', e => {
+  if (!isFileDrag(e)) return;
+  e.preventDefault();
+  dragDepth = 0;
+  document.body.classList.remove('drag');
+  start(e.dataTransfer.files);
+});
+async function start(list) {
+  const files = Array.from(list || $('file').files);
   if (!files.length) { alert('请先选择文件'); return; }
+  if ($('go').disabled) return;
   $('go').disabled = true;
   const jobs = $('jobs');
   jobs.innerHTML = '';
