@@ -29,6 +29,50 @@ static void shelfDrawSpan(lv_layer_t* layer, const lv_draw_rect_dsc_t* ink,
     lv_draw_rect(layer, ink, &area);
 }
 
+static void shelfDrawMark(lv_event_t* e) {
+    if (lv_event_get_code(e) != LV_EVENT_DRAW_MAIN) {
+        return;
+    }
+    lv_obj_t* mark = (lv_obj_t*)lv_event_get_target(e);
+    lv_layer_t* layer = lv_event_get_layer(e);
+    lv_area_t coords;
+    lv_obj_get_coords(mark, &coords);
+    const int x = coords.x1;
+    const int top = coords.y1;
+    const int w = (int)lv_obj_get_width(mark);
+    const int h = (int)lv_obj_get_height(mark);
+    if (w <= 0 || h <= 0) {
+        return;
+    }
+    int chamfer = TT_SHELF_MARK_CHAMFER;
+    if (chamfer > w) {
+        chamfer = w;
+    }
+    if (chamfer * 2 > h) {
+        chamfer = h / 2;
+    }
+
+    lv_draw_rect_dsc_t ink;
+    lv_draw_rect_dsc_init(&ink);
+    ink.bg_color = lv_color_black();
+    ink.bg_opa = LV_OPA_COVER;
+    ink.border_width = 0;
+    ink.radius = 0;
+
+    if (h > chamfer * 2) {
+        shelfDrawSpan(layer, &ink, x, top + chamfer, x + w - 1, top + h - chamfer - 1);
+    }
+    const int flat = w - chamfer;
+    for (int i = 0; i < chamfer; i++) {
+        const int right = x + flat + i - 1;
+        if (right < x) {
+            continue;
+        }
+        shelfDrawSpan(layer, &ink, x, top + i, right, top + i);
+        shelfDrawSpan(layer, &ink, x, top + h - 1 - i, right, top + h - 1 - i);
+    }
+}
+
 static void shelfDrawFileIcon(lv_event_t* e) {
     if (lv_event_get_code(e) != LV_EVENT_DRAW_MAIN) {
         return;
@@ -147,14 +191,14 @@ void TTBookshelfPage::buildContent(lv_obj_t* screen) {
         _marks[i] = lv_obj_create(_rows[i]);
         lv_obj_set_pos(_marks[i], 0, TT_SHELF_CONTENT_Y);
         lv_obj_set_size(_marks[i], TT_SHELF_MARK_W, TT_SHELF_ICON_H);
-        lv_obj_set_style_bg_color(_marks[i], lv_color_black(), 0);
-        lv_obj_set_style_bg_opa(_marks[i], LV_OPA_COVER, 0);
+        lv_obj_set_style_bg_opa(_marks[i], LV_OPA_TRANSP, 0);
         lv_obj_set_style_border_width(_marks[i], 0, 0);
         lv_obj_set_style_radius(_marks[i], 0, 0);
         lv_obj_set_style_pad_all(_marks[i], 0, 0);
         lv_obj_set_scrollable(_marks[i], false);
         lv_obj_set_clickable(_marks[i], false);
         lv_obj_set_hidden(_marks[i], true);
+        lv_obj_add_event_cb(_marks[i], shelfDrawMark, LV_EVENT_DRAW_MAIN, nullptr);
 
         _icons[i] = lv_obj_create(_rows[i]);
         lv_obj_set_pos(_icons[i], TT_SHELF_ICON_X, TT_SHELF_ICON_Y);

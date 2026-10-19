@@ -228,6 +228,19 @@ TTMdBlock tt_md_parse_block(TTReaderSource& src, uint32_t& offset, uint8_t colum
         block.kind = TT_MD_BULLET;
         block.level = level;
         offset = mdSkipInlineSpaces(src, offset + 1);
+        const int mark = mdByte(src, offset + 1);
+        const int after = mdByte(src, offset + 3);
+        if (mdByte(src, offset) == '[' && mdByte(src, offset + 2) == ']'
+            && (after == ' ' || after == '\t' || mdIsLineEnd(after))) {
+            if (mark == ' ') {
+                block.task = TT_MD_TASK_OPEN;
+            } else if (mark == 'x' || mark == 'X') {
+                block.task = TT_MD_TASK_DONE;
+            }
+            if (block.task != TT_MD_TASK_NONE) {
+                offset = mdSkipInlineSpaces(src, offset + 3);
+            }
+        }
         return block;
     }
     if (b >= '0' && b <= '9') {
@@ -615,6 +628,155 @@ bool tt_md_find_table(TTReaderSource& src, uint32_t offset, TTMdTable& table) {
     }
     table.end = end;
     return !src.failed();
+}
+
+static bool mdLineHasPipe(TTReaderSource& src, uint32_t line) {
+    uint32_t p = line;
+    for (uint16_t n = 0; n < TT_MD_TABLE_LINE_MAX && p < src.size(); n++, p++) {
+        const int b = mdByte(src, p);
+        if (mdIsLineEnd(b)) {
+            return false;
+        }
+        if (b == '|') {
+            return true;
+        }
+    }
+    return false;
+}
+
+static bool mdInTable(TTReaderSource& src, uint32_t line) {
+    if (!mdLineHasPipe(src, line)) {
+        return false;
+    }
+    TTMdTable table;
+    if (!tt_md_find_table(src, line, table)) {
+        return false;
+    }
+    return line >= table.header && line < table.end;
+}
+
+static bool mdParseLine(TTReaderSource& src, uint32_t line, TTMdBlock& block, uint32_t& content) {
+    uint8_t columns = 0;
+    uint32_t p = tt_md_skip_indent(src, line, columns);
+    if (p >= src.size() || mdIsLineEnd(mdByte(src, p))) {
+        return false;
+    }
+    if (columns <= TT_MD_FENCE_INDENT_MAX && tt_md_is_fence(src, p)) {
+        block = TTMdBlock();
+        block.kind = TT_MD_CODE;
+        content = p;
+        return true;
+    }
+    block = tt_md_parse_block(src, p, columns);
+    content = p;
+    if (block.kind == TT_MD_QUOTE && mdIsLineEnd(mdByte(src, content))) {
+        return false;
+    }
+    return true;
+}
+
+bool tt_md_soft_join(TTReaderSource& src, uint32_t line, const TTMdBlock& block, uint32_t& content) {
+    if (block.kind == TT_MD_CODE || block.kind == TT_MD_HEADING || block.kind == TT_MD_RULE) {
+        return false;
+    }
+    TTMdBlock next;
+    uint32_t nextContent = line;
+    if (!mdParseLine(src, line, next, nextContent)) {
+        return false;
+    }
+    if (next.kind == TT_MD_CODE || next.kind == TT_MD_HEADING || next.kind == TT_MD_RULE || next.kind == TT_MD_ORDERED) {
+        return false;
+    }
+    if (mdInTable(src, line)) {
+        return false;
+    }
+    bool join = false;
+    if (block.kind == TT_MD_PARAGRAPH) {
+        join = next.kind == TT_MD_PARAGRAPH;
+    } else if (block.kind == TT_MD_QUOTE) {
+        join = (next.kind == TT_MD_QUOTE && next.level == block.level) || next.kind == TT_MD_PARAGRAPH;
+    } else if (block.kind == TT_MD_BULLET || block.kind == TT_MD_ORDERED) {
+        join = next.kind == TT_MD_PARAGRAPH;
+    }
+    if (!join) {
+        return false;
+    }
+    content = nextContent;
+    return content < src.size();
+}
+
+bool tt_md_continued(TTReaderSource& src, uint32_t line, TTMdBlock& block, uint32_t& origin, uint32_t& content) {
+    if (line == 0 || line > src.size()) {
+        return false;
+    }
+    const uint32_t limit = line > TT_MD_CONTEXT_MAX ? line - TT_MD_CONTEXT_MAX : 0;
+    uint32_t cursor = line;
+    bool found = false;
+    while (cursor > limit && !src.failed()) {
+        const uint32_t prev = mdPrevLine(src, cursor);
+        if (prev >= cursor) {
+            break;
+        }
+        TTMdBlock prevBlock;
+        uint32_t prevContent = prev;
+        if (!mdParseLine(src, prev, prevBlock, prevContent)) {
+            break;
+        }
+        uint32_t joined = cursor;
+        if (!tt_md_soft_join(src, cursor, prevBlock, joined)) {
+            break;
+        }
+        if (cursor == line) {
+            content = joined;
+        }
+        origin = prevContent;
+        if (!found || prevBlock.kind != TT_MD_PARAGRAPH) {
+            block = prevBlock;
+        }
+        found = true;
+        cursor = prev;
+    }
+    return found && !src.failed();
+}
+
+void tt_md_replay(TTReaderSource& src, uint32_t origin, uint32_t end, const TTMdBlock& block, TTMdInline& state) {
+    state = TTMdInline();
+    uint32_t off = origin;
+    while (off < end && !src.failed()) {
+        const uint32_t cp = tt_md_next(src, off, state, end);
+        if (cp == 0) {
+            break;
+        }
+        if (cp != '\n' && cp != '\r') {
+            continue;
+        }
+        if (cp == '\r' && off < end && mdByte(src, off) == '\n') {
+            off++;
+        }
+        if (off >= end) {
+            break;
+        }
+        uint32_t next = off;
+        if (!tt_md_soft_join(src, off, block, next) || next <= off) {
+            break;
+        }
+        off = next;
+    }
+}
+
+uint32_t tt_md_first_glyph(TTReaderSource& src, uint32_t offset, const TTMdInline& state) {
+    TTMdInline inl = state;
+    uint32_t off = offset;
+    for (uint8_t i = 0; i < 8 && off < src.size() && !src.failed(); i++) {
+        const uint32_t cp = tt_md_next(src, off, inl);
+        if (cp == 0 || cp == '\n' || cp == '\r') {
+            return 0;
+        }
+        if (!tt_reader_is_ignorable(cp) && cp != ' ' && cp != '\t') {
+            return cp;
+        }
+    }
+    return 0;
 }
 
 uint8_t tt_md_style(const TTMdCursor& cursor) {

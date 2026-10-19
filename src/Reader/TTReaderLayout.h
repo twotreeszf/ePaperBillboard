@@ -32,6 +32,8 @@
 #define TT_READER_LINE_FLAG_BOX_TOP     0x01
 #define TT_READER_LINE_FLAG_BOX_BOTTOM  0x02
 #define TT_READER_LINE_FLAG_EXACT       0x04
+#define TT_READER_LINE_FLAG_TASK_DONE   0x08
+#define TT_READER_TASK_BOX              10
 #define TT_READER_TABLE_MIN_CHARS       2
 #define TT_READER_TABLE_PAD_X           3
 #define TT_READER_TABLE_PAD_Y           4
@@ -45,6 +47,7 @@ enum TTReaderLineKind : uint8_t {
     TT_READER_LINE_CODE,
     TT_READER_LINE_TABLE,
     TT_READER_LINE_VRULE,
+    TT_READER_LINE_TASK,
 };
 
 struct TTReaderLine {
@@ -108,9 +111,11 @@ private:
     LineEnd fillLine(TTReaderSource& src, uint32_t& offset, int16_t x0, TTReaderPageLayout& page,
                      TTReaderLine& line, TTMdCursor* md);
     bool appendText(TTReaderPageLayout& page, uint32_t cp, bool mark = false, uint8_t style = 0);
-    bool beginMarkdown(TTReaderSource& src, uint32_t offset, bool paragraph, TTMdCursor& cursor, int16_t& contX);
+    bool beginMarkdown(TTReaderSource& src, uint32_t& offset, bool paragraph, bool& joined,
+                       TTMdCursor& cursor, int16_t& contX);
     bool markdownTailEmpty(TTReaderSource& src, uint32_t offset);
     int16_t blockX(const TTMdBlock& block, bool first) const;
+    int32_t textWidth(const char* text, uint16_t len, uint8_t style);
     int16_t codeX(uint8_t columns) const;
     uint8_t cellStyle(const TTMdInline& inl, bool header) const;
     int32_t cellWidth(TTReaderSource& src, uint32_t start, uint32_t end, bool header);

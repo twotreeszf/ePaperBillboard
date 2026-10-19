@@ -114,6 +114,29 @@ static void draw_vline(const TTReaderCanvas& canvas, int32_t x, int32_t y1, int3
     }
 }
 
+static void draw_line(const TTReaderCanvas& canvas, int32_t x1, int32_t y1, int32_t x2, int32_t y2) {
+    const int32_t dx = x2 >= x1 ? x2 - x1 : x1 - x2;
+    const int32_t dy = y2 >= y1 ? y2 - y1 : y1 - y2;
+    const int32_t sx = x1 < x2 ? 1 : -1;
+    const int32_t sy = y1 < y2 ? 1 : -1;
+    int32_t err = dx - dy;
+    while (true) {
+        put_pixel(canvas, x1, y1);
+        if (x1 == x2 && y1 == y2) {
+            break;
+        }
+        const int32_t e2 = err * 2;
+        if (e2 > -dy) {
+            err -= dy;
+            x1 += sx;
+        }
+        if (e2 < dx) {
+            err += dx;
+            y1 += sy;
+        }
+    }
+}
+
 static void draw_hline(const TTReaderCanvas& canvas, int32_t x1, int32_t x2, int32_t y) {
     if (y < canvas.clip.y1 || y > canvas.clip.y2) {
         return;
@@ -121,6 +144,21 @@ static void draw_hline(const TTReaderCanvas& canvas, int32_t x1, int32_t x2, int
     for (int32_t x = x1; x <= x2; x++) {
         put_pixel(canvas, x, y);
     }
+}
+
+static void draw_task_box(const TTReaderCanvas& canvas, int32_t x, int32_t baseline, bool done) {
+    const int32_t y1 = baseline - TT_READER_TASK_BOX + 1;
+    const int32_t x2 = x + TT_READER_TASK_BOX - 1;
+    const int32_t y2 = baseline;
+    draw_hline(canvas, x, x2, y1);
+    draw_hline(canvas, x, x2, y2);
+    draw_vline(canvas, x, y1, y2);
+    draw_vline(canvas, x2, y1, y2);
+    if (!done) {
+        return;
+    }
+    draw_line(canvas, x + 2, y1 + TT_READER_TASK_BOX / 2, x + TT_READER_TASK_BOX / 3, y2 - 2);
+    draw_line(canvas, x + TT_READER_TASK_BOX / 3, y2 - 2, x2 - 2, y1 + 2);
 }
 
 static bool dash_on(int32_t step) {
@@ -323,6 +361,9 @@ static void draw_main(lv_event_t* e) {
         TTFontLoader::GlyphInfo info = {};
         if (line.kind == TT_READER_LINE_BULLET) {
             draw_glyph(canvas, font, bits, TT_READER_BULLET_GLYPH, coords.x1 + line.markX, baseline, 0, info);
+        } else if (line.kind == TT_READER_LINE_TASK) {
+            draw_task_box(canvas, coords.x1 + line.markX, baseline,
+                          (line.flags & TT_READER_LINE_FLAG_TASK_DONE) != 0);
         }
         TTReaderDecoration underline = { TT_READER_STYLE_UNDERLINE, baseline + TT_READER_UNDERLINE_DY, false, 0, 0 };
         TTReaderDecoration strike = { TT_READER_STYLE_STRIKE, baseline - TT_READER_STRIKE_DY, false, 0, 0 };

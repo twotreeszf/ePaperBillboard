@@ -12,7 +12,10 @@
 #define TT_READER_STYLE_MARK_FLAG   0x80
 #define TT_READER_STYLE_MARK_BYTES  2
 
-#define TT_MD_LAYOUT_VERSION        4
+#define TT_MD_LAYOUT_VERSION        6
+#define TT_MD_TASK_NONE             0
+#define TT_MD_TASK_OPEN             1
+#define TT_MD_TASK_DONE             2
 #define TT_MD_TABLE_COLS_MAX        16
 #define TT_MD_TABLE_SCAN_ROWS       200
 #define TT_MD_TABLE_LINE_MAX        1024
@@ -45,6 +48,7 @@ enum TTMdBlockKind : uint8_t {
 struct TTMdBlock {
     TTMdBlockKind kind = TT_MD_PARAGRAPH;
     uint8_t level = 0;
+    uint8_t task = TT_MD_TASK_NONE;
 };
 
 struct TTMdInline {
@@ -87,3 +91,7 @@ uint32_t tt_md_line_start(TTReaderSource& src, uint32_t offset);
 bool tt_md_split_cells(TTReaderSource& src, uint32_t line, TTMdCell* cells, uint8_t maxCells, uint8_t& count);
 bool tt_md_is_separator(TTReaderSource& src, const TTMdCell* cells, uint8_t count);
 bool tt_md_find_table(TTReaderSource& src, uint32_t offset, TTMdTable& table);
+bool tt_md_soft_join(TTReaderSource& src, uint32_t line, const TTMdBlock& block, uint32_t& content);
+bool tt_md_continued(TTReaderSource& src, uint32_t line, TTMdBlock& block, uint32_t& origin, uint32_t& content);
+void tt_md_replay(TTReaderSource& src, uint32_t origin, uint32_t end, const TTMdBlock& block, TTMdInline& state);
+uint32_t tt_md_first_glyph(TTReaderSource& src, uint32_t offset, const TTMdInline& state);

@@ -55,7 +55,7 @@ bool TTReaderLayout::begin(TTFontLoader* font, TTFontLoader* codeFont, int16_t w
             (int32_t)_codeFont->getLineHeight(), (int32_t)_codeFont->getBaseLine(), _codeSpaceAdv,
             TT_READER_CODE_PITCH, TT_READER_CODE_PAD_X, TT_READER_CODE_PAD_Y, TT_READER_CODE_BORDER,
             TT_READER_MAX_LINES, TT_READER_TABLE_MIN_CHARS, TT_READER_TABLE_PAD_X, TT_READER_TABLE_PAD_Y,
-            TT_READER_TABLE_BORDER, _codeUnit,
+            TT_READER_TABLE_BORDER, _codeUnit, TT_READER_TASK_BOX,
         };
         _configHash = tt_reader_hash(mdConfig, sizeof(mdConfig), _configHash);
     }
@@ -157,6 +157,7 @@ TTReaderLayout::LineEnd TTReaderLayout::fillLine(TTReaderSource& src, uint32_t& 
     uint16_t breakCount = 0;
     uint16_t breakSpaces = 0;
     uint32_t prev = 0;
+    uint32_t glyphCp = 0;
     LineEnd reason = TT_LINE_END_EOF;
 
     while (offset < src.size()) {
@@ -170,17 +171,53 @@ TTReaderLayout::LineEnd TTReaderLayout::fillLine(TTReaderSource& src, uint32_t& 
             reason = TT_LINE_END_EOF;
             break;
         }
-        if (cp == '\r') {
-            uint8_t b = 0;
-            if (src.byteAt(offset, b) && b == '\n') {
-                offset++;
+        if (cp == '\r' || cp == '\n') {
+            if (cp == '\r') {
+                uint8_t b = 0;
+                if (src.byteAt(offset, b) && b == '\n') {
+                    offset++;
+                }
             }
-            reason = TT_LINE_END_PARAGRAPH;
-            break;
-        }
-        if (cp == '\n') {
-            reason = TT_LINE_END_PARAGRAPH;
-            break;
+            uint32_t content = offset;
+            if (!inlineMarkdown || !tt_md_soft_join(src, offset, md->block, content)) {
+                reason = TT_LINE_END_PARAGRAPH;
+                break;
+            }
+            while (page.textLen > line.textStart && page.text[page.textLen - 1] == ' ') {
+                page.textLen--;
+                x -= spaceAdv;
+                if (count > 0) {
+                    count--;
+                }
+                if (spaces > 0) {
+                    spaces--;
+                }
+            }
+            if (count > 0) {
+                hasBreak = true;
+                breakOffset = content;
+                breakText = page.textLen;
+                breakX = x;
+                breakCount = count;
+                breakSpaces = spaces;
+                breakInline = before;
+            }
+            const uint32_t nextCp = tt_md_first_glyph(src, content, before);
+            const bool tight = tt_reader_is_wide(glyphCp) && tt_reader_is_wide(nextCp);
+            if (count > 0 && !tight) {
+                if (x + spaceAdv > right || !appendText(page, ' ')) {
+                    offset = content;
+                    md->inl = before;
+                    reason = x + spaceAdv > right ? TT_LINE_END_OVERFLOW : TT_LINE_END_BUFFER;
+                    break;
+                }
+                x += spaceAdv;
+                count++;
+                spaces++;
+                prev = ' ';
+            }
+            offset = content;
+            continue;
         }
         if (tt_reader_is_ignorable(cp)) {
             continue;
@@ -262,6 +299,7 @@ TTReaderLayout::LineEnd TTReaderLayout::fillLine(TTReaderSource& src, uint32_t& 
         x += width;
         count++;
         prev = cp;
+        glyphCp = cp;
     }
 
     while (page.textLen > line.textStart && page.text[page.textLen - 1] == ' ') {
@@ -315,8 +353,12 @@ bool TTReaderLayout::layoutPage(TTReaderSource& src, uint32_t start, TTReaderPag
     TTMdCursor cursor;
     TTMdCursor* md = _markdown ? &cursor : nullptr;
     int16_t contX = 0;
-    if (md != nullptr && !beginMarkdown(src, offset, paragraph, cursor, contX)) {
+    bool joined = false;
+    if (md != nullptr && !beginMarkdown(src, offset, paragraph, joined, cursor, contX)) {
         return false;
+    }
+    if (joined) {
+        paragraph = false;
     }
 
     const uint8_t maxLines = md != nullptr ? TT_READER_MAX_LINES : TT_READER_PAGE_LINES;
@@ -451,9 +493,27 @@ bool TTReaderLayout::layoutPage(TTReaderSource& src, uint32_t start, TTReaderPag
         if (src.failed()) {
             return false;
         }
+        if (mdBlockStart && cursor.block.kind == TT_MD_HEADING && cursor.block.level == 1
+            && line.textLen > 0
+            && (reason == TT_LINE_END_PARAGRAPH || reason == TT_LINE_END_EOF)) {
+            const int32_t w = textWidth(page.text + line.textStart, line.textLen, line.style);
+            if (w > 0 && w <= _width) {
+                line.x = (int16_t)((_width - w) / 2);
+                LOG_D("Reader markdown: center h1 width=%d x=%d", (int)w, (int)line.x);
+            }
+        }
         if (bullet) {
-            line.kind = TT_READER_LINE_BULLET;
-            line.markX = (int16_t)(x0 - _unit + _bulletX);
+            if (cursor.block.task != TT_MD_TASK_NONE) {
+                const int16_t slot = _unit > TT_READER_TASK_BOX ? (int16_t)((_unit - TT_READER_TASK_BOX) / 2) : 0;
+                line.kind = TT_READER_LINE_TASK;
+                line.markX = (int16_t)(x0 - _unit + slot);
+                if (cursor.block.task == TT_MD_TASK_DONE) {
+                    line.flags |= TT_READER_LINE_FLAG_TASK_DONE;
+                }
+            } else {
+                line.kind = TT_READER_LINE_BULLET;
+                line.markX = (int16_t)(x0 - _unit + _bulletX);
+            }
         } else if (codeLine) {
             line.kind = TT_READER_LINE_CODE;
         }
@@ -463,7 +523,7 @@ bool TTReaderLayout::layoutPage(TTReaderSource& src, uint32_t start, TTReaderPag
             page.atEnd = true;
             break;
         }
-        if (line.textLen > 0) {
+        if (line.textLen > 0 || line.kind == TT_READER_LINE_TASK) {
             if (codeLine && boxTopPending) {
                 line.flags |= TT_READER_LINE_FLAG_BOX_TOP;
                 boxTopPending = false;
@@ -493,22 +553,43 @@ bool TTReaderLayout::layoutPage(TTReaderSource& src, uint32_t start, TTReaderPag
     return !src.failed();
 }
 
-bool TTReaderLayout::beginMarkdown(TTReaderSource& src, uint32_t offset, bool paragraph,
+bool TTReaderLayout::beginMarkdown(TTReaderSource& src, uint32_t& offset, bool paragraph, bool& joined,
                                    TTMdCursor& cursor, int16_t& contX) {
+    joined = false;
     uint32_t lineStart = offset;
     bool fence = false;
     tt_md_line_context(src, offset, lineStart, fence);
     cursor.fence = fence;
     contX = 0;
-    if (paragraph || src.failed()) {
-        return !src.failed();
+    if (src.failed()) {
+        return false;
     }
     uint8_t columns = 0;
     if (fence) {
-        cursor.block.kind = TT_MD_CODE;
-        tt_md_skip_indent(src, lineStart, columns);
-        contX = codeX(columns);
+        if (!paragraph) {
+            cursor.block.kind = TT_MD_CODE;
+            tt_md_skip_indent(src, lineStart, columns);
+            contX = codeX(columns);
+        }
         return !src.failed();
+    }
+    TTMdBlock owner;
+    uint32_t origin = lineStart;
+    uint32_t content = lineStart;
+    if (tt_md_continued(src, lineStart, owner, origin, content)) {
+        joined = true;
+        cursor.block = owner;
+        contX = blockX(owner, false);
+        if (offset <= lineStart) {
+            offset = content;
+        }
+        tt_md_replay(src, origin, offset, owner, cursor.inl);
+        LOG_D("Reader markdown: continued kind=%u task=%u from %u at %u",
+              (unsigned)owner.kind, (unsigned)owner.task, (unsigned)origin, (unsigned)offset);
+        return !src.failed();
+    }
+    if (paragraph) {
+        return true;
     }
     uint32_t pos = tt_md_skip_blank(src, lineStart, columns);
     if (pos >= offset) {
@@ -540,6 +621,37 @@ bool TTReaderLayout::markdownTailEmpty(TTReaderSource& src, uint32_t offset) {
         }
         offset = tt_md_skip_line(src, offset);
     }
+}
+
+int32_t TTReaderLayout::textWidth(const char* text, uint16_t len, uint8_t style) {
+    int32_t x = 0;
+    uint16_t count = 0;
+    size_t pos = 0;
+    while (pos < len) {
+        if ((uint8_t)text[pos] == TT_READER_STYLE_MARK && pos + 1 < len) {
+            const uint8_t next = (uint8_t)text[pos + 1] & TT_READER_STYLE_MASK;
+            if (count > 0 && (style & TT_READER_STYLE_ITALIC) && !(next & TT_READER_STYLE_ITALIC)) {
+                x += TT_READER_ITALIC_TAIL;
+            }
+            style = next;
+            pos += TT_READER_STYLE_MARK_BYTES;
+            continue;
+        }
+        uint32_t cp = 0;
+        const size_t n = tt_utf8_decode((const uint8_t*)text + pos, len - pos, &cp);
+        pos += n > 0 ? n : 1;
+        uint32_t shown = 0;
+        TTFontLoader::GlyphInfo info = {};
+        if (!glyph(_font, cp, shown, info) && shown == 0) {
+            continue;
+        }
+        x += info.adv_w;
+        if ((style & TT_READER_STYLE_BOLD) && cp != ' ') {
+            x += TT_READER_BOLD_EXTRA;
+        }
+        count++;
+    }
+    return x;
 }
 
 int16_t TTReaderLayout::blockX(const TTMdBlock& block, bool first) const {
