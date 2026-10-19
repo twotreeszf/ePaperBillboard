@@ -33,9 +33,11 @@
 #include "Tasks/TTWiFiTask.h"
 
 void setup() {
+    Util::disableBrownoutDetector();
     _logger.setLevel(LOG_LEVEL_DEBUG);
     Serial.begin(TT_SERIAL_BAUD);
     delay(100);
+    LOG_I("Brownout detector disabled");
     LOG_I("");
     LOG_I("=================================");
     LOG_I("E-Paper Weather Clock (LVGL Version) fw=%s", TT_FW_VERSION);
