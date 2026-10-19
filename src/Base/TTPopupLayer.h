@@ -8,8 +8,6 @@
 #define TT_POPUP_DIALOG_BTN_PAD_X  10
 #define TT_POPUP_DIALOG_BTN_PAD_Y  4
 #define TT_POPUP_DIALOG_BTN_UNDERLINE_H  1
-#define TT_POPUP_DIALOG_BTN_UNDERLINE_W_CANCEL  24
-#define TT_POPUP_DIALOG_BTN_UNDERLINE_W_OK  24
 
 class TTKeypadInput;
 
@@ -34,7 +32,8 @@ public:
     void updateLoading(const char* text);
     void dismissLoading(bool refresh = true);
 
-    void showDialog(const char* msg, DialogCallback onOk, DialogCallback onCancel);
+    void showDialog(const char* msg, DialogCallback onOk, DialogCallback onCancel,
+                    const char* okText = nullptr, const char* cancelText = nullptr);
     void showConfirm(const char* msg, DialogCallback onOk);
     void showConfirmKeep(const char* msg, DialogCallback onOk);
     void setDialogMessage(const char* msg);

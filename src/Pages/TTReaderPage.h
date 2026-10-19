@@ -9,11 +9,8 @@
 #include <memory>
 
 #define TT_READER_FONT_SIZE              16
-#define TT_READER_FOOTER_FONT_SIZE       10
 #define TT_READER_MARGIN_X               14
-#define TT_READER_MARGIN_TOP             10
-#define TT_READER_FOOTER_H               16
-#define TT_READER_FOOTER_BOTTOM          2
+#define TT_READER_MARGIN_TOP             (TT_READER_LINE_GAP - 1)
 #define TT_READER_TITLE_MAX              64
 #define TT_READER_FOOTER_TEXT_MAX        48
 #define TT_READER_HISTORY_MAX            32
@@ -22,6 +19,8 @@
 #define TT_READER_INDEX_BATCH_PAGES      5
 #define TT_READER_INDEX_BUDGET_MS        40
 #define TT_READER_INDEX_LOG_EVERY        100
+#define TT_READER_PAGING_DOT_MS          800
+#define TT_READER_PAGING_DOTS_MAX        3
 #define TT_READER_PROGRESS_SAVE_MS       3000
 #define TT_READER_ENCODING_MAX_INVALID   4
 #define TT_READER_UTF16_BOM_LE0          0xFF
@@ -62,6 +61,8 @@ private:
     void pushHistory(uint32_t start);
     int32_t currentPageIndex();
     void updateFooter();
+    void attachStatus();
+    void detachStatus();
     void startIndexing();
     void stopIndexing();
     void indexStep();
@@ -88,6 +89,7 @@ private:
     lv_obj_t* _content = nullptr;
     lv_obj_t* _textView = nullptr;
     lv_obj_t* _footer = nullptr;
+    lv_obj_t* _percent = nullptr;
 
     const char* _error = nullptr;
     uint32_t _indexHandle = 0;
@@ -95,6 +97,8 @@ private:
     uint32_t _saveHandle = 0;
     uint32_t _idleSleepHandle = 0;
     uint32_t _indexStartMs = 0;
+    uint32_t _pagingDotMs = 0;
+    uint8_t _pagingDots = 1;
     uint16_t _turns = 0;
     int32_t _pageIndex = -1;
     bool _sdAcquired = false;

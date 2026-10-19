@@ -24,11 +24,11 @@ bool TTReaderLayout::begin(TTFontLoader* font, int16_t width, int16_t height) {
     const int32_t config[] = {
         TT_READER_LAYOUT_VERSION, _width, _height, _lineHeight, _ascent,
         TT_READER_LINE_GAP, TT_READER_PARA_GAP, TT_READER_JUSTIFY_MAX_GAP,
-        _indent, _spaceAdv, TT_READER_MAX_LINES, TT_READER_PAGE_TEXT_MAX,
+        _indent, _spaceAdv, TT_READER_PAGE_LINES, TT_READER_PAGE_TEXT_MAX,
     };
     _configHash = tt_reader_hash(config, sizeof(config));
-    LOG_I("Reader layout: %dx%d lineH=%d ascent=%d indent=%d space=%u hash=%08x",
-          (int)_width, (int)_height, (int)_lineHeight, (int)_ascent, (int)_indent,
+    LOG_I("Reader layout: %dx%d lineH=%d gap=%d ascent=%d indent=%d space=%u hash=%08x",
+          (int)_width, (int)_height, (int)_lineHeight, TT_READER_LINE_GAP, (int)_ascent, (int)_indent,
           (unsigned)_spaceAdv, (unsigned)_configHash);
     return true;
 }
@@ -253,7 +253,7 @@ bool TTReaderLayout::layoutPage(TTReaderSource& src, uint32_t start, TTReaderPag
             break;
         }
         const int16_t lineY = (int16_t)(y + ((paragraph && page.lineCount > 0) ? TT_READER_PARA_GAP : 0));
-        if (page.lineCount >= TT_READER_MAX_LINES || lineY + _lineHeight > _height) {
+        if (page.lineCount >= TT_READER_PAGE_LINES || lineY + _lineHeight > _height) {
             page.end = lineStart;
             break;
         }

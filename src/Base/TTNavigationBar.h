@@ -12,6 +12,7 @@
 #define TT_NAV_BAR_PAD         4
 #define TT_NAV_TITLE_MAX       32
 #define TT_NAV_TITLE_BRACKET_GAP 1
+#define TT_NAV_CUSTOM_TITLE_GAP  TT_NAV_BAR_FONT
 #define TT_NAV_ARROW_W         14
 #define TT_NAV_ARROW_Y         (-1)
 #define TT_NAV_DIVIDER_H       1
@@ -73,6 +74,11 @@ public:
     void suspendForUpdate();
     void setMetricsVisible(bool visible);
     void setTimeVisible(bool visible);
+    void setSensorsVisible(bool visible);
+    void setCustomContainer(lv_obj_t* container);
+    lv_obj_t* customContainer() const { return _custom; }
+    void setTrailingContainer(lv_obj_t* container);
+    lv_obj_t* trailingContainer() const { return _trailing; }
     bool isVisible() const { return _visible; }
     lv_obj_t* getObject() const { return _bar; }
     lv_obj_t* getBackButton() const { return _backBtn; }
@@ -87,6 +93,8 @@ private:
     void applySleepState(const TTSleepStatePayload& state);
     bool updateTime();
     void applyStatusVisibility();
+    void placeCustom();
+    void placeTrailing();
     void requestRedraw();
     void layoutTitle(bool showBack);
     void createWifiStatus(lv_obj_t* parent);
@@ -106,6 +114,8 @@ private:
     lv_obj_t* _title = nullptr;
     lv_obj_t* _backBtn = nullptr;
     lv_obj_t* _statusRow = nullptr;
+    lv_obj_t* _custom = nullptr;
+    lv_obj_t* _trailing = nullptr;
     lv_obj_t* _wifiIcon = nullptr;
     lv_obj_t* _timeLabel = nullptr;
     lv_obj_t* _tempLabel = nullptr;
@@ -118,6 +128,7 @@ private:
     int _lastMinute = -1;
     bool _metricsAllowed = true;
     bool _timeAllowed = true;
+    bool _sensorsAllowed = true;
     bool _hasSensor = false;
     float _temperature = 0.0f;
     float _humidity = 0.0f;

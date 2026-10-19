@@ -15,7 +15,15 @@
 #include <new>
 
 #define TT_READER_TEXT_W  (EPD_WIDTH - 2 * TT_READER_MARGIN_X)
-#define TT_READER_TEXT_H  (EPD_HEIGHT - TT_NAV_PAGE_INSET - TT_READER_MARGIN_TOP - TT_READER_FOOTER_H)
+
+static void readerTextFrame(const TTFontLoader* font, int32_t& top, int32_t& height) {
+    const int32_t lineH = font != nullptr ? font->getLineHeight() : TT_READER_FONT_SIZE;
+    top = TT_READER_MARGIN_TOP;
+    height = TT_READER_PAGE_LINES * lineH + (TT_READER_PAGE_LINES - 1) * TT_READER_LINE_GAP;
+    const int32_t bottom = (EPD_HEIGHT - TT_NAV_PAGE_INSET) - top - height;
+    LOG_I("Reader frame: lines=%d lineH=%d gap=%d top=%d bottom=%d",
+          TT_READER_PAGE_LINES, (int)lineH, TT_READER_LINE_GAP, (int)top, (int)bottom);
+}
 
 TTReaderPage::TTReaderPage(const TTBookEntry& book) : TTScreenPage(_title), _book(book) {
     const String name = TTInstanceOf<TTBookStore>().displayName(book.name);
@@ -34,20 +42,28 @@ TTReaderPage::TTReaderPage(const TTBookEntry& book) : TTScreenPage(_title), _boo
 void TTReaderPage::buildContent(lv_obj_t* screen) {
     _content = screen;
     TTFontManager& fonts = TTFontManager::instance();
-    lv_font_t* footerFont = fonts.getFont(TT_READER_FOOTER_FONT_SIZE);
+    lv_font_t* footerFont = fonts.getFont(TT_NAV_STATUS_FONT);
     if (footerFont == nullptr) {
         footerFont = fonts.getFont(TT_READER_FONT_SIZE);
     }
 
     _textView = tt_reader_text_view_create(screen);
-    lv_obj_set_pos(_textView, TT_READER_MARGIN_X, TT_READER_MARGIN_TOP);
-    lv_obj_set_size(_textView, TT_READER_TEXT_W, TT_READER_TEXT_H);
+    lv_obj_set_pos(_textView, TT_READER_MARGIN_X, 0);
+    lv_obj_set_size(_textView, TT_READER_TEXT_W, EPD_HEIGHT - TT_NAV_PAGE_INSET);
 
     _footer = lv_label_create(screen);
     lv_obj_set_style_text_font(_footer, footerFont, 0);
     lv_obj_set_style_text_color(_footer, lv_color_black(), 0);
+    lv_obj_set_style_bg_opa(_footer, LV_OPA_TRANSP, 0);
     lv_label_set_text(_footer, "");
-    lv_obj_align(_footer, LV_ALIGN_BOTTOM_RIGHT, -TT_READER_MARGIN_X, -TT_READER_FOOTER_BOTTOM);
+    lv_obj_set_hidden(_footer, true);
+
+    _percent = lv_label_create(screen);
+    lv_obj_set_style_text_font(_percent, footerFont, 0);
+    lv_obj_set_style_text_color(_percent, lv_color_black(), 0);
+    lv_obj_set_style_bg_opa(_percent, LV_OPA_TRANSP, 0);
+    lv_label_set_text(_percent, "");
+    lv_obj_set_hidden(_percent, true);
 
     createGroup();
 }
@@ -76,6 +92,7 @@ void TTReaderPage::willAppear() {
         runOnce(0, [this, msg]() { leaveWithMessage(msg); });
         return;
     }
+    attachStatus();
     TTInstanceOf<TTLvglEpdDriver>().setAutoDeepRefresh(false);
     _deepRefreshPaused = true;
     startIndexing();
@@ -84,6 +101,7 @@ void TTReaderPage::willAppear() {
 }
 
 void TTReaderPage::willDisappear() {
+    detachStatus();
     _visible = false;
     _sleepAfterTimeTick = false;
     cancelIdleSleep();
@@ -109,6 +127,15 @@ void TTReaderPage::willDisappear() {
 }
 
 void TTReaderPage::willDestroy() {
+    detachStatus();
+    if (_footer != nullptr) {
+        lv_obj_delete(_footer);
+        _footer = nullptr;
+    }
+    if (_percent != nullptr) {
+        lv_obj_delete(_percent);
+        _percent = nullptr;
+    }
     closeBook();
     if (_sdAcquired) {
         TTInstanceOf<TTSdCardService>().release();
@@ -170,7 +197,13 @@ const char* TTReaderPage::openBook() {
     if (!checkEncoding()) {
         return TT_READER_TEXT_ENCODING;
     }
-    if (!_layout.begin(TTFontManager::instance().getLoader(TT_READER_FONT_SIZE), TT_READER_TEXT_W, TT_READER_TEXT_H)) {
+    TTFontLoader* textFont = TTFontManager::instance().getLoader(TT_READER_FONT_SIZE);
+    int32_t textTop = 0;
+    int32_t textH = 0;
+    readerTextFrame(textFont, textTop, textH);
+    lv_obj_set_pos(_textView, TT_READER_MARGIN_X, textTop);
+    lv_obj_set_size(_textView, TT_READER_TEXT_W, textH);
+    if (!_layout.begin(textFont, TT_READER_TEXT_W, (int16_t)textH)) {
         return TT_READER_TEXT_OPEN_FAILED;
     }
 
@@ -326,17 +359,68 @@ void TTReaderPage::updateFooter() {
     snprintf(percent, sizeof(percent), "%u.%u%%", (unsigned)(permille / 10), (unsigned)(permille % 10));
 
     _pageIndex = currentPageIndex();
-    char text[TT_READER_FOOTER_TEXT_MAX];
+    const bool paging = _index.isOpen() && !_index.isComplete();
+    char pages[TT_READER_FOOTER_TEXT_MAX];
+    pages[0] = '\0';
     if (_pageIndex >= 0 && _index.isComplete()) {
-        snprintf(text, sizeof(text), "%d / %u   %s",
-                 (int)(_pageIndex + 1), (unsigned)_index.pageCount(), percent);
+        snprintf(pages, sizeof(pages), "%d / %u",
+                 (int)(_pageIndex + 1), (unsigned)_index.pageCount());
+    } else if (_pageIndex >= 0 && paging) {
+        char dots[TT_READER_PAGING_DOTS_MAX + 1];
+        uint8_t count = _pagingDots;
+        if (count < 1 || count > TT_READER_PAGING_DOTS_MAX) {
+            count = 1;
+        }
+        for (uint8_t i = 0; i < count; i++) {
+            dots[i] = '.';
+        }
+        dots[count] = '\0';
+        snprintf(pages, sizeof(pages), "%d / %u%s",
+                 (int)(_pageIndex + 1), (unsigned)_index.estimatedPages(), dots);
     } else if (_pageIndex >= 0) {
-        snprintf(text, sizeof(text), "%d / ~%u   %s",
-                 (int)(_pageIndex + 1), (unsigned)_index.estimatedPages(), percent);
-    } else {
-        snprintf(text, sizeof(text), "%s", percent);
+        snprintf(pages, sizeof(pages), "%d / %u",
+                 (int)(_pageIndex + 1), (unsigned)_index.estimatedPages());
     }
-    lv_label_set_text(_footer, text);
+    if (_footer != nullptr) {
+        lv_label_set_text(_footer, pages);
+    }
+    if (_percent != nullptr) {
+        lv_label_set_text(_percent, percent);
+    }
+    ITTNavigationController* nav = getNavigationController();
+    TTNavigationBar* bar = nav != nullptr ? nav->getNavBar() : nullptr;
+    if (bar != nullptr && bar->trailingContainer() == _percent) {
+        bar->setCustomContainer(pages[0] == '\0' ? nullptr : _footer);
+        bar->setTrailingContainer(_percent);
+    }
+}
+
+void TTReaderPage::attachStatus() {
+    ITTNavigationController* nav = getNavigationController();
+    TTNavigationBar* bar = nav != nullptr ? nav->getNavBar() : nullptr;
+    if (bar == nullptr || _footer == nullptr || _percent == nullptr) {
+        return;
+    }
+    bar->setSensorsVisible(false);
+    bar->setTrailingContainer(_percent);
+    bar->setCustomContainer(_footer);
+    updateFooter();
+    LOG_I("Reader: progress attached to status bar");
+}
+
+void TTReaderPage::detachStatus() {
+    ITTNavigationController* nav = getNavigationController();
+    TTNavigationBar* bar = nav != nullptr ? nav->getNavBar() : nullptr;
+    if (bar == nullptr) {
+        return;
+    }
+    if (bar->customContainer() == _footer) {
+        bar->setCustomContainer(nullptr);
+    }
+    if (bar->trailingContainer() == _percent) {
+        bar->setTrailingContainer(nullptr);
+    }
+    bar->setSensorsVisible(true);
 }
 
 void TTReaderPage::startIndexing() {
@@ -344,6 +428,8 @@ void TTReaderPage::startIndexing() {
         return;
     }
     _indexStartMs = millis();
+    _pagingDots = 1;
+    _pagingDotMs = _indexStartMs;
     LOG_I("Reader: index start pages=%u parsed=%u/%u",
           (unsigned)_index.pageCount(), (unsigned)_index.parsedBytes(), (unsigned)_source.size());
     _indexHandle = runRepeat(TT_READER_INDEX_TICK_MS, [this]() { indexStep(); }, false);
@@ -356,9 +442,14 @@ void TTReaderPage::stopIndexing() {
     cancelRepeat(_indexHandle);
     _indexHandle = 0;
     _index.sync();
+    const bool complete = _index.isComplete();
     LOG_I("Reader: index stop pages=%u parsed=%u/%u complete=%d",
           (unsigned)_index.pageCount(), (unsigned)_index.parsedBytes(), (unsigned)_source.size(),
-          _index.isComplete() ? 1 : 0);
+          complete ? 1 : 0);
+    if (!complete && _visible && !_leaving) {
+        updateFooter();
+        requestRefresh(TT_REFRESH_PARTIAL);
+    }
 }
 
 void TTReaderPage::indexStep() {
@@ -403,7 +494,18 @@ void TTReaderPage::indexStep() {
               (unsigned)_index.pageCount(), (unsigned)(millis() - _indexStartMs));
         stopIndexing();
     }
-    if (complete || (!wasKnown && _index.covers(_page->start))) {
+    const bool pageKnown = !wasKnown && _index.covers(_page->start);
+    if (pageKnown && !complete) {
+        _pagingDots = 1;
+        _pagingDotMs = millis();
+    }
+    bool refreshFooter = complete || pageKnown;
+    if (!complete && wasKnown && millis() - _pagingDotMs >= TT_READER_PAGING_DOT_MS) {
+        _pagingDots = (uint8_t)(_pagingDots % TT_READER_PAGING_DOTS_MAX) + 1;
+        _pagingDotMs = millis();
+        refreshFooter = true;
+    }
+    if (refreshFooter) {
         updateFooter();
         if (_visible) {
             requestRefresh(TT_REFRESH_PARTIAL);

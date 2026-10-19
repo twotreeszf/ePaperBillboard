@@ -7,6 +7,54 @@
 #include "../Models/TTNotificationPayloads.h"
 #include <cstring>
 
+static int32_t dialogTextWidth(const char* text, const lv_font_t* font) {
+    if (text == nullptr || font == nullptr || text[0] == '\0') {
+        return 1;
+    }
+    lv_point_t size;
+    lv_text_get_size(&size, text, font, 0, 0, LV_COORD_MAX, LV_TEXT_FLAG_NONE);
+    return size.x > 0 ? size.x : 1;
+}
+
+static lv_obj_t* addDialogButton(lv_obj_t* parent, const char* text, const lv_font_t* font, lv_obj_t** underline) {
+    lv_obj_t* btn = lv_btn_create(parent);
+    lv_obj_set_size(btn, LV_SIZE_CONTENT, LV_SIZE_CONTENT);
+    lv_obj_set_style_pad_left(btn, TT_POPUP_DIALOG_BTN_PAD_X, 0);
+    lv_obj_set_style_pad_right(btn, TT_POPUP_DIALOG_BTN_PAD_X, 0);
+    lv_obj_set_style_pad_top(btn, TT_POPUP_DIALOG_BTN_PAD_Y, 0);
+    lv_obj_set_style_pad_bottom(btn, TT_POPUP_DIALOG_BTN_PAD_Y, 0);
+    lv_obj_set_style_pad_row(btn, 0, 0);
+    lv_obj_set_style_radius(btn, 1, 0);
+    lv_obj_set_style_bg_color(btn, lv_color_white(), 0);
+    lv_obj_set_style_border_color(btn, lv_color_black(), 0);
+    lv_obj_set_style_border_width(btn, 1, 0);
+    lv_obj_set_style_border_width(btn, 1, LV_STATE_FOCUSED);
+    lv_obj_set_flex_flow(btn, LV_FLEX_FLOW_COLUMN);
+    lv_obj_set_flex_align(btn, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
+
+    const int32_t textW = dialogTextWidth(text, font);
+    lv_obj_t* label = lv_label_create(btn);
+    lv_label_set_long_mode(label, LV_LABEL_LONG_CLIP);
+    lv_obj_set_width(label, textW);
+    lv_label_set_text(label, text);
+    lv_obj_set_style_text_align(label, LV_TEXT_ALIGN_CENTER, 0);
+    lv_obj_set_style_text_color(label, lv_color_black(), 0);
+    lv_obj_set_style_text_font(label, font, 0);
+
+    lv_obj_t* line = lv_obj_create(btn);
+    lv_obj_set_size(line, textW, TT_POPUP_DIALOG_BTN_UNDERLINE_H);
+    lv_obj_set_style_bg_color(line, lv_color_black(), 0);
+    lv_obj_set_style_bg_opa(line, LV_OPA_TRANSP, 0);
+    lv_obj_set_style_border_width(line, 0, 0);
+    lv_obj_set_style_pad_all(line, 0, 0);
+    lv_obj_set_style_radius(line, 0, 0);
+    lv_obj_set_clickable(line, false);
+    if (underline != nullptr) {
+        *underline = line;
+    }
+    return btn;
+}
+
 static lv_obj_t* addDialogText(lv_obj_t* parent, const char* text, lv_text_align_t align, lv_font_t* font) {
     lv_obj_t* label = lv_label_create(parent);
     lv_label_set_long_mode(label, LV_LABEL_LONG_WRAP);
@@ -162,9 +210,9 @@ void TTPopupLayer::dialogBtnFocusChanged(lv_event_t* e) {
     if (underline == nullptr) return;
     uint32_t code = lv_event_get_code(e);
     if (code == LV_EVENT_FOCUSED) {
-        lv_obj_set_hidden(underline, false);
+        lv_obj_set_style_bg_opa(underline, LV_OPA_COVER, 0);
     } else if (code == LV_EVENT_DEFOCUSED) {
-        lv_obj_set_hidden(underline, true);
+        lv_obj_set_style_bg_opa(underline, LV_OPA_TRANSP, 0);
     }
 }
 
@@ -193,7 +241,8 @@ void TTPopupLayer::dialogBtnClicked(lv_event_t* e) {
     self->_onDialogCancel = nullptr;
 }
 
-void TTPopupLayer::showDialog(const char* msg, DialogCallback onOk, DialogCallback onCancel) {
+void TTPopupLayer::showDialog(const char* msg, DialogCallback onOk, DialogCallback onCancel,
+                              const char* okText, const char* cancelText) {
     if (_topLayer == nullptr) return;
     dismissDialog();
 
@@ -266,73 +315,23 @@ void TTPopupLayer::showDialog(const char* msg, DialogCallback onOk, DialogCallba
     _dialogGroup = lv_group_create();
 
     if (_onDialogCancel) {
-    lv_obj_t* cancelBtn = lv_btn_create(btnRow);
-    lv_obj_set_size(cancelBtn, LV_SIZE_CONTENT, LV_SIZE_CONTENT);
-    lv_obj_set_style_pad_left(cancelBtn, TT_POPUP_DIALOG_BTN_PAD_X, 0);
-    lv_obj_set_style_pad_right(cancelBtn, TT_POPUP_DIALOG_BTN_PAD_X, 0);
-    lv_obj_set_style_pad_top(cancelBtn, TT_POPUP_DIALOG_BTN_PAD_Y, 0);
-    lv_obj_set_style_pad_bottom(cancelBtn, TT_POPUP_DIALOG_BTN_PAD_Y, 0);
-    lv_obj_set_style_radius(cancelBtn, 1, 0);
-    lv_obj_set_style_bg_color(cancelBtn, lv_color_white(), 0);
-    lv_obj_set_style_border_color(cancelBtn, lv_color_black(), 0);
-    lv_obj_set_style_border_width(cancelBtn, 1, 0);
-    lv_obj_set_style_border_width(cancelBtn, 1, LV_STATE_FOCUSED);
-    lv_obj_t* cancelLabel = lv_label_create(cancelBtn);
-    lv_label_set_text(cancelLabel, "取消");
-    lv_obj_set_style_text_color(cancelLabel, lv_color_black(), 0);
-    lv_obj_set_style_text_font(cancelLabel, font, 0);
-    lv_obj_center(cancelLabel);
-    lv_obj_update_layout(cancelBtn);
-    lv_obj_t* cancelUnderline = lv_obj_create(cancelBtn);
-    lv_obj_set_size(cancelUnderline, TT_POPUP_DIALOG_BTN_UNDERLINE_W_CANCEL, TT_POPUP_DIALOG_BTN_UNDERLINE_H);
-    lv_obj_set_style_bg_color(cancelUnderline, lv_color_black(), 0);
-    lv_obj_set_style_bg_opa(cancelUnderline, LV_OPA_COVER, 0);
-    lv_obj_set_style_border_width(cancelUnderline, 0, 0);
-    lv_obj_set_style_pad_all(cancelUnderline, 0, 0);
-    lv_obj_set_style_radius(cancelUnderline, 0, 0);
-    lv_obj_align_to(cancelUnderline, cancelLabel, LV_ALIGN_OUT_BOTTOM_MID, 0, 0);
-    lv_obj_set_hidden(cancelUnderline, true);
-    lv_group_add_obj(_dialogGroup, cancelBtn);
-    lv_obj_add_event_cb(cancelBtn, dialogBtnClicked, LV_EVENT_CLICKED, (void*)0);
-    lv_obj_add_event_cb(cancelBtn, dialogBtnFocusChanged, LV_EVENT_FOCUSED, cancelUnderline);
-    lv_obj_add_event_cb(cancelBtn, dialogBtnFocusChanged, LV_EVENT_DEFOCUSED, cancelUnderline);
+        const char* cancelLabelText = (cancelText != nullptr && cancelText[0] != '\0') ? cancelText : "取消";
+        lv_obj_t* cancelUnderline = nullptr;
+        lv_obj_t* cancelBtn = addDialogButton(btnRow, cancelLabelText, font, &cancelUnderline);
+        lv_group_add_obj(_dialogGroup, cancelBtn);
+        lv_obj_add_event_cb(cancelBtn, dialogBtnClicked, LV_EVENT_CLICKED, (void*)0);
+        lv_obj_add_event_cb(cancelBtn, dialogBtnFocusChanged, LV_EVENT_FOCUSED, cancelUnderline);
+        lv_obj_add_event_cb(cancelBtn, dialogBtnFocusChanged, LV_EVENT_DEFOCUSED, cancelUnderline);
     }
 
-    lv_obj_t* okBtn = lv_btn_create(btnRow);
-    lv_obj_set_size(okBtn, LV_SIZE_CONTENT, LV_SIZE_CONTENT);
-    lv_obj_set_style_pad_left(okBtn, TT_POPUP_DIALOG_BTN_PAD_X, 0);
-    lv_obj_set_style_pad_right(okBtn, TT_POPUP_DIALOG_BTN_PAD_X, 0);
-    lv_obj_set_style_pad_top(okBtn, TT_POPUP_DIALOG_BTN_PAD_Y, 0);
-    lv_obj_set_style_pad_bottom(okBtn, TT_POPUP_DIALOG_BTN_PAD_Y, 0);
-    lv_obj_set_style_radius(okBtn, 1, 0);
-    lv_obj_set_style_bg_color(okBtn, lv_color_white(), 0);
-    lv_obj_set_style_border_color(okBtn, lv_color_black(), 0);
-    lv_obj_set_style_border_width(okBtn, 1, 0);
-    lv_obj_set_style_border_width(okBtn, 1, LV_STATE_FOCUSED);
-    lv_obj_t* okLabel = lv_label_create(okBtn);
-    lv_label_set_text(okLabel, _onDialogCancel ? "更新" : "确定");
-    lv_obj_set_style_text_color(okLabel, lv_color_black(), 0);
-    lv_obj_set_style_text_font(okLabel, font, 0);
-    lv_obj_center(okLabel);
-    lv_obj_update_layout(okBtn);
-    lv_obj_t* okUnderline = lv_obj_create(okBtn);
-    lv_obj_set_size(okUnderline, TT_POPUP_DIALOG_BTN_UNDERLINE_W_OK, TT_POPUP_DIALOG_BTN_UNDERLINE_H);
-    lv_obj_set_style_bg_color(okUnderline, lv_color_black(), 0);
-    lv_obj_set_style_bg_opa(okUnderline, LV_OPA_COVER, 0);
-    lv_obj_set_style_border_width(okUnderline, 0, 0);
-    lv_obj_set_style_pad_all(okUnderline, 0, 0);
-    lv_obj_set_style_radius(okUnderline, 0, 0);
-    lv_obj_align_to(okUnderline, okLabel, LV_ALIGN_OUT_BOTTOM_MID, 0, 0);
-    lv_obj_set_hidden(okUnderline, true);
+    const char* okLabelText = (okText != nullptr && okText[0] != '\0')
+        ? okText : (_onDialogCancel ? "更新" : "确定");
+    lv_obj_t* okUnderline = nullptr;
+    lv_obj_t* okBtn = addDialogButton(btnRow, okLabelText, font, &okUnderline);
     lv_group_add_obj(_dialogGroup, okBtn);
     lv_obj_add_event_cb(okBtn, dialogBtnClicked, LV_EVENT_CLICKED, (void*)1);
     lv_obj_add_event_cb(okBtn, dialogBtnFocusChanged, LV_EVENT_FOCUSED, okUnderline);
     lv_obj_add_event_cb(okBtn, dialogBtnFocusChanged, LV_EVENT_DEFOCUSED, okUnderline);
-
-    if (_keypad != nullptr) {
-        lv_indev_set_group(_keypad->getIndev(), _dialogGroup);
-        lv_group_focus_obj(okBtn);
-    }
 
     lv_obj_update_layout(_dialogPanel);
     if (notesLabel != nullptr) {
@@ -342,6 +341,10 @@ void TTPopupLayer::showDialog(const char* msg, DialogCallback onOk, DialogCallba
         }
     }
     lv_obj_align(_dialogPanel, LV_ALIGN_CENTER, 0, 0);
+    if (_keypad != nullptr) {
+        lv_indev_set_group(_keypad->getIndev(), _dialogGroup);
+        lv_group_focus_obj(okBtn);
+    }
 
     TTInstanceOf<TTLvglEpdDriver>().requestRefresh(TT_REFRESH_FULL);
 }

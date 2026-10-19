@@ -274,16 +274,32 @@ void TTNavigationBar::layoutTitle(bool showBack) {
 
     if (_statusRow != nullptr) {
         lv_obj_update_layout(_statusRow);
-        lv_obj_update_layout(_titleBox);
         const int32_t left = showBack
             ? (TT_NAV_BAR_PAD + TT_NAV_ARROW_W + TT_NAV_BAR_PAD)
             : TT_NAV_BAR_PAD;
         const int32_t statusW = lv_obj_get_width(_statusRow);
+        int32_t customW = 0;
+        if (_custom != nullptr && !lv_obj_is_hidden(_custom)) {
+            lv_obj_update_layout(_custom);
+            customW = lv_obj_get_width(_custom) + TT_NAV_CUSTOM_TITLE_GAP;
+        }
+        int32_t percentW = 0;
+        if (_trailing != nullptr && !lv_obj_is_hidden(_trailing)) {
+            lv_obj_update_layout(_trailing);
+            percentW = lv_obj_get_width(_trailing);
+        }
         lv_obj_t* leftBracket = lv_obj_get_child(_titleBox, 0);
         lv_obj_t* rightBracket = lv_obj_get_child(_titleBox, 2);
         const int32_t bracketW = lv_obj_get_width(leftBracket) + lv_obj_get_width(rightBracket)
             + TT_NAV_TITLE_BRACKET_GAP * 2;
-        int32_t maxTitle = EPD_WIDTH - left - statusW - TT_NAV_BAR_PAD * 2 - bracketW;
+        int32_t rightLimit = EPD_WIDTH - TT_NAV_BAR_PAD - statusW - TT_NAV_STATUS_GAP;
+        if (percentW > 0) {
+            const int32_t percentLeft = (EPD_WIDTH - percentW) / 2 - TT_NAV_STATUS_GAP;
+            if (percentLeft < rightLimit) {
+                rightLimit = percentLeft;
+            }
+        }
+        int32_t maxTitle = rightLimit - left - customW - bracketW;
         if (maxTitle < 24) {
             maxTitle = 24;
         }
@@ -292,6 +308,9 @@ void TTNavigationBar::layoutTitle(bool showBack) {
         if (lv_obj_get_width(_title) > maxTitle) {
             lv_obj_set_width(_title, maxTitle);
         }
+        lv_obj_update_layout(_titleBox);
+        placeCustom();
+        placeTrailing();
     }
 }
 
@@ -333,12 +352,84 @@ void TTNavigationBar::setTimeVisible(bool visible) {
     LOG_I("NavBar: time visible=%d", visible ? 1 : 0);
 }
 
+void TTNavigationBar::setSensorsVisible(bool visible) {
+    if (_sensorsAllowed == visible) {
+        return;
+    }
+    _sensorsAllowed = visible;
+    applyStatusVisibility();
+    LOG_I("NavBar: sensors visible=%d", visible ? 1 : 0);
+}
+
+void TTNavigationBar::setCustomContainer(lv_obj_t* container) {
+    if (_bar == nullptr) {
+        LOG_W("NavBar: custom container ignored, bar missing");
+        return;
+    }
+    const bool changed = _custom != container;
+    if (_custom != nullptr && _custom != container) {
+        lv_obj_set_hidden(_custom, true);
+    }
+    _custom = container;
+    if (container != nullptr) {
+        if (lv_obj_get_parent(container) != _bar) {
+            lv_obj_set_parent(container, _bar);
+        }
+        lv_obj_set_hidden(container, false);
+    }
+    if (_backBtn != nullptr) {
+        layoutTitle(!lv_obj_is_hidden(_backBtn));
+    }
+    if (changed) {
+        LOG_I("NavBar: custom container %s", container != nullptr ? "set" : "cleared");
+    }
+}
+
+void TTNavigationBar::placeCustom() {
+    if (_custom == nullptr || lv_obj_is_hidden(_custom) || _titleBox == nullptr) {
+        return;
+    }
+    lv_obj_align_to(_custom, _titleBox, LV_ALIGN_OUT_RIGHT_MID, TT_NAV_CUSTOM_TITLE_GAP, 0);
+}
+
+void TTNavigationBar::setTrailingContainer(lv_obj_t* container) {
+    if (_bar == nullptr) {
+        LOG_W("NavBar: trailing container ignored, bar missing");
+        return;
+    }
+    const bool changed = _trailing != container;
+    if (_trailing != nullptr && _trailing != container) {
+        lv_obj_set_hidden(_trailing, true);
+    }
+    _trailing = container;
+    if (container != nullptr) {
+        if (lv_obj_get_parent(container) != _bar) {
+            lv_obj_set_parent(container, _bar);
+        }
+        lv_obj_set_hidden(container, false);
+    }
+    if (_backBtn != nullptr) {
+        layoutTitle(!lv_obj_is_hidden(_backBtn));
+    }
+    if (changed) {
+        LOG_I("NavBar: trailing container %s", container != nullptr ? "set" : "cleared");
+    }
+}
+
+void TTNavigationBar::placeTrailing() {
+    if (_trailing == nullptr || lv_obj_is_hidden(_trailing) || _statusRow == nullptr) {
+        return;
+    }
+    lv_obj_align(_trailing, LV_ALIGN_CENTER, 0, TT_NAV_BAR_CONTENT_Y);
+}
+
 void TTNavigationBar::applyStatusVisibility() {
     bool changed = false;
-    const bool showIndoor = _metricsAllowed && _hasSensor;
+    const bool showIndoor = _sensorsAllowed && _metricsAllowed && _hasSensor;
     changed |= setHidden(_tempLabel != nullptr ? lv_obj_get_parent(_tempLabel) : nullptr, !showIndoor);
     changed |= setHidden(_humLabel != nullptr ? lv_obj_get_parent(_humLabel) : nullptr, !showIndoor);
-    changed |= setHidden(_pressLabel != nullptr ? lv_obj_get_parent(_pressLabel) : nullptr, !_hasSensor);
+    changed |= setHidden(_pressLabel != nullptr ? lv_obj_get_parent(_pressLabel) : nullptr,
+                         !_sensorsAllowed || !_hasSensor);
     changed |= setHidden(_batteryLabel != nullptr ? lv_obj_get_parent(_batteryLabel) : nullptr, !_hasSensor);
     const bool showTime = _timeAllowed && _metricsAllowed && _lastMinute >= 0;
     changed |= setHidden(_timeLabel, !showTime);
