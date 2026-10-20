@@ -12,6 +12,7 @@
 #define TT_UPDATE_STATUS_MAX_W   (EPD_WIDTH - 64)
 #define TT_UPDATE_STATUS_PAD     12
 #define TT_UPDATE_STATUS_BORDER  1
+#define TT_UPDATE_NOTES_FAIL     "无法打开更新说明"
 
 class TTUpdatePage : public TTScreenPage {
 public:
@@ -21,6 +22,8 @@ public:
     void willAppear() override;
     void willDisappear() override;
     bool allowPop() const override { return !_locked; }
+    void requestUpgradeFromNotes();
+    void notesUnavailable();
 
 protected:
     void buildContent(lv_obj_t* screen) override;
@@ -51,6 +54,7 @@ private:
     bool _locked = false;
     bool _updateStarted = false;
     bool _deepBlocked = false;
+    bool _upgradeFromNotes = false;
+    bool _notesFailed = false;
     char _targetVersion[TT_OTA_VER_MAX] = {};
-    char _targetNotes[TT_OTA_MSG_MAX] = {};
 };

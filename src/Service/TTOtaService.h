@@ -11,11 +11,14 @@
 #define TT_OTA_DELETE_LIST      TT_FS_TMP_DIR "/ota_delete.lst"
 #define TT_OTA_PENDING_VER      TT_FS_TMP_DIR "/ota_pending.txt"
 #define TT_OTA_PART_PATH        TT_FS_TMP_DIR "/ota_part"
+#define TT_OTA_NOTES_PATH       TT_FS_TMP_DIR "/ota_notes.md"
 #define TT_OTA_MANIFEST_MAX     65536
 #define TT_OTA_REMOTE_MAX       96
 #define TT_OTA_SHA_HEX          64
 #define TT_OTA_VER_MAX          16
-#define TT_OTA_LINE_MAX         512
+#define TT_OTA_NOTES_MAX        480
+#define TT_OTA_HISTORY_MAX      24
+#define TT_OTA_LINE_MAX         768
 #define TT_OTA_FW_MAX           (2 * 1024 * 1024)
 #define TT_OTA_URL_MAX          192
 #define TT_OTA_PROGRESS_PERCENT 10

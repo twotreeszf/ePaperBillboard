@@ -224,7 +224,8 @@ void TTKeypadInput::apply(uint8_t key, uint8_t gesture) {
         return;
     }
     if ((gesture == TT_KEY_CLICK || gesture == TT_KEY_DOUBLE_CLICK) && _nav != nullptr
-        && (key == TT_KEY_LEFT || key == TT_KEY_RIGHT)) {
+        && (key == TT_KEY_LEFT || key == TT_KEY_RIGHT
+            || (key == TT_KEY_CENTER && gesture == TT_KEY_CLICK))) {
         ITTScreenPage* page = _nav->getCurrentPage();
         if (page != nullptr && page->handleKeyAction((TTKeyId)key, (TTKeyGesture)gesture)) {
             return;

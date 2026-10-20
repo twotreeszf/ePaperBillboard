@@ -547,6 +547,172 @@ uint32_t downloadTimeoutMs(size_t bytes) {
     return (uint32_t)ms;
 }
 
+bool appendText(File& file, const char* text) {
+    if (text == nullptr) {
+        return false;
+    }
+    const size_t n = strlen(text);
+    if (n == 0) {
+        return true;
+    }
+    return file.write((const uint8_t*)text, n) == n;
+}
+
+bool appendNotesSection(File& file, bool& first, const char* version, const char* notes) {
+    if (!first && !appendText(file, "\n\n---\n\n")) {
+        return false;
+    }
+    first = false;
+    if (!appendText(file, "## ") || !appendText(file, version) || !appendText(file, "\n\n")) {
+        return false;
+    }
+    if (notes != nullptr && notes[0] != '\0' && !appendText(file, notes)) {
+        return false;
+    }
+    return true;
+}
+
+bool versionNewer(const char* version, const char* baseline) {
+    if (version == nullptr || version[0] == '\0') {
+        return false;
+    }
+    if (baseline == nullptr || baseline[0] == '\0') {
+        return true;
+    }
+    return strcmp(version, baseline) > 0;
+}
+
+bool historySeen(char seen[][TT_OTA_VER_MAX], uint8_t count, const char* version) {
+    for (uint8_t i = 0; i < count; i++) {
+        if (strcmp(seen[i], version) == 0) {
+            return true;
+        }
+    }
+    return false;
+}
+
+bool takeHistoryItem(const char* line, char* version, size_t versionMax, char* notes, size_t notesMax) {
+    bool cut = false;
+    if (strstr(line, "\"version\"") == nullptr) {
+        return false;
+    }
+    if (!jsonQuoted(line, "\"version\"", version, versionMax, &cut) || cut || version[0] == '\0') {
+        LOG_W("OTA: skip bad history version");
+        return false;
+    }
+    notes[0] = '\0';
+    if (strstr(line, "\"notes\"") == nullptr) {
+        return true;
+    }
+    cut = false;
+    if (!jsonQuoted(line, "\"notes\"", notes, notesMax, &cut)) {
+        notes[0] = '\0';
+        return true;
+    }
+    if (cut) {
+        LOG_W("OTA: notes truncated for %s", version);
+    }
+    return true;
+}
+
+bool writeReleaseNotes(const char* path, size_t offset, size_t bodyLen,
+                       const char* baseline, bool forceLatest) {
+    File in = tt_file_open(path, "r");
+    if (!in || !in.seek((uint32_t)offset)) {
+        if (in) {
+            in.close();
+        }
+        LOG_E("OTA: notes source open failed");
+        return false;
+    }
+    File out = tt_file_create(TT_OTA_NOTES_PATH);
+    if (!out) {
+        in.close();
+        LOG_E("OTA: notes file create failed");
+        return false;
+    }
+
+    char topVersion[TT_OTA_VER_MAX];
+    char topNotes[TT_OTA_NOTES_MAX];
+    char seen[TT_OTA_HISTORY_MAX][TT_OTA_VER_MAX];
+    topVersion[0] = '\0';
+    topNotes[0] = '\0';
+    bool sawVersion = false;
+    bool sawNotes = false;
+    bool sawHistory = false;
+    bool inHistory = false;
+    bool first = true;
+    bool ok = true;
+    uint8_t written = 0;
+    const size_t endPos = offset + bodyLen;
+    char line[TT_OTA_LINE_MAX];
+    while (ok && readManifestLine(in, endPos, line, sizeof(line))) {
+        if (!sawHistory && strstr(line, "\"history\"") != nullptr) {
+            sawHistory = true;
+            inHistory = strchr(line, ']') == nullptr;
+            continue;
+        }
+        if (inHistory) {
+            if (strchr(line, ']') != nullptr && strstr(line, "\"version\"") == nullptr) {
+                inHistory = false;
+                continue;
+            }
+            char version[TT_OTA_VER_MAX];
+            char notes[TT_OTA_NOTES_MAX];
+            if (!takeHistoryItem(line, version, sizeof(version), notes, sizeof(notes))) {
+                continue;
+            }
+            if (!versionNewer(version, baseline) || historySeen(seen, written, version)) {
+                continue;
+            }
+            if (written >= TT_OTA_HISTORY_MAX) {
+                LOG_W("OTA: history cap %u", (unsigned)TT_OTA_HISTORY_MAX);
+                continue;
+            }
+            if (!appendNotesSection(out, first, version, notes)) {
+                ok = false;
+                break;
+            }
+            strncpy(seen[written], version, TT_OTA_VER_MAX - 1);
+            seen[written][TT_OTA_VER_MAX - 1] = '\0';
+            written++;
+            LOG_I("OTA: notes %s (%u bytes)", version, (unsigned)strlen(notes));
+            continue;
+        }
+        bool truncated = false;
+        if (!sawVersion && jsonQuoted(line, "\"version\"", topVersion, sizeof(topVersion), &truncated)) {
+            sawVersion = !truncated && topVersion[0] != '\0';
+            continue;
+        }
+        if (!sawNotes && strstr(line, "\"notes\"") != nullptr) {
+            bool cut = false;
+            jsonQuoted(line, "\"notes\"", topNotes, sizeof(topNotes), &cut);
+            if (cut) {
+                LOG_W("OTA: latest notes truncated");
+            }
+            sawNotes = true;
+        }
+    }
+    in.close();
+    if (ok && written == 0 && topVersion[0] != '\0'
+        && (forceLatest || versionNewer(topVersion, baseline))) {
+        if (!appendNotesSection(out, first, topVersion, topNotes)) {
+            ok = false;
+        } else {
+            written++;
+            LOG_I("OTA: notes %s latest (%u bytes)", topVersion, (unsigned)strlen(topNotes));
+        }
+    }
+    out.close();
+    if (!ok || written == 0) {
+        LOG_E("OTA: notes file empty ok=%d written=%u", ok ? 1 : 0, (unsigned)written);
+        tt_file_remove(TT_OTA_NOTES_PATH);
+        return false;
+    }
+    LOG_I("OTA: changelog %u version(s) baseline=%s", (unsigned)written, baseline != nullptr ? baseline : "");
+    return true;
+}
+
 bool downloadManifest(TTOtaDoc* doc) {
     memset(doc, 0, sizeof(*doc));
     TTHttpsRequest request = {};
@@ -1188,36 +1354,35 @@ void TTOtaService::upgradeAsync() {
 void TTOtaService::checkNow() {
     TTOtaDoc doc = {};
     if (!downloadManifest(&doc)) {
+        tt_file_remove(TT_OTA_NOTES_PATH);
         postOta(TT_OTA_PHASE_FAILED, nullptr, "清单下载失败");
         return;
     }
     char local[TT_OTA_VER_MAX];
     readLocalVersion(local, sizeof(local));
-    LOG_I("OTA: compare remote=%s local=%s fw=%s", doc.version, local, TT_FW_VERSION);
+    const char* baseline = TT_FW_VERSION;
+    if (local[0] != '\0' && strcmp(local, baseline) > 0) {
+        baseline = local;
+    }
+    LOG_I("OTA: compare remote=%s local=%s fw=%s baseline=%s",
+          doc.version, local, TT_FW_VERSION, baseline);
     const bool sameFw = strcmp(doc.version, TT_FW_VERSION) == 0;
     const bool sameManifest = local[0] != '\0' && strcmp(doc.version, local) == 0;
     if (sameFw && sameManifest) {
         postOta(TT_OTA_PHASE_UP_TO_DATE, doc.version, "已是最新");
         tt_file_remove(TT_OTA_REMOTE_MANIFEST);
+        tt_file_remove(TT_OTA_NOTES_PATH);
+        return;
+    }
+    const bool forceLatest = strcmp(doc.version, baseline) <= 0;
+    if (!writeReleaseNotes(TT_OTA_REMOTE_MANIFEST, doc.bodyOffset, doc.bodyLen, baseline, forceLatest)) {
+        postOta(TT_OTA_PHASE_FAILED, nullptr, "更新说明保存失败");
+        tt_file_remove(TT_OTA_REMOTE_MANIFEST);
+        tt_file_remove(TT_OTA_NOTES_PATH);
         return;
     }
     char message[TT_OTA_MSG_MAX];
     snprintf(message, sizeof(message), "发现新版本 %s", doc.version);
-    const char* ask = "\n是否更新？";
-    const size_t askLen = strlen(ask);
-    if (doc.notes[0] != '\0' && askLen < sizeof(message)) {
-        const size_t used = strlen(message);
-        const size_t room = sizeof(message) - 1 - askLen;
-        if (used + 1 < room) {
-            message[used] = '\n';
-            strncpy(message + used + 1, doc.notes, room - used - 1);
-            message[room] = '\0';
-        }
-    }
-    const size_t used = strlen(message);
-    if (used + askLen < sizeof(message)) {
-        memcpy(message + used, ask, askLen + 1);
-    }
     postOta(TT_OTA_PHASE_AVAILABLE, doc.version, message);
     tt_file_remove(TT_OTA_REMOTE_MANIFEST);
 }

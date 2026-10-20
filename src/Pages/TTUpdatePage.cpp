@@ -1,4 +1,5 @@
 #include "TTUpdatePage.h"
+#include "TTOtaNotesPage.h"
 #include "../Base/TTFirmwareVersion.h"
 #include "../Base/TTFontManager.h"
 #include "../Base/TTInstance.h"
@@ -12,6 +13,7 @@
 #include "../Service/TTOtaService.h"
 #include <Arduino.h>
 #include <cstring>
+#include <memory>
 
 static void styleText(lv_obj_t* label, lv_font_t* font) {
     lv_obj_set_style_text_color(label, lv_color_black(), 0);
@@ -113,27 +115,35 @@ void TTUpdatePage::setup() {
 void TTUpdatePage::willAppear() {
     TTScreenPage::willAppear();
     _visible = true;
+    if (_upgradeFromNotes) {
+        _upgradeFromNotes = false;
+        runOnce(0, [this]() {
+            if (_visible) {
+                startUpgrade();
+            }
+        });
+        return;
+    }
     showInstalled();
-    setStatus("");
+    setStatus(_notesFailed ? TT_UPDATE_NOTES_FAIL : "");
+    _notesFailed = false;
+    setLocked(false);
     showCheckButton(true);
+}
+
+void TTUpdatePage::requestUpgradeFromNotes() {
+    _upgradeFromNotes = true;
+    setLocked(true);
+}
+
+void TTUpdatePage::notesUnavailable() {
+    _notesFailed = true;
+    setLocked(false);
 }
 
 void TTUpdatePage::rememberTarget(const TTOtaPayload& payload) {
     strncpy(_targetVersion, payload.version, sizeof(_targetVersion) - 1);
     _targetVersion[sizeof(_targetVersion) - 1] = '\0';
-    _targetNotes[0] = '\0';
-    const char* text = payload.message;
-    const char* firstBreak = strchr(text, '\n');
-    const char* lastBreak = strrchr(text, '\n');
-    if (firstBreak == nullptr || lastBreak == nullptr || firstBreak == lastBreak) {
-        return;
-    }
-    size_t notesLen = (size_t)(lastBreak - firstBreak - 1);
-    if (notesLen >= sizeof(_targetNotes)) {
-        notesLen = sizeof(_targetNotes) - 1;
-    }
-    memcpy(_targetNotes, firstBreak + 1, notesLen);
-    _targetNotes[notesLen] = '\0';
 }
 
 void TTUpdatePage::showTarget() {
@@ -143,14 +153,11 @@ void TTUpdatePage::showTarget() {
     if (_versionValue != nullptr && _targetVersion[0] != '\0') {
         lv_label_set_text(_versionValue, _targetVersion);
     }
-    if (_notesValue != nullptr) {
-        lv_label_set_text(_notesValue, _targetNotes[0] != '\0' ? _targetNotes : "无");
-    }
 }
 
 void TTUpdatePage::showInstalled() {
     char version[TT_OTA_VER_MAX];
-    char notes[TT_OTA_MSG_MAX];
+    char notes[TT_OTA_NOTES_MAX];
     TTOtaService& ota = TTInstanceOf<TTOtaService>();
     ota.readLocalVersion(version, sizeof(version));
     ota.readLocalNotes(notes, sizeof(notes));
@@ -303,15 +310,18 @@ void TTUpdatePage::applyOta(const TTOtaPayload& payload) {
         TTInstanceOf<TTPopupLayer>().dismissLoading();
         rememberTarget(payload);
         setStatus("");
-        TTInstanceOf<TTPopupLayer>().showDialog(
-            payload.message,
-            [this]() { startUpgrade(); },
-            [this]() {
-                setDeepRefreshBlocked(false);
-                setLocked(false);
-                showCheckButton(true);
-                requestRefresh(TT_REFRESH_PARTIAL);
-            });
+        setDeepRefreshBlocked(false);
+        setLocked(false);
+        showCheckButton(false);
+        if (getNavigationController() == nullptr || !tt_file_exists(TT_OTA_NOTES_PATH)) {
+            LOG_E("OTA page: notes unavailable");
+            setStatus(TT_UPDATE_NOTES_FAIL);
+            showCheckButton(true);
+            requestRefresh(TT_REFRESH_PARTIAL);
+            break;
+        }
+        LOG_I("OTA page: show notes %s", _targetVersion);
+        getNavigationController()->pushPage(std::unique_ptr<TTScreenPage>(new TTOtaNotesPage(this)));
         break;
     case TT_OTA_PHASE_UP_TO_DATE:
     case TT_OTA_PHASE_FAILED:

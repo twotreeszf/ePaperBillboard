@@ -305,7 +305,7 @@ tools/venv/bin/python tools/publish_firmware.py --summary
 
 This compares against the **previous** commit that changed `src/Base/TTFirmwareVersion.h` (not the current header value alone).
 
-2. **Edit `release-notes.txt`** at the repo root with a short, user-facing Chinese summary of **only what changed since that last publish** (shown on the system update page and in the OTA confirm dialog). The publish script refuses a new binary release if this file is still identical to the copy at the last publish commit.
+2. **Edit `release-notes.md`** at the repo root with a short Markdown summary of **only what changed since that last publish** (at most 100 characters; shown in the update reader). The publish script refuses a new binary release if this file is still identical to the copy at the last publish commit.
 
 3. **Publish**:
 
@@ -313,10 +313,10 @@ This compares against the **previous** commit that changed `src/Base/TTFirmwareV
 tools/venv/bin/python tools/publish_firmware.py
 ```
 
-- If the code/resource fingerprint matches TOS but `release-notes.txt` changed, only the remote manifest notes are updated (same version string on the server).
+- If the code/resource fingerprint matches TOS but `release-notes.md` changed, only the remote manifest notes are updated (same version string on the server).
 - If the fingerprint changed, the script stamps a new `TT_FW_VERSION` (`YYYYMMDDHHMM`), runs `pio run -e esp32`, uploads all objects, and updates `firmware/manifest.json`.
 
-4. **Commit** `src/Base/TTFirmwareVersion.h` and `release-notes.txt` together after you verify the release on a device.
+4. **Commit** `src/Base/TTFirmwareVersion.h` and `release-notes.md` together after you verify the release on a device.
 
 `data/res/manifest.json` is generated locally for packaging and is gitignored; do not commit it.
 

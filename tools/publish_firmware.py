@@ -19,7 +19,9 @@ PIO_ENV = "esp32"
 FIRMWARE_BIN = ROOT / ".pio" / "build" / PIO_ENV / "firmware.bin"
 RES_ROOT = ROOT / "data" / "res"
 MANIFEST_NAME = "manifest.json"
-NOTES_PATH = ROOT / "release-notes.txt"
+NOTES_PATH = ROOT / "release-notes.md"
+NOTES_MAX_CHARS = 100
+HISTORY_MAX = 24
 CONTENT_ROOTS = ("src", "include", "lib")
 CONTENT_FILES = ("platformio.ini", "partitions_8MB.csv")
 CHANGELOG_PATHS = ("src", "include", "lib", "data/res", "platformio.ini", "partitions_8MB.csv")
@@ -205,6 +207,16 @@ def load_notes():
     return NOTES_PATH.read_text().strip()
 
 
+def ensure_notes_length(notes):
+    if not notes:
+        raise SystemExit(f"{NOTES_PATH.name} is empty")
+    count = len(notes)
+    if count > NOTES_MAX_CHARS:
+        raise SystemExit(
+            f"{NOTES_PATH.name} has {count} characters; the limit is {NOTES_MAX_CHARS}"
+        )
+
+
 def git_output(*args):
     try:
         return subprocess.check_output(["git", *args], cwd=ROOT, text=True, stderr=subprocess.DEVNULL)
@@ -224,8 +236,11 @@ def version_at_commit(sha):
 
 
 def notes_at_commit(sha):
-    text = git_output("show", f"{sha}:release-notes.txt")
-    return text.strip()
+    for name in ("release-notes.md", "release-notes.txt"):
+        text = git_output("show", f"{sha}:{name}")
+        if text.strip():
+            return text.strip()
+    return ""
 
 
 def previous_published_commit():
@@ -260,10 +275,10 @@ def print_release_summary():
     print("")
     prev_notes = notes_at_commit(prev)
     if prev_notes:
-        print("release-notes.txt at last publish:")
+        print(f"{NOTES_PATH.name} at last publish:")
         print(prev_notes)
         print("")
-    print("Edit release-notes.txt with a user-facing summary of the above, then run publish_firmware.py.")
+    print(f"Edit {NOTES_PATH.name} with a user-facing summary of the above, then run publish_firmware.py.")
 
 
 def ensure_release_notes_updated():
@@ -274,11 +289,12 @@ def ensure_release_notes_updated():
     notes = load_notes()
     if not notes:
         raise SystemExit(
-            f"release-notes.txt is empty; summarize changes since {version_at_commit(prev) or prev[:8]}"
+            f"{NOTES_PATH.name} is empty; summarize changes since {version_at_commit(prev) or prev[:8]}"
         )
+    ensure_notes_length(notes)
     if notes == prev_notes:
         raise SystemExit(
-            "release-notes.txt unchanged since last publish; "
+            f"{NOTES_PATH.name} unchanged since last publish; "
             "run publish_firmware.py --summary and update it before releasing"
         )
 
@@ -293,13 +309,76 @@ def package_files():
     return files
 
 
-def write_local_manifest(version, fingerprint, notes=None):
+def read_history(path):
+    if path is None or not Path(path).is_file():
+        return []
+    text = Path(path).read_text(encoding="utf-8")
+    if '"history"' not in text:
+        fields = read_manifest_fields(Path(path))
+        version = fields.get("version")
+        if version:
+            return [{"version": version, "notes": fields.get("notes", "")}]
+        return []
+    history = []
+    in_history = False
+    for line in text.splitlines():
+        if not in_history:
+            if '"history"' in line:
+                in_history = not line.lstrip().startswith("]") and "]" not in line.split("[", 1)[-1]
+            continue
+        if line.lstrip().startswith("]"):
+            break
+        payload = line.strip().rstrip(",")
+        if not payload.startswith("{"):
+            continue
+        try:
+            item = json.loads(payload)
+        except json.JSONDecodeError as exc:
+            raise SystemExit(f"manifest history is not valid JSON: {exc}")
+        if not isinstance(item, dict):
+            continue
+        version = item.get("version")
+        notes = item.get("notes", "")
+        if isinstance(version, str) and version:
+            history.append({
+                "version": version,
+                "notes": notes if isinstance(notes, str) else "",
+            })
+    return history
+
+
+def history_text(history):
+    lines = ['  "history": [\n']
+    last = len(history) - 1
+    for index, item in enumerate(history):
+        payload = json.dumps(
+            {"version": item["version"], "notes": item["notes"]},
+            ensure_ascii=False,
+            separators=(", ", ": "),
+        )
+        comma = "," if index != last else ""
+        lines.append(f"    {payload}{comma}\n")
+    lines.append("  ],\n")
+    return "".join(lines)
+
+
+def build_history(remote_path, version, notes):
+    previous = [item for item in read_history(remote_path) if item["version"] != version]
+    history = [{"version": version, "notes": notes}] + previous
+    return history[:HISTORY_MAX]
+
+
+def write_local_manifest(version, fingerprint, notes=None, history=None):
     note = load_notes() if notes is None else notes
+    ensure_notes_length(note)
+    if history is None:
+        history = [{"version": version, "notes": note}]
     path = RES_ROOT / MANIFEST_NAME
     with path.open("w", encoding="utf-8") as out:
         out.write("{\n")
         out.write(f'  "version": {json.dumps(version)},\n')
         out.write(f'  "notes": {json.dumps(note, ensure_ascii=False)},\n')
+        out.write(history_text(history))
         out.write(f'  "content": {json.dumps(fingerprint)},\n')
         out.write('  "files": [\n')
         first = True
@@ -320,17 +399,33 @@ def write_local_manifest(version, fingerprint, notes=None):
     return path
 
 
-def rewrite_notes(src, dst, notes):
+def rewrite_published_notes(src, dst, version, notes):
+    ensure_notes_length(notes)
+    history = build_history(src, version, notes)
+    lines = src.read_text(encoding="utf-8").splitlines(keepends=True)
+    has_history = any('"history"' in line for line in lines)
     replaced = False
-    with src.open(encoding="utf-8") as inp, dst.open("w", encoding="utf-8") as out:
-        for line in inp:
-            if not replaced and '"notes"' in line:
-                out.write('  "notes": ' + json.dumps(notes, ensure_ascii=False) + ",\n")
-                replaced = True
-            else:
-                out.write(line)
+    skipping = False
+    written = []
+    for line in lines:
+        if skipping:
+            if line.lstrip().startswith("]"):
+                skipping = False
+            continue
+        if '"history"' in line:
+            written.append(history_text(history))
+            skipping = "]" not in line
+            continue
+        if not replaced and '"notes"' in line:
+            written.append("  \"notes\": " + json.dumps(notes, ensure_ascii=False) + ",\n")
+            replaced = True
+            if not has_history:
+                written.append(history_text(history))
+            continue
+        written.append(line)
     if not replaced:
         raise SystemExit("manifest notes field missing")
+    dst.write_text("".join(written), encoding="utf-8")
 
 
 def store_manifest(client, env, version, path):
@@ -344,10 +439,10 @@ def upload_file(client, env, key, path):
     client.put_object_from_file(env["TOS_BUCKET"], key, str(path))
 
 
-def publish(env, client, version, fingerprint):
+def publish(env, client, version, fingerprint, history):
     for rel, path in package_files():
         upload_file(client, env, object_key(env, f"{version}/{rel}"), path)
-    body = write_local_manifest(version, fingerprint)
+    body = write_local_manifest(version, fingerprint, history=history)
     store_manifest(client, env, version, body)
     print(f"published {version}")
 
@@ -360,6 +455,9 @@ def main():
     client = tos_client(env)
     fingerprint = content_fingerprint()
     notes = load_notes()
+    ensure_notes_length(notes)
+    remote_version = None
+    prior_history = []
     with tempfile.TemporaryDirectory() as tmp:
         remote_path = Path(tmp) / MANIFEST_NAME
         remote = read_manifest_fields(remote_path) if download_manifest(client, env, remote_path) else None
@@ -370,18 +468,22 @@ def main():
                 print(f"no update version={remote_version}")
                 return
             local_path = RES_ROOT / MANIFEST_NAME
-            rewrite_notes(remote_path, local_path, notes)
+            rewrite_published_notes(remote_path, local_path, remote_version, notes)
             store_manifest(client, env, remote_version, local_path)
             print(f"updated notes version={remote_version}")
             return
+        prior_history = read_history(remote_path if remote else None)
     ensure_release_notes_updated()
     version = datetime.now().strftime("%Y%m%d%H%M")
-    print(f"update {remote_version or '-'} -> {version}")
+    history = [{"version": version, "notes": notes}]
+    history.extend(item for item in prior_history if item["version"] != version)
+    history = history[:HISTORY_MAX]
+    print(f"update {remote_version or '-'} -> {version} history={len(history)}")
     previous = read_version()
     write_version(version)
     try:
         build_firmware()
-        publish(env, client, version, fingerprint)
+        publish(env, client, version, fingerprint, history)
     except Exception:
         write_version(previous)
         raise
