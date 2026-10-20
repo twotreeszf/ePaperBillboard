@@ -5,4 +5,5 @@
 #define PIN_BUTTONR 39
 #define PIN_BUTTONC 34
 
-#define TT_KEYPAD_POLL_MS  5
+#define TT_KEYPAD_POLL_MS          5
+#define TT_KEYPAD_DOUBLE_CLICK_MS  350

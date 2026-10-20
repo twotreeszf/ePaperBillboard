@@ -26,6 +26,7 @@ struct tt_stream_image_cache_entry_t {
 struct tt_stream_image_t {
     lv_obj_t obj;
     char path[TT_STREAM_IMAGE_PATH_MAX];
+    fs::FS* storage;
     int32_t img_w;
     int32_t img_h;
     tt_stream_image_cache_entry_t* entry;
@@ -91,7 +92,7 @@ void tt_stream_image_set_src(lv_obj_t* obj, const char* path) {
     }
     memcpy(img->path, path, len + 1);
 
-    File f = tt_file_open(path, "r");
+    File f = img->storage != nullptr ? tt_file_open(*img->storage, path, "r") : tt_file_open(path, "r");
     if (!f) {
         lv_obj_invalidate(obj);
         return;
@@ -135,6 +136,10 @@ void tt_stream_image_set_src(lv_obj_t* obj, const char* path) {
     lv_obj_invalidate(obj);
 }
 
+void tt_stream_image_set_storage(lv_obj_t* obj, fs::FS* storage) {
+    ((tt_stream_image_t*)obj)->storage = storage;
+}
+
 void tt_stream_image_set_invert(lv_obj_t* obj, bool invert) {
     tt_stream_image_t* img = (tt_stream_image_t*)obj;
     if (img->invert == invert) {
@@ -149,6 +154,7 @@ static void constructor(const lv_obj_class_t* class_p, lv_obj_t* obj) {
     LV_UNUSED(class_p);
     tt_stream_image_t* img = (tt_stream_image_t*)obj;
     img->path[0] = '\0';
+    img->storage = nullptr;
     img->img_w = 0;
     img->img_h = 0;
     img->entry = nullptr;
@@ -430,7 +436,7 @@ static void stream_blit(lv_event_t* e, tt_stream_image_t* img) {
         return;
     }
 
-    File file = tt_file_open(img->path, "r");
+    File file = img->storage != nullptr ? tt_file_open(*img->storage, img->path, "r") : tt_file_open(img->path, "r");
     if (!file) {
         LOG_E("TTStreamImage: stream open failed %s", img->path);
         return;

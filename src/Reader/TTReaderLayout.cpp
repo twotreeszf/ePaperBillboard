@@ -326,6 +326,7 @@ bool TTReaderLayout::layoutPage(TTReaderSource& src, uint32_t start, TTReaderPag
     page.start = start;
     page.end = start;
     page.atEnd = false;
+    page.image[0] = '\0';
     page.lineCount = 0;
     page.textLen = 0;
     page.missingGlyphs = 0;
@@ -408,6 +409,21 @@ bool TTReaderLayout::layoutPage(TTReaderSource& src, uint32_t start, TTReaderPag
                 return false;
             }
             continue;
+        }
+        if (mdBlockStart && !cursor.fence && tt_md_is_image(src, offset, page.image, sizeof(page.image))) {
+            if (page.lineCount > 0) {
+                page.image[0] = '\0';
+                page.end = lineStart;
+                break;
+            }
+            offset = tt_md_skip_line(src, offset);
+            if (src.failed()) {
+                return false;
+            }
+            page.end = offset;
+            page.atEnd = offset >= src.size();
+            LOG_I("Reader markdown: image %s at %u", page.image, (unsigned)page.start);
+            break;
         }
         if (mdBlockStart && !cursor.fence) {
             int16_t tableY = y;

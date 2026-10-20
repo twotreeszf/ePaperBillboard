@@ -13,6 +13,7 @@
 #define TT_TRANSFER_SLOW_WRITE_MS    100
 #define TT_TRANSFER_INVALID_CHARS    "\\/:*?\"<>|"
 
+#define TT_TRANSFER_IMAGE_NAME_LEN   7
 #define TT_TRANSFER_MSG_BAD_NAME     "文件名无效"
 #define TT_TRANSFER_MSG_BAD_TYPE     "只支持 TXT 和 Markdown 文件"
 #define TT_TRANSFER_MSG_OPEN_FAILED  "无法创建文件"
@@ -57,6 +58,8 @@ private:
     File _file;
     EventCallback _onEvent;
     String _uploadName;
+    String _uploadTarget;
+    String _imageName;
     const char* _uploadError = nullptr;
     uint32_t _uploadBytes = 0;
     uint32_t _uploadStartMs = 0;
@@ -65,6 +68,7 @@ private:
     bool _uploadSeen = false;
     bool _uploadActive = false;
     bool _uploadDone = false;
+    bool _uploadIsImage = false;
     bool _routesReady = false;
     bool _running = false;
     bool _sdAcquired = false;

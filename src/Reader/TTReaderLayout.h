@@ -6,8 +6,8 @@
 #include "../Base/TTFontLoader.h"
 
 #define TT_READER_LAYOUT_VERSION    1
-#define TT_READER_PAGE_LINES        11
-#define TT_READER_LINE_GAP          7
+#define TT_READER_PAGE_LINES        10
+#define TT_READER_LINE_GAP          10
 #define TT_READER_PARA_GAP          0
 #define TT_READER_JUSTIFY_MAX_GAP   12
 #define TT_READER_INDENT_CHARS      2
@@ -68,6 +68,7 @@ struct TTReaderPageLayout {
     uint32_t start = 0;
     uint32_t end = 0;
     bool atEnd = false;
+    char image[TT_MD_IMAGE_NAME_MAX] = {};
     uint8_t lineCount = 0;
     uint16_t textLen = 0;
     uint16_t missingGlyphs = 0;

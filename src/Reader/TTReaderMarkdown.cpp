@@ -1,5 +1,6 @@
 #include "TTReaderMarkdown.h"
 #include "TTReaderText.h"
+#include <cstring>
 
 static int mdByte(TTReaderSource& src, uint32_t offset) {
     uint8_t b = 0;
@@ -187,8 +188,56 @@ void tt_md_line_context(TTReaderSource& src, uint32_t offset, uint32_t& lineStar
     }
 }
 
+bool tt_md_is_image(TTReaderSource& src, uint32_t offset, char* name, size_t nameLen) {
+    static const char head[] = "![](";
+    static const char tail[] = ".i1)";
+    for (uint8_t i = 0; head[i] != '\0'; i++) {
+        if (mdByte(src, offset + i) != head[i]) {
+            return false;
+        }
+    }
+    char buf[TT_MD_IMAGE_NAME_MAX];
+    uint32_t p = offset + 4;
+    for (uint8_t i = 0; i < 4; i++) {
+        const int c = mdByte(src, p + i);
+        if (c < '0' || c > '9') {
+            return false;
+        }
+        buf[i] = (char)c;
+    }
+    p += 4;
+    for (uint8_t i = 0; tail[i] != '\0'; i++) {
+        if (mdByte(src, p + i) != tail[i]) {
+            return false;
+        }
+    }
+    p += 4;
+    buf[4] = '.';
+    buf[5] = 'i';
+    buf[6] = '1';
+    buf[7] = '\0';
+    int c = mdByte(src, p);
+    while (c == ' ' || c == '\t') {
+        c = mdByte(src, ++p);
+    }
+    if (!mdIsLineEnd(c)) {
+        return false;
+    }
+    if (name != nullptr && nameLen > 0) {
+        const size_t n = strlen(buf);
+        const size_t copy = n < nameLen - 1 ? n : nameLen - 1;
+        memcpy(name, buf, copy);
+        name[copy] = '\0';
+    }
+    return true;
+}
+
 TTMdBlock tt_md_parse_block(TTReaderSource& src, uint32_t& offset, uint8_t columns) {
     TTMdBlock block;
+    if (tt_md_is_image(src, offset, nullptr, 0)) {
+        block.kind = TT_MD_IMAGE;
+        return block;
+    }
     const int b = mdByte(src, offset);
     if (b == '#') {
         uint32_t end = offset;
@@ -676,7 +725,8 @@ static bool mdParseLine(TTReaderSource& src, uint32_t line, TTMdBlock& block, ui
 }
 
 bool tt_md_soft_join(TTReaderSource& src, uint32_t line, const TTMdBlock& block, uint32_t& content) {
-    if (block.kind == TT_MD_CODE || block.kind == TT_MD_HEADING || block.kind == TT_MD_RULE) {
+    if (block.kind == TT_MD_CODE || block.kind == TT_MD_HEADING || block.kind == TT_MD_RULE
+        || block.kind == TT_MD_IMAGE) {
         return false;
     }
     TTMdBlock next;
@@ -684,7 +734,8 @@ bool tt_md_soft_join(TTReaderSource& src, uint32_t line, const TTMdBlock& block,
     if (!mdParseLine(src, line, next, nextContent)) {
         return false;
     }
-    if (next.kind == TT_MD_CODE || next.kind == TT_MD_HEADING || next.kind == TT_MD_RULE || next.kind == TT_MD_ORDERED) {
+    if (next.kind == TT_MD_CODE || next.kind == TT_MD_HEADING || next.kind == TT_MD_RULE
+        || next.kind == TT_MD_ORDERED || next.kind == TT_MD_IMAGE) {
         return false;
     }
     if (mdInTable(src, line)) {

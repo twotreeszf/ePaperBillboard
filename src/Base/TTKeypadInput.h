@@ -22,6 +22,7 @@ public:
 
     void suspend();
     void resume();
+    void setDoubleClick(bool enabled);
 
 private:
     static void keypadReadCb(lv_indev_t* indev, lv_indev_data_t* data);
@@ -29,6 +30,10 @@ private:
 
     void post(uint8_t key, uint8_t gesture);
     void emitKey(uint32_t key);
+    void noteClick(uint8_t key);
+    void noteLongPress(uint8_t key);
+    void flushPendingClick();
+    bool skipKeyHeld(uint8_t key) const;
 
     volatile bool _suppressUpLongPress = false;
 
@@ -39,6 +44,10 @@ private:
     volatile uint32_t _pendingKey = 0;
     volatile bool _pendingPress = false;
     volatile bool _suspended = false;
+    volatile bool _doubleClick = false;
+    volatile bool _pendingSkip = false;
+    uint8_t _pendingSkipKey = 0;
+    uint32_t _pendingSkipMs = 0;
     uint32_t _lastKey = 0;
     ITTNavigationController* _nav = nullptr;
 };

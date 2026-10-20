@@ -125,7 +125,7 @@ void TTBookTransferPage::showReady(const char* ssid, const char* url) {
     snprintf(text, sizeof(text),
              "1. 手机或电脑连接同一个 Wi-Fi\n    %s\n\n"
              "2. 扫描右侧二维码\n    或用浏览器打开\n    %s\n\n"
-             "3. 选择 TXT 或 MD 文件上传\n    请使用 UTF-8 编码",
+             "3. 选择 TXT、MD 或 EPUB 上传\n    EPUB 在网页里转成 Markdown",
              ssid, url);
     lv_label_set_text(_title, TT_TRANSFER_TEXT_READY);
     lv_label_set_text(_steps, text);

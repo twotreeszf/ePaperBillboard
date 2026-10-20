@@ -10,11 +10,10 @@
 
 #define TT_READER_FONT_SIZE              16
 #define TT_READER_MARGIN_X               14
-#define TT_READER_MARGIN_TOP             (TT_READER_LINE_GAP - 1)
+#define TT_READER_MARGIN_TOP             6
 #define TT_READER_TITLE_MAX              64
 #define TT_READER_FOOTER_TEXT_MAX        48
 #define TT_READER_HISTORY_MAX            32
-#define TT_READER_DEEP_REFRESH_TURNS     20
 #define TT_READER_INDEX_TICK_MS          30
 #define TT_READER_INDEX_BATCH_PAGES      5
 #define TT_READER_INDEX_BUDGET_MS        40
@@ -36,6 +35,10 @@
 #define TT_READER_TEXT_ENCODING          "暂不支持该编码\n请转换为 UTF-8 格式"
 #define TT_READER_TEXT_READ_FAILED       "读取书籍失败"
 #define TT_READER_TEXT_CARD_REMOVED      "SD 卡已拔出"
+#define TT_READER_SKIP_PAGES             10
+#define TT_READER_TEXT_IMAGE             "〔图〕"
+#define TT_READER_IMAGE_PAGE_W           400
+#define TT_READER_IMAGE_PAGE_H           282
 
 class TTReaderPage : public TTScreenPage {
 public:
@@ -57,10 +60,14 @@ private:
     bool turnTo(uint32_t offset);
     void nextPage();
     void prevPage();
-    bool previousStart(uint32_t& start);
+    void skipForward();
+    void skipBack();
+    bool indexedSkip(int delta, uint32_t* departed, int& departedCount, uint32_t& landed);
+    bool previousStart(uint32_t current, uint32_t& start);
     void pushHistory(uint32_t start);
     int32_t currentPageIndex();
     void updateFooter();
+    void showLaidPage();
     void attachStatus();
     void detachStatus();
     void startIndexing();
@@ -88,6 +95,8 @@ private:
 
     lv_obj_t* _content = nullptr;
     lv_obj_t* _textView = nullptr;
+    lv_obj_t* _image = nullptr;
+    lv_obj_t* _imageNote = nullptr;
     lv_obj_t* _footer = nullptr;
     lv_obj_t* _percent = nullptr;
 
@@ -99,7 +108,6 @@ private:
     uint32_t _indexStartMs = 0;
     uint32_t _pagingDotMs = 0;
     uint8_t _pagingDots = 1;
-    uint16_t _turns = 0;
     int32_t _pageIndex = -1;
     bool _sdAcquired = false;
     bool _visible = false;

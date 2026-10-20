@@ -5,9 +5,11 @@
 #include "../Base/TTLvglEpdDriver.h"
 #include "../Base/TTNavigationBar.h"
 #include "../Base/TTPopupLayer.h"
+#include "../Base/TTStreamImage.h"
 #include "../Reader/TTReaderTextView.h"
 #include "../Service/TTSdCardService.h"
 #include "../Service/TTSleepService.h"
+#include "../Tasks/TTUITask.h"
 #include <EPDConfig.h>
 #include <esp_heap_caps.h>
 #include <cstdio>
@@ -15,6 +17,9 @@
 #include <new>
 
 #define TT_READER_TEXT_W  (EPD_WIDTH - 2 * TT_READER_MARGIN_X)
+
+static_assert(TT_READER_IMAGE_PAGE_W == EPD_WIDTH, "image page width");
+static_assert(TT_READER_IMAGE_PAGE_H == EPD_HEIGHT - TT_NAV_PAGE_INSET, "image page height");
 
 static void readerTextFrame(const TTFontLoader* font, int32_t& top, int32_t& height) {
     const int32_t lineH = font != nullptr ? font->getLineHeight() : TT_READER_FONT_SIZE;
@@ -50,6 +55,20 @@ void TTReaderPage::buildContent(lv_obj_t* screen) {
     _textView = tt_reader_text_view_create(screen);
     lv_obj_set_pos(_textView, TT_READER_MARGIN_X, 0);
     lv_obj_set_size(_textView, TT_READER_TEXT_W, EPD_HEIGHT - TT_NAV_PAGE_INSET);
+
+    _image = tt_stream_image_create(screen);
+    tt_stream_image_set_storage(_image, &TTInstanceOf<TTSdCardService>().fs());
+    lv_obj_set_pos(_image, 0, 0);
+    lv_obj_set_hidden(_image, true);
+
+    _imageNote = lv_label_create(screen);
+    lv_obj_set_style_text_font(_imageNote, fonts.getFont(TT_READER_FONT_SIZE), 0);
+    lv_obj_set_style_text_color(_imageNote, lv_color_black(), 0);
+    lv_obj_set_style_text_align(_imageNote, LV_TEXT_ALIGN_CENTER, 0);
+    lv_obj_set_width(_imageNote, TT_READER_IMAGE_PAGE_W);
+    lv_label_set_text(_imageNote, TT_READER_TEXT_IMAGE);
+    lv_obj_align(_imageNote, LV_ALIGN_CENTER, 0, 0);
+    lv_obj_set_hidden(_imageNote, true);
 
     _footer = lv_label_create(screen);
     lv_obj_set_style_text_font(_footer, footerFont, 0);
@@ -93,6 +112,7 @@ void TTReaderPage::willAppear() {
         return;
     }
     attachStatus();
+    TTInstanceOf<TTUITask>().keypadInput().setDoubleClick(true);
     TTInstanceOf<TTLvglEpdDriver>().setAutoDeepRefresh(false);
     _deepRefreshPaused = true;
     startIndexing();
@@ -117,6 +137,7 @@ void TTReaderPage::willDisappear() {
     if (_leaving && TTInstanceOf<TTPopupLayer>().isDialogShown()) {
         TTInstanceOf<TTPopupLayer>().dismissDialog();
     }
+    TTInstanceOf<TTUITask>().keypadInput().setDoubleClick(false);
     saveProgress();
     closeBook();
     if (_deepRefreshPaused) {
@@ -149,12 +170,19 @@ bool TTReaderPage::handleKeyAction(TTKeyId key, TTKeyGesture gesture) {
     _sleepAfterTimeTick = false;
     cancelIdleSleep();
     bool handled = false;
-    if (gesture == TT_KEY_CLICK && (key == TT_KEY_LEFT || key == TT_KEY_RIGHT)) {
+    if ((gesture == TT_KEY_CLICK || gesture == TT_KEY_DOUBLE_CLICK)
+        && (key == TT_KEY_LEFT || key == TT_KEY_RIGHT)) {
         if (TTInstanceOf<TTPopupLayer>().isDialogShown()) {
             return false;
         }
         if (_error == nullptr && !_leaving && !_cardLost && _page) {
-            if (key == TT_KEY_RIGHT) {
+            if (gesture == TT_KEY_DOUBLE_CLICK) {
+                if (key == TT_KEY_RIGHT) {
+                    skipForward();
+                } else {
+                    skipBack();
+                }
+            } else if (key == TT_KEY_RIGHT) {
                 nextPage();
             } else {
                 prevPage();
@@ -229,7 +257,7 @@ const char* TTReaderPage::openBook() {
     if (!_layout.layoutPage(_source, offset, *_page)) {
         return TT_READER_TEXT_READ_FAILED;
     }
-    tt_reader_text_view_set_page(_textView, &_layout, _page.get());
+    showLaidPage();
     updateFooter();
     store.touchRecent(_book.name);
     LOG_I("Reader: opened %s at %u/%u in %u ms, free=%u largest=%u",
@@ -254,6 +282,31 @@ bool TTReaderPage::checkEncoding() {
     return invalid <= TT_READER_ENCODING_MAX_INVALID;
 }
 
+void TTReaderPage::showLaidPage() {
+    tt_reader_text_view_set_page(_textView, &_layout, _page.get());
+    if (_page->image[0] == '\0') {
+        tt_stream_image_set_src(_image, "");
+        lv_obj_set_hidden(_image, true);
+        lv_obj_set_hidden(_imageNote, true);
+        lv_obj_set_hidden(_textView, false);
+        return;
+    }
+    const String path = TTInstanceOf<TTBookStore>().cacheDir(_book) + "/" + _page->image;
+    if (TTInstanceOf<TTSdCardService>().fs().exists(path)) {
+        LOG_I("Reader: show image %s", path.c_str());
+        tt_stream_image_set_src(_image, path.c_str());
+        lv_obj_set_hidden(_textView, true);
+        lv_obj_set_hidden(_imageNote, true);
+        lv_obj_set_hidden(_image, false);
+        return;
+    }
+    LOG_W("Reader: missing image %s", path.c_str());
+    tt_stream_image_set_src(_image, "");
+    lv_obj_set_hidden(_image, true);
+    lv_obj_set_hidden(_textView, true);
+    lv_obj_set_hidden(_imageNote, false);
+}
+
 void TTReaderPage::closeBook() {
     _index.close();
     _source.close();
@@ -269,20 +322,15 @@ bool TTReaderPage::turnTo(uint32_t offset) {
     if (_page->missingGlyphs > 0) {
         LOG_W("Reader: page at %u has %u missing glyphs", (unsigned)offset, (unsigned)_page->missingGlyphs);
     }
-    tt_reader_text_view_set_page(_textView, &_layout, _page.get());
+    showLaidPage();
     updateFooter();
     lv_obj_invalidate(_content);
 
-    TTRefreshLevel level = TT_REFRESH_PARTIAL;
-    if (++_turns >= TT_READER_DEEP_REFRESH_TURNS) {
-        _turns = 0;
-        level = TT_REFRESH_DEEP;
-    }
-    requestRefresh(level);
+    requestRefresh(TT_REFRESH_PARTIAL);
     scheduleProgressSave();
     LOG_I("Reader: page %u..%u lines=%u index=%d layout %u ms refresh=%d",
           (unsigned)_page->start, (unsigned)_page->end, (unsigned)_page->lineCount, (int)_pageIndex,
-          (unsigned)(millis() - startMs), (int)level);
+          (unsigned)(millis() - startMs), (int)TT_REFRESH_PARTIAL);
     return true;
 }
 
@@ -303,7 +351,7 @@ void TTReaderPage::prevPage() {
         return;
     }
     uint32_t start = 0;
-    if (!previousStart(start)) {
+    if (!previousStart(_page->start, start)) {
         LOG_I("Reader: previous of %u unknown, index parsed=%u",
               (unsigned)_page->start, (unsigned)_index.parsedBytes());
         TTInstanceOf<TTPopupLayer>().showToast(TT_READER_TEXT_INDEXING);
@@ -312,8 +360,120 @@ void TTReaderPage::prevPage() {
     turnTo(start);
 }
 
-bool TTReaderPage::previousStart(uint32_t& start) {
-    const uint32_t current = _page->start;
+bool TTReaderPage::indexedSkip(int delta, uint32_t* departed, int& departedCount, uint32_t& landed) {
+    departedCount = 0;
+    const int32_t page = currentPageIndex();
+    if (page < 0 || !_index.isOpen() || delta == 0) {
+        return false;
+    }
+    int32_t target = page + delta;
+    if (target < 0) {
+        target = 0;
+    }
+    if ((uint32_t)target >= _index.pageCount()) {
+        if (!_index.isComplete() || _index.pageCount() == 0) {
+            return false;
+        }
+        target = (int32_t)_index.pageCount() - 1;
+    }
+    if (target == page) {
+        return false;
+    }
+    if (delta > 0) {
+        const int count = target - page;
+        if (count > TT_READER_SKIP_PAGES) {
+            return false;
+        }
+        for (int i = 0; i < count; i++) {
+            if (!_index.pageStart((uint32_t)(page + i), departed[i])) {
+                return false;
+            }
+        }
+        departedCount = count;
+    }
+    return _index.pageStart((uint32_t)target, landed);
+}
+
+void TTReaderPage::skipForward() {
+    if (_page->atEnd) {
+        TTInstanceOf<TTPopupLayer>().showToast(TT_READER_TEXT_LAST_PAGE);
+        return;
+    }
+    uint32_t departed[TT_READER_SKIP_PAGES];
+    int departedCount = 0;
+    uint32_t landed = 0;
+    if (!indexedSkip(TT_READER_SKIP_PAGES, departed, departedCount, landed)) {
+        uint32_t cursor = _page->start;
+        uint32_t next = _page->end;
+        departedCount = 0;
+        while (departedCount < TT_READER_SKIP_PAGES && next < _source.size()) {
+            if (!_layout.layoutPage(_source, next, *_scratch)) {
+                leaveWithMessage(TT_READER_TEXT_READ_FAILED);
+                return;
+            }
+            if (_scratch->start == cursor) {
+                break;
+            }
+            departed[departedCount] = cursor;
+            cursor = _scratch->start;
+            next = _scratch->atEnd ? _source.size() : _scratch->end;
+            departedCount++;
+            if (_scratch->atEnd) {
+                break;
+            }
+        }
+        landed = cursor;
+    }
+    if (departedCount == 0 || landed == _page->start) {
+        TTInstanceOf<TTPopupLayer>().showToast(TT_READER_TEXT_LAST_PAGE);
+        return;
+    }
+    LOG_I("Reader: skip +%d %u -> %u", departedCount, (unsigned)_page->start, (unsigned)landed);
+    for (int i = 0; i < departedCount; i++) {
+        pushHistory(departed[i]);
+    }
+    turnTo(landed);
+}
+
+void TTReaderPage::skipBack() {
+    if (_page->start == 0) {
+        TTInstanceOf<TTPopupLayer>().showToast(TT_READER_TEXT_FIRST_PAGE);
+        return;
+    }
+    uint32_t unused[TT_READER_SKIP_PAGES];
+    int unusedCount = 0;
+    uint32_t landed = 0;
+    int moved = 0;
+    if (indexedSkip(-TT_READER_SKIP_PAGES, unused, unusedCount, landed)) {
+        const int32_t from = currentPageIndex();
+        const int32_t to = _index.findPage(landed);
+        moved = (from >= 0 && to >= 0 && from > to) ? (from - to) : 1;
+    } else {
+        uint32_t cursor = _page->start;
+        while (moved < TT_READER_SKIP_PAGES && cursor > 0) {
+            uint32_t prev = 0;
+            if (!previousStart(cursor, prev)) {
+                break;
+            }
+            landed = prev;
+            cursor = prev;
+            moved++;
+        }
+    }
+    if (moved == 0) {
+        LOG_I("Reader: skip back of %u unknown, index parsed=%u",
+              (unsigned)_page->start, (unsigned)_index.parsedBytes());
+        TTInstanceOf<TTPopupLayer>().showToast(TT_READER_TEXT_INDEXING);
+        return;
+    }
+    while (_historyCount > 0 && _history[_historyCount - 1] >= landed) {
+        _historyCount--;
+    }
+    LOG_I("Reader: skip -%d %u -> %u", moved, (unsigned)_page->start, (unsigned)landed);
+    turnTo(landed);
+}
+
+bool TTReaderPage::previousStart(uint32_t current, uint32_t& start) {
     if (_index.isOpen() && _index.covers(current - 1)) {
         const int32_t page = _index.findPage(current - 1);
         if (page >= 0 && _index.pageStart((uint32_t)page, start)) {

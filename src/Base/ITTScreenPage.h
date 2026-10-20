@@ -14,6 +14,7 @@ enum TTKeyId {
 enum TTKeyGesture {
     TT_KEY_CLICK = 0,
     TT_KEY_LONG_PRESS,
+    TT_KEY_DOUBLE_CLICK,
 };
 
 class ITTScreenPage {

@@ -55,16 +55,16 @@ void TTKeypadInput::init() {
     _btnC = new OneButton(PIN_BUTTONC, false, false);
 
     _btnL->attachClick([](void* param) {
-        static_cast<TTKeypadInput*>(param)->post(TT_KEY_LEFT, TT_KEY_CLICK);
+        static_cast<TTKeypadInput*>(param)->noteClick(TT_KEY_LEFT);
     }, this);
     _btnL->attachLongPressStart([](void* param) {
-        static_cast<TTKeypadInput*>(param)->post(TT_KEY_LEFT, TT_KEY_LONG_PRESS);
+        static_cast<TTKeypadInput*>(param)->noteLongPress(TT_KEY_LEFT);
     }, this);
     _btnR->attachClick([](void* param) {
-        static_cast<TTKeypadInput*>(param)->post(TT_KEY_RIGHT, TT_KEY_CLICK);
+        static_cast<TTKeypadInput*>(param)->noteClick(TT_KEY_RIGHT);
     }, this);
     _btnR->attachLongPressStart([](void* param) {
-        static_cast<TTKeypadInput*>(param)->post(TT_KEY_RIGHT, TT_KEY_LONG_PRESS);
+        static_cast<TTKeypadInput*>(param)->noteLongPress(TT_KEY_RIGHT);
     }, this);
     _btnC->attachClick([](void* param) {
         static_cast<TTKeypadInput*>(param)->post(TT_KEY_CENTER, TT_KEY_CLICK);
@@ -90,6 +90,7 @@ void TTKeypadInput::idleButton(OneButton* btn) {
 
 void TTKeypadInput::suspend() {
     _suspended = true;
+    _pendingSkip = false;
     LOG_I("Keypad: suspend, button state cleared until resume");
 }
 
@@ -98,7 +99,60 @@ void TTKeypadInput::resume() {
     LOG_I("Keypad: resume");
 }
 
+void TTKeypadInput::setDoubleClick(bool enabled) {
+    _doubleClick = enabled;
+    if (!enabled) {
+        _pendingSkip = false;
+    }
+    LOG_I("Keypad: double click %s", enabled ? "on" : "off");
+}
+
+bool TTKeypadInput::skipKeyHeld(uint8_t key) const {
+    const int pin = key == TT_KEY_LEFT ? PIN_BUTTONL : PIN_BUTTONR;
+    return digitalRead(pin) == HIGH;
+}
+
+void TTKeypadInput::flushPendingClick() {
+    if (!_pendingSkip) {
+        return;
+    }
+    const uint8_t key = _pendingSkipKey;
+    _pendingSkip = false;
+    post(key, TT_KEY_CLICK);
+}
+
+void TTKeypadInput::noteClick(uint8_t key) {
+    if (!_doubleClick) {
+        _pendingSkip = false;
+        post(key, TT_KEY_CLICK);
+        return;
+    }
+    if (_pendingSkip && _pendingSkipKey == key) {
+        _pendingSkip = false;
+        LOG_I("Keypad: double key=%u", key);
+        post(key, TT_KEY_DOUBLE_CLICK);
+        return;
+    }
+    if (_pendingSkip) {
+        flushPendingClick();
+    }
+    _pendingSkip = true;
+    _pendingSkipKey = key;
+    _pendingSkipMs = millis();
+}
+
+void TTKeypadInput::noteLongPress(uint8_t key) {
+    flushPendingClick();
+    post(key, TT_KEY_LONG_PRESS);
+}
+
 void TTKeypadInput::sample() {
+    if (_pendingSkip && (!_doubleClick || _suspended)) {
+        _pendingSkip = false;
+    } else if (_pendingSkip && (millis() - _pendingSkipMs) >= TT_KEYPAD_DOUBLE_CLICK_MS
+               && !skipKeyHeld(_pendingSkipKey)) {
+        flushPendingClick();
+    }
     if (_suppressUpLongPress && digitalRead(PIN_BUTTONR) == LOW) {
         _suppressUpLongPress = false;
         LOG_I("Keypad: up long press accepted again");
@@ -169,9 +223,13 @@ void TTKeypadInput::apply(uint8_t key, uint8_t gesture) {
         }
         return;
     }
-    if (gesture == TT_KEY_CLICK && _nav != nullptr && (key == TT_KEY_LEFT || key == TT_KEY_RIGHT)) {
+    if ((gesture == TT_KEY_CLICK || gesture == TT_KEY_DOUBLE_CLICK) && _nav != nullptr
+        && (key == TT_KEY_LEFT || key == TT_KEY_RIGHT)) {
         ITTScreenPage* page = _nav->getCurrentPage();
-        if (page != nullptr && page->handleKeyAction((TTKeyId)key, TT_KEY_CLICK)) {
+        if (page != nullptr && page->handleKeyAction((TTKeyId)key, (TTKeyGesture)gesture)) {
+            return;
+        }
+        if (gesture == TT_KEY_DOUBLE_CLICK) {
             return;
         }
     }

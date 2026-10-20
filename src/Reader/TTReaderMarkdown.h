@@ -12,7 +12,8 @@
 #define TT_READER_STYLE_MARK_FLAG   0x80
 #define TT_READER_STYLE_MARK_BYTES  2
 
-#define TT_MD_LAYOUT_VERSION        6
+#define TT_MD_LAYOUT_VERSION        7
+#define TT_MD_IMAGE_NAME_MAX        12
 #define TT_MD_TASK_NONE             0
 #define TT_MD_TASK_OPEN             1
 #define TT_MD_TASK_DONE             2
@@ -43,6 +44,7 @@ enum TTMdBlockKind : uint8_t {
     TT_MD_ORDERED,
     TT_MD_RULE,
     TT_MD_CODE,
+    TT_MD_IMAGE,
 };
 
 struct TTMdBlock {
@@ -85,6 +87,7 @@ uint32_t tt_md_skip_line(TTReaderSource& src, uint32_t offset);
 bool tt_md_is_fence(TTReaderSource& src, uint32_t offset);
 void tt_md_line_context(TTReaderSource& src, uint32_t offset, uint32_t& lineStart, bool& fence);
 TTMdBlock tt_md_parse_block(TTReaderSource& src, uint32_t& offset, uint8_t columns);
+bool tt_md_is_image(TTReaderSource& src, uint32_t offset, char* name, size_t nameLen);
 uint32_t tt_md_next(TTReaderSource& src, uint32_t& offset, TTMdInline& state, uint32_t end = 0xFFFFFFFF);
 uint8_t tt_md_style(const TTMdCursor& cursor);
 uint32_t tt_md_line_start(TTReaderSource& src, uint32_t offset);
