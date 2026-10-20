@@ -33,6 +33,10 @@
 #define TT_READER_LINE_FLAG_BOX_BOTTOM  0x02
 #define TT_READER_LINE_FLAG_EXACT       0x04
 #define TT_READER_LINE_FLAG_TASK_DONE   0x08
+#define TT_READER_LINE_FLAG_QUOTE       0x10
+#define TT_READER_QUOTE_BAR_X           2
+#define TT_READER_QUOTE_BAR_W           2
+#define TT_READER_QUOTE_LINE_GAP        6
 #define TT_READER_TASK_BOX              10
 #define TT_READER_TABLE_MIN_CHARS       2
 #define TT_READER_TABLE_PAD_X           3
@@ -87,6 +91,8 @@ public:
     int16_t ascent() const { return _ascent; }
     int16_t lineHeight() const { return _lineHeight; }
     int16_t codeBaseline() const { return _codeBaseline; }
+    int16_t quoteAscent() const { return _quoteAscent; }
+    int16_t quoteLineHeight() const { return _quoteLineHeight; }
     int16_t width() const { return _width; }
     int16_t height() const { return _height; }
     bool markdown() const { return _markdown; }
@@ -121,6 +127,7 @@ private:
     uint8_t cellStyle(const TTMdInline& inl, bool header) const;
     int32_t cellWidth(TTReaderSource& src, uint32_t start, uint32_t end, bool header);
     bool appendRule(TTReaderPageLayout& page, TTReaderLineKind kind, int16_t x, int16_t y, int16_t mark);
+    void appendQuoteBars(TTReaderPageLayout& page);
     bool appendTableCell(TTReaderSource& src, const TTMdCell& cell, int16_t x, int16_t colW, bool header,
                          uint8_t bandCap, TTReaderPageLayout& page, uint8_t& bands, bool& clipped);
     TableLay layoutTable(TTReaderSource& src, uint32_t offset, TTReaderPageLayout& page, int16_t& y, uint32_t& end);
@@ -138,6 +145,10 @@ private:
     uint16_t _codeSpaceAdv = 0;
     uint16_t _codeUnit = 0;
     int16_t _codeBaseline = 0;
+    int16_t _quoteLineHeight = 0;
+    int16_t _quoteAscent = 0;
+    int16_t _quoteInkTop = 0;
+    int16_t _quoteInkBottom = 0;
     uint32_t _configHash = 0;
     bool _markdown = false;
 };

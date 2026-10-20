@@ -16,6 +16,18 @@ static void tt_book_yield(uint32_t& lastYieldMs) {
     lastYieldMs = millis();
 }
 
+static const char* tt_book_base_name(const char* name) {
+    if (name == nullptr) {
+        return "";
+    }
+    const char* slash = strrchr(name, '/');
+    return slash != nullptr ? slash + 1 : name;
+}
+
+static bool tt_book_id_matches(const String& id, const char* name) {
+    return strcasecmp(id.c_str(), tt_book_base_name(name)) == 0;
+}
+
 static bool tt_book_ends_with(const char* name, const char* ext) {
     const size_t len = strlen(name);
     const size_t extLen = strlen(ext);
@@ -68,7 +80,9 @@ bool TTBookStore::listBooks(std::vector<TTBookEntry>& out) {
         LOG_E("Book store: open %s failed", TT_BOOKS_DIR);
         return false;
     }
-    while (out.size() < TT_BOOKS_MAX) {
+    std::vector<String> liveIds;
+    std::vector<String> liveNames;
+    while (true) {
         File f = dir.openNextFile();
         if (!f) {
             break;
@@ -78,11 +92,16 @@ bool TTBookStore::listBooks(std::vector<TTBookEntry>& out) {
             TTBookEntry entry;
             entry.name = name;
             entry.size = (uint32_t)f.size();
+            const time_t written = f.getLastWrite();
+            entry.uploaded = written > 0 ? (uint32_t)written : 0;
+            liveNames.push_back(entry.name);
+            liveIds.push_back(bookId(entry));
             out.push_back(entry);
         }
         f.close();
     }
     dir.close();
+    pruneOrphanCaches(liveIds, liveNames);
 
     std::vector<String> recent;
     readRecent(recent);
@@ -100,8 +119,15 @@ bool TTBookStore::listBooks(std::vector<TTBookEntry>& out) {
         if (ra != rb) {
             return ra < rb;
         }
+        if (a.uploaded != b.uploaded) {
+            return a.uploaded > b.uploaded;
+        }
         return strcmp(a.name.c_str(), b.name.c_str()) < 0;
     });
+    if (out.size() > TT_BOOKS_MAX) {
+        LOG_W("Book store: showing %u of %u books", (unsigned)TT_BOOKS_MAX, (unsigned)out.size());
+        out.resize(TT_BOOKS_MAX);
+    }
     LOG_I("Book store: %u books, %u recent, %u ms",
           (unsigned)out.size(), (unsigned)recent.size(), (unsigned)(millis() - start));
     return true;
@@ -135,7 +161,10 @@ bool TTBookStore::removeBook(const String& name) {
 }
 
 void TTBookStore::removeCache(const TTBookEntry& book) {
-    const String dirPath = cacheDir(book);
+    removeCacheDir(cacheDir(book));
+}
+
+void TTBookStore::removeCacheDir(const String& dirPath) {
     File dir = fs().open(dirPath);
     if (!dir || !dir.isDirectory()) {
         return;
@@ -160,6 +189,62 @@ void TTBookStore::removeCache(const TTBookEntry& book) {
     const bool removed = fs().rmdir(dirPath);
     LOG_I("Book store: cache %s cleared, %u file(s), rmdir=%d",
           dirPath.c_str(), (unsigned)files.size(), removed ? 1 : 0);
+}
+
+void TTBookStore::pruneOrphanCaches(const std::vector<String>& liveIds, const std::vector<String>& liveNames) {
+    File dir = fs().open(TT_BOOKS_CACHE_DIR);
+    if (!dir || !dir.isDirectory()) {
+        return;
+    }
+    std::vector<String> stale;
+    uint32_t lastYieldMs = millis();
+    while (true) {
+        File f = dir.openNextFile();
+        if (!f) {
+            break;
+        }
+        const char* name = tt_book_base_name(f.name());
+        const bool directory = f.isDirectory();
+        f.close();
+        tt_book_yield(lastYieldMs);
+        if (!directory || name[0] == '\0' || name[0] == '.') {
+            continue;
+        }
+        bool live = false;
+        for (const String& id : liveIds) {
+            if (tt_book_id_matches(id, name)) {
+                live = true;
+                break;
+            }
+        }
+        if (!live) {
+            stale.push_back(String(TT_BOOKS_CACHE_DIR "/") + name);
+        }
+    }
+    dir.close();
+    for (const String& path : stale) {
+        LOG_I("Book store: orphan cache %s", path.c_str());
+        removeCacheDir(path);
+    }
+
+    std::vector<String> recent;
+    readRecent(recent);
+    const size_t before = recent.size();
+    recent.erase(std::remove_if(recent.begin(), recent.end(), [&liveNames](const String& name) {
+        for (const String& live : liveNames) {
+            if (live == name) {
+                return false;
+            }
+        }
+        return true;
+    }), recent.end());
+    if (recent.size() != before) {
+        writeRecent(recent);
+        LOG_I("Book store: recent pruned %u -> %u", (unsigned)before, (unsigned)recent.size());
+    }
+    if (!stale.empty()) {
+        LOG_I("Book store: pruned %u orphan cache(s)", (unsigned)stale.size());
+    }
 }
 
 void TTBookStore::readRecent(std::vector<String>& out) {

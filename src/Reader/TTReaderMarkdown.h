@@ -12,7 +12,7 @@
 #define TT_READER_STYLE_MARK_FLAG   0x80
 #define TT_READER_STYLE_MARK_BYTES  2
 
-#define TT_MD_LAYOUT_VERSION        7
+#define TT_MD_LAYOUT_VERSION        10
 #define TT_MD_IMAGE_NAME_MAX        12
 #define TT_MD_TASK_NONE             0
 #define TT_MD_TASK_OPEN             1

@@ -243,16 +243,21 @@ static void blit_glyph(const TTReaderCanvas& canvas, const uint8_t* bits, const 
 struct TTReaderDecoration {
     uint8_t flag;
     int32_t y;
+    int32_t thick;
     bool active;
     int32_t x1;
     int32_t x2;
 };
 
 static void decoration_flush(const TTReaderCanvas& canvas, TTReaderDecoration& deco) {
-    if (deco.active) {
-        draw_hline(canvas, deco.x1, deco.x2 - 1, deco.y);
-        deco.active = false;
+    if (!deco.active) {
+        return;
     }
+    const int32_t thick = deco.thick > 0 ? deco.thick : 1;
+    for (int32_t i = 0; i < thick; i++) {
+        draw_hline(canvas, deco.x1, deco.x2 - 1, deco.y + i);
+    }
+    deco.active = false;
 }
 
 static void decoration_extend(TTReaderDecoration& deco, uint8_t style, uint32_t cp, int32_t x, int32_t adv) {
@@ -274,18 +279,19 @@ static bool draw_glyph(const TTReaderCanvas& canvas, TTFontLoader* font, uint8_t
     }
     const int32_t gx = x + info.ofs_x;
     const int32_t gy = baseline - (info.ofs_y + info.box_h);
+    const bool emphasis = (style & TT_READER_STYLE_ITALIC) != 0 && tt_reader_is_emphasis_char(cp);
+    const bool italic = (style & TT_READER_STYLE_ITALIC) != 0 && !emphasis;
     const bool visible = info.box_w > 0 && info.box_h > 0
         && gx - TT_READER_VIEW_EXT_DRAW <= canvas.clip.x2
         && gx + info.box_w + TT_READER_VIEW_EXT_DRAW > canvas.clip.x1
         && gy <= canvas.clip.y2 && gy + info.box_h > canvas.clip.y1;
     if (visible && font->getGlyphBitmap(info, bits, TT_READER_GLYPH_BUF_SIZE)) {
-        const bool italic = (style & TT_READER_STYLE_ITALIC) != 0;
         blit_glyph(canvas, bits, info, gx, gy, italic);
         if ((style & TT_READER_STYLE_BOLD) && cp != ' ') {
             blit_glyph(canvas, bits, info, gx + TT_READER_BOLD_EXTRA, gy, italic);
         }
     }
-    return true;
+        return true;
 }
 
 static void draw_main(lv_event_t* e) {
@@ -339,7 +345,11 @@ static void draw_main(lv_event_t* e) {
             const int32_t y1 = coords.y1 + line.y;
             const int32_t y2 = coords.y1 + line.markX;
             if (y1 <= canvas.clip.y2 && y2 >= canvas.clip.y1) {
-                draw_vline(canvas, coords.x1 + line.x, y1, y2);
+                const int32_t x = coords.x1 + line.x;
+                const int32_t thick = (line.flags & TT_READER_LINE_FLAG_QUOTE) != 0 ? TT_READER_QUOTE_BAR_W : 1;
+                for (int32_t dx = 0; dx < thick; dx++) {
+                    draw_vline(canvas, x + dx, y1, y2);
+                }
             }
             continue;
         }
@@ -355,9 +365,10 @@ static void draw_main(lv_event_t* e) {
             }
             continue;
         }
+        const bool quote = (line.flags & TT_READER_LINE_FLAG_QUOTE) != 0;
         const bool small = line.kind == TT_READER_LINE_CODE || line.kind == TT_READER_LINE_TABLE;
-        const int32_t baseline = top + (small ? codeBaseline : ascent);
-        TTFontLoader* font = small ? codeFont : textFont;
+        const int32_t baseline = top + (quote ? view->layout->quoteAscent() : small ? codeBaseline : ascent);
+        TTFontLoader* font = (small || quote) ? codeFont : textFont;
         TTFontLoader::GlyphInfo info = {};
         if (line.kind == TT_READER_LINE_BULLET) {
             draw_glyph(canvas, font, bits, TT_READER_BULLET_GLYPH, coords.x1 + line.markX, baseline, 0, info);
@@ -365,18 +376,22 @@ static void draw_main(lv_event_t* e) {
             draw_task_box(canvas, coords.x1 + line.markX, baseline,
                           (line.flags & TT_READER_LINE_FLAG_TASK_DONE) != 0);
         }
-        TTReaderDecoration underline = { TT_READER_STYLE_UNDERLINE, baseline + TT_READER_UNDERLINE_DY, false, 0, 0 };
-        TTReaderDecoration strike = { TT_READER_STYLE_STRIKE, baseline - TT_READER_STRIKE_DY, false, 0, 0 };
+        TTReaderDecoration underline = { TT_READER_STYLE_UNDERLINE, baseline + TT_READER_UNDERLINE_DY, 1, false, 0, 0 };
+        TTReaderDecoration strike = { TT_READER_STYLE_STRIKE, baseline - TT_READER_STRIKE_DY, 1, false, 0, 0 };
+        TTReaderDecoration emphasis = { TT_READER_STYLE_ITALIC, baseline + TT_READER_EMPHASIS_DY,
+                                       TT_READER_EMPHASIS_THICK, false, 0, 0 };
         int32_t x = coords.x1 + line.x;
         uint8_t style = line.style;
         uint16_t count = 0;
         uint16_t gap = 0;
+        uint32_t lastCp = 0;
         size_t pos = line.textStart;
         const size_t end = (size_t)line.textStart + line.textLen;
         while (pos < end) {
             if ((uint8_t)page.text[pos] == TT_READER_STYLE_MARK && pos + 1 < end) {
                 const uint8_t next = (uint8_t)page.text[pos + 1] & TT_READER_STYLE_MASK;
-                if (count > 0 && (style & TT_READER_STYLE_ITALIC) && !(next & TT_READER_STYLE_ITALIC)) {
+                if (count > 0 && (style & TT_READER_STYLE_ITALIC) && !(next & TT_READER_STYLE_ITALIC)
+                    && !tt_reader_is_emphasis_char(lastCp)) {
                     x += TT_READER_ITALIC_TAIL;
                 }
                 if (!(next & TT_READER_STYLE_UNDERLINE)) {
@@ -384,6 +399,9 @@ static void draw_main(lv_event_t* e) {
                 }
                 if (!(next & TT_READER_STYLE_STRIKE)) {
                     decoration_flush(canvas, strike);
+                }
+                if (!(next & TT_READER_STYLE_ITALIC)) {
+                    decoration_flush(canvas, emphasis);
                 }
                 style = next;
                 pos += TT_READER_STYLE_MARK_BYTES;
@@ -400,6 +418,12 @@ static void draw_main(lv_event_t* e) {
             const int32_t adv = info.adv_w + (bold ? TT_READER_BOLD_EXTRA : 0);
             decoration_extend(underline, style, cp, x, adv);
             decoration_extend(strike, style, cp, x, adv);
+            if ((style & TT_READER_STYLE_ITALIC) != 0 && tt_reader_is_emphasis_char(cp)) {
+                decoration_extend(emphasis, TT_READER_STYLE_ITALIC, cp, x, adv);
+            } else {
+                decoration_flush(canvas, emphasis);
+            }
+            lastCp = cp;
             x += adv;
             count++;
             if (pos < end && (line.spaceGaps ? cp == ' ' : true)) {
@@ -408,6 +432,7 @@ static void draw_main(lv_event_t* e) {
         }
         decoration_flush(canvas, underline);
         decoration_flush(canvas, strike);
+        decoration_flush(canvas, emphasis);
     }
     LOG_D("Reader view: draw clip y=%d..%d glyphs=%u in %ums",
           (int)canvas.clip.y1, (int)canvas.clip.y2, (unsigned)drawn, (unsigned)(millis() - startMs));

@@ -41,6 +41,15 @@ bool TTReaderLayout::begin(TTFontLoader* font, TTFontLoader* codeFont, int16_t w
     _codeUnit = info.adv_w;
     _codeBaseline = (int16_t)(_codeFont->getLineHeight() - _codeFont->getBaseLine()
                               + (TT_READER_CODE_PITCH - TT_READER_CODE_FONT_SIZE) / 2);
+    _quoteLineHeight = (int16_t)_codeFont->getLineHeight();
+    _quoteAscent = (int16_t)(_quoteLineHeight - _codeFont->getBaseLine());
+    if (info.box_h > 0) {
+        _quoteInkTop = (int16_t)(_quoteAscent - info.ofs_y - (int16_t)info.box_h);
+        _quoteInkBottom = (int16_t)(_quoteAscent - info.ofs_y - 1);
+    } else {
+        _quoteInkTop = 0;
+        _quoteInkBottom = (int16_t)(_quoteLineHeight - 1);
+    }
 
     const int32_t config[] = {
         TT_READER_LAYOUT_VERSION, _width, _height, _lineHeight, _ascent,
@@ -51,6 +60,8 @@ bool TTReaderLayout::begin(TTFontLoader* font, TTFontLoader* codeFont, int16_t w
     if (_markdown) {
         const int32_t mdConfig[] = {
             TT_MD_LAYOUT_VERSION, _unit, _bulletX, TT_READER_BOLD_EXTRA, TT_READER_ITALIC_TAIL,
+            TT_READER_QUOTE_BAR_X, TT_READER_QUOTE_BAR_W, TT_READER_QUOTE_LINE_GAP, _quoteLineHeight,
+            _quoteInkTop, _quoteInkBottom,
             TT_MD_LIST_LEVEL_COLUMNS, TT_MD_CONTEXT_MAX,
             (int32_t)_codeFont->getLineHeight(), (int32_t)_codeFont->getBaseLine(), _codeSpaceAdv,
             TT_READER_CODE_PITCH, TT_READER_CODE_PAD_X, TT_READER_CODE_PAD_Y, TT_READER_CODE_BORDER,
@@ -141,9 +152,10 @@ TTReaderLayout::LineEnd TTReaderLayout::fillLine(TTReaderSource& src, uint32_t& 
     line.markX = 0;
 
     const bool code = md != nullptr && md->block.kind == TT_MD_CODE;
+    const bool quote = md != nullptr && md->block.kind == TT_MD_QUOTE;
     const bool inlineMarkdown = md != nullptr && !code;
-    TTFontLoader* font = code ? _codeFont : _font;
-    const uint16_t spaceAdv = code ? _codeSpaceAdv : _spaceAdv;
+    TTFontLoader* font = (code || quote) ? _codeFont : _font;
+    const uint16_t spaceAdv = (code || quote) ? _codeSpaceAdv : _spaceAdv;
     const int32_t right = code ? _width - TT_READER_CODE_INSET_X : _width;
     uint8_t style = line.style;
     TTMdInline breakInline;
@@ -265,7 +277,8 @@ TTReaderLayout::LineEnd TTReaderLayout::fillLine(TTReaderSource& src, uint32_t& 
         const uint8_t charStyle = md != nullptr ? tt_md_style(*md) : 0;
         const bool mark = charStyle != style;
         const bool italicEnds = (style & TT_READER_STYLE_ITALIC) && !(charStyle & TT_READER_STYLE_ITALIC);
-        const int32_t tail = mark && count > 0 && italicEnds ? TT_READER_ITALIC_TAIL : 0;
+        const int32_t tail = mark && count > 0 && italicEnds && !tt_reader_is_emphasis_char(prev)
+            ? TT_READER_ITALIC_TAIL : 0;
         const int32_t width = adv + tail + ((charStyle & TT_READER_STYLE_BOLD) ? TT_READER_BOLD_EXTRA : 0);
         const bool tooLong = page.textLen - line.textStart >= TT_READER_LINE_BYTES_MAX;
         if (count > 0 && (x + width > right || tooLong)) {
@@ -444,9 +457,12 @@ bool TTReaderLayout::layoutPage(TTReaderSource& src, uint32_t start, TTReaderPag
             }
         }
         const bool codeLine = md != nullptr && cursor.fence;
+        const bool quoteFit = (md != nullptr && cursor.block.kind == TT_MD_QUOTE)
+            || (mdBlockStart && !cursor.fence);
         const int16_t lineY = (int16_t)(y + ((paragraph && page.lineCount > 0) ? TT_READER_PARA_GAP : 0));
         const int32_t lineBottom = codeLine ? lineY + TT_READER_CODE_PITCH + TT_READER_CODE_INSET_Y
-                                            : lineY + _lineHeight;
+                                            : quoteFit ? lineY + _quoteLineHeight
+                                                       : lineY + _lineHeight;
         if (page.lineCount >= maxLines || lineBottom > _height) {
             page.end = lineStart;
             break;
@@ -504,6 +520,11 @@ bool TTReaderLayout::layoutPage(TTReaderSource& src, uint32_t start, TTReaderPag
         } else if (md != nullptr) {
             x0 = contX;
         }
+        const bool quoteLine = md != nullptr && cursor.block.kind == TT_MD_QUOTE;
+        if (!codeLine && !quoteLine && lineY + _lineHeight > _height) {
+            page.end = lineStart;
+            break;
+        }
         line.y = lineY;
         const LineEnd reason = fillLine(src, offset, x0, page, line, md);
         if (src.failed()) {
@@ -539,13 +560,21 @@ bool TTReaderLayout::layoutPage(TTReaderSource& src, uint32_t start, TTReaderPag
             page.atEnd = true;
             break;
         }
+        if (md != nullptr && cursor.block.kind == TT_MD_QUOTE && cursor.block.level > 0) {
+            line.flags |= TT_READER_LINE_FLAG_QUOTE;
+            line.markX = cursor.block.level;
+        }
         if (line.textLen > 0 || line.kind == TT_READER_LINE_TASK) {
             if (codeLine && boxTopPending) {
                 line.flags |= TT_READER_LINE_FLAG_BOX_TOP;
                 boxTopPending = false;
             }
             page.lineCount++;
-            y = (int16_t)(lineY + (codeLine ? TT_READER_CODE_PITCH : _lineHeight + TT_READER_LINE_GAP));
+            const bool placedQuote = md != nullptr && cursor.block.kind == TT_MD_QUOTE;
+            const int16_t quoteStep = (int16_t)(_quoteLineHeight + TT_READER_QUOTE_LINE_GAP);
+            y = (int16_t)(lineY + (codeLine ? TT_READER_CODE_PITCH
+                                            : placedQuote ? quoteStep
+                                                          : _lineHeight + TT_READER_LINE_GAP));
         }
         paragraph = reason == TT_LINE_END_PARAGRAPH;
         if (reason == TT_LINE_END_BUFFER) {
@@ -566,7 +595,46 @@ bool TTReaderLayout::layoutPage(TTReaderSource& src, uint32_t start, TTReaderPag
         && page.lines[page.lineCount - 1].kind == TT_READER_LINE_CODE) {
         page.lines[page.lineCount - 1].flags |= TT_READER_LINE_FLAG_BOX_BOTTOM;
     }
+    if (md != nullptr) {
+        appendQuoteBars(page);
+    }
     return !src.failed();
+}
+
+void TTReaderLayout::appendQuoteBars(TTReaderPageLayout& page) {
+    const uint8_t count = page.lineCount;
+    const int16_t step = (int16_t)(_quoteLineHeight + TT_READER_QUOTE_LINE_GAP);
+    uint8_t i = 0;
+    while (i < count) {
+        const TTReaderLine& first = page.lines[i];
+        if ((first.flags & TT_READER_LINE_FLAG_QUOTE) == 0 || first.markX <= 0) {
+            i++;
+            continue;
+        }
+        uint8_t j = (uint8_t)(i + 1);
+        while (j < count) {
+            const TTReaderLine& line = page.lines[j];
+            if ((line.flags & TT_READER_LINE_FLAG_QUOTE) == 0 || line.markX != first.markX) {
+                break;
+            }
+            if (line.y > page.lines[j - 1].y + step) {
+                break;
+            }
+            j++;
+        }
+        const int16_t top = (int16_t)(first.y + _quoteInkTop);
+        const int16_t bottom = (int16_t)(page.lines[j - 1].y + _quoteInkBottom);
+        const uint8_t level = first.markX > TT_MD_QUOTE_MAX ? TT_MD_QUOTE_MAX : (uint8_t)first.markX;
+        for (uint8_t n = 1; n <= level; n++) {
+            const int16_t x = (int16_t)((n - 1) * _unit + TT_READER_QUOTE_BAR_X);
+            if (!appendRule(page, TT_READER_LINE_VRULE, x, top, bottom)) {
+                LOG_W("Reader markdown: quote bar dropped");
+                return;
+            }
+            page.lines[page.lineCount - 1].flags |= TT_READER_LINE_FLAG_QUOTE;
+        }
+        i = j;
+    }
 }
 
 bool TTReaderLayout::beginMarkdown(TTReaderSource& src, uint32_t& offset, bool paragraph, bool& joined,
@@ -642,11 +710,13 @@ bool TTReaderLayout::markdownTailEmpty(TTReaderSource& src, uint32_t offset) {
 int32_t TTReaderLayout::textWidth(const char* text, uint16_t len, uint8_t style) {
     int32_t x = 0;
     uint16_t count = 0;
+    uint32_t lastCp = 0;
     size_t pos = 0;
     while (pos < len) {
         if ((uint8_t)text[pos] == TT_READER_STYLE_MARK && pos + 1 < len) {
             const uint8_t next = (uint8_t)text[pos + 1] & TT_READER_STYLE_MASK;
-            if (count > 0 && (style & TT_READER_STYLE_ITALIC) && !(next & TT_READER_STYLE_ITALIC)) {
+            if (count > 0 && (style & TT_READER_STYLE_ITALIC) && !(next & TT_READER_STYLE_ITALIC)
+                && !tt_reader_is_emphasis_char(lastCp)) {
                 x += TT_READER_ITALIC_TAIL;
             }
             style = next;
@@ -665,6 +735,7 @@ int32_t TTReaderLayout::textWidth(const char* text, uint16_t len, uint8_t style)
         if ((style & TT_READER_STYLE_BOLD) && cp != ' ') {
             x += TT_READER_BOLD_EXTRA;
         }
+        lastCp = cp;
         count++;
     }
     return x;
@@ -706,6 +777,7 @@ int32_t TTReaderLayout::cellWidth(TTReaderSource& src, uint32_t start, uint32_t 
     int32_t width = 0;
     uint8_t style = cellStyle(inl, header);
     uint16_t count = 0;
+    uint32_t prev = 0;
     while (off < end) {
         const uint32_t cp0 = tt_md_next(src, off, inl, end);
         if (cp0 == 0 || src.failed()) {
@@ -721,7 +793,8 @@ int32_t TTReaderLayout::cellWidth(TTReaderSource& src, uint32_t start, uint32_t 
         const uint8_t nextStyle = cellStyle(inl, header);
         const bool mark = nextStyle != style;
         const bool italicEnds = (style & TT_READER_STYLE_ITALIC) && !(nextStyle & TT_READER_STYLE_ITALIC);
-        const int32_t tail = mark && count > 0 && italicEnds ? TT_READER_ITALIC_TAIL : 0;
+        const int32_t tail = mark && count > 0 && italicEnds && !tt_reader_is_emphasis_char(prev)
+            ? TT_READER_ITALIC_TAIL : 0;
         uint32_t shown = 0;
         TTFontLoader::GlyphInfo info = {};
         if (!glyph(_codeFont, cp, shown, info) && shown == 0) {
@@ -731,6 +804,7 @@ int32_t TTReaderLayout::cellWidth(TTReaderSource& src, uint32_t start, uint32_t 
         if ((nextStyle & TT_READER_STYLE_BOLD) && cp != ' ') {
             width += TT_READER_BOLD_EXTRA;
         }
+        prev = cp;
         style = nextStyle;
         count++;
     }
@@ -837,7 +911,8 @@ bool TTReaderLayout::appendTableCell(TTReaderSource& src, const TTMdCell& cell, 
             const uint8_t nextStyle = cellStyle(inl, header);
             const bool mark = nextStyle != style;
             const bool italicEnds = (style & TT_READER_STYLE_ITALIC) && !(nextStyle & TT_READER_STYLE_ITALIC);
-            const int32_t tail = mark && count > 0 && italicEnds ? TT_READER_ITALIC_TAIL : 0;
+            const int32_t tail = mark && count > 0 && italicEnds && !tt_reader_is_emphasis_char(prev)
+                ? TT_READER_ITALIC_TAIL : 0;
             const bool bold = (nextStyle & TT_READER_STYLE_BOLD) && cp != ' ';
             const int32_t glyphW = info.adv_w + tail + (bold ? TT_READER_BOLD_EXTRA : 0);
             if (count > 0 && pen + glyphW > colW) {

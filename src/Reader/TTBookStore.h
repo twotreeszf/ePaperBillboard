@@ -22,6 +22,7 @@
 struct TTBookEntry {
     String name;
     uint32_t size = 0;
+    uint32_t uploaded = 0;
 };
 
 struct __attribute__((packed)) TTBookProgress {
@@ -55,6 +56,8 @@ private:
     bool ensureDir(const char* path);
     String bookId(const TTBookEntry& book) const;
     void removeCache(const TTBookEntry& book);
+    void removeCacheDir(const String& dirPath);
+    void pruneOrphanCaches(const std::vector<String>& liveIds, const std::vector<String>& liveNames);
     void readRecent(std::vector<String>& out);
     void writeRecent(const std::vector<String>& names);
 };

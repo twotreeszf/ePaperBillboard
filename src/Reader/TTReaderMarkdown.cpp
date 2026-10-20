@@ -840,8 +840,6 @@ uint8_t tt_md_style(const TTMdCursor& cursor) {
     }
     if (cursor.block.kind == TT_MD_HEADING) {
         style |= TT_READER_STYLE_BOLD;
-    } else if (cursor.block.kind == TT_MD_QUOTE) {
-        style |= TT_READER_STYLE_ITALIC;
     }
     return style;
 }

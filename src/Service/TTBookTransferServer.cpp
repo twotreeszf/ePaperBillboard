@@ -450,7 +450,7 @@ progress { width: 100%; height: 8px; margin: 6px 0 2px; }
 <div class="mask">松开以上传</div>
 <div class="box">
 <h2>上传电子书</h2>
-<p class="tip">把 TXT、Markdown（.md）或 EPUB 拖到页面任意位置，或点选后按上传。EPUB 会在浏览器里转成 Markdown，图片转成整页线稿后跟着正文上传，大书需要几秒。同名文件会被覆盖。TXT 和 Markdown 请使用 UTF-8 编码。上传完成前，请不要离开设备上的传书页面。</p>
+<p class="tip">把 TXT、Markdown（.md）或 EPUB 拖到页面任意位置，或点选后按上传。EPUB 会在浏览器里转成 Markdown，图片转成整页线稿后跟着正文上传，大书需要几秒。不是 UTF-8 的 TXT 和 Markdown 会在浏览器里转成 UTF-8。同名文件会被覆盖。上传完成前，请不要离开设备上的传书页面。</p>
 <input type="file" id="file" multiple accept=".txt,.md,.epub,text/plain,text/markdown,application/epub+zip">
 <button id="go" onclick="start()">上传</button>
 <ul id="jobs"></ul>
@@ -1763,6 +1763,26 @@ window.addEventListener('drop', e => {
   document.body.classList.remove('drag');
   start(e.dataTransfer.files);
 });
+function isUtf8(bytes) {
+  try {
+    new TextDecoder('utf-8', { fatal: true }).decode(bytes);
+    return true;
+  } catch (e) {
+    return false;
+  }
+}
+function textEncoding(bytes) {
+  if (bytes.length >= 2 && bytes[0] === 0xFF && bytes[1] === 0xFE) return 'utf-16le';
+  if (bytes.length >= 2 && bytes[0] === 0xFE && bytes[1] === 0xFF) return 'utf-16be';
+  return 'gb18030';
+}
+async function asUtf8File(file) {
+  if (!/\.(txt|md)$/i.test(file.name)) return null;
+  const bytes = new Uint8Array(await file.arrayBuffer());
+  if (bytes.length === 0 || isUtf8(bytes)) return null;
+  const text = new TextDecoder(textEncoding(bytes)).decode(bytes);
+  return new File([text], file.name, { type: 'text/plain;charset=utf-8' });
+}
 async function start(list) {
   const files = Array.from(list || $('file').files);
   if (!files.length) { alert('请先选择文件'); return; }
@@ -1779,6 +1799,7 @@ async function start(list) {
     msg.className = 'msg';
     li.append(bar, msg);
     let upload = f;
+    let converted = false;
     if (/\.epub$/i.test(f.name)) {
       msg.textContent = '正在转换...';
       try {
@@ -1794,10 +1815,23 @@ async function start(list) {
     } else if (!/\.(txt|md)$/i.test(f.name)) {
       msg.textContent = '跳过：只支持 TXT、Markdown 和 EPUB 文件';
       continue;
+    } else {
+      try {
+        const utf8 = await asUtf8File(f);
+        if (utf8) {
+          upload = utf8;
+          converted = true;
+          li.querySelector('.size').textContent = fmt(upload.size);
+        }
+      } catch (err) {
+        msg.textContent = '失败：无法转为 UTF-8';
+        continue;
+      }
     }
     if (freeBytes >= 0 && upload.size > freeBytes) { msg.textContent = '跳过：SD 卡空间不足'; continue; }
     msg.textContent = '上传中...';
     await uploadOne(upload, bar, msg);
+    if (converted && msg.textContent === '完成') msg.textContent = '完成，已转为 UTF-8';
     if (!/^完成/.test(msg.textContent)) continue;
     if (freeBytes >= 0) freeBytes -= upload.size;
     const images = upload.epubImages || [];

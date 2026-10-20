@@ -123,6 +123,48 @@ bool tt_reader_is_ignorable(uint32_t cp) {
     return cp == 0xFEFF || (cp >= 0x200B && cp <= 0x200F);
 }
 
+bool tt_reader_is_ideograph(uint32_t cp) {
+    if (cp >= 0x3400 && cp <= 0x4DBF) {
+        return true;
+    }
+    if (cp >= 0x4E00 && cp <= 0x9FFF) {
+        return true;
+    }
+    if (cp >= 0xF900 && cp <= 0xFAFF) {
+        return true;
+    }
+    return cp >= 0x20000 && cp <= 0x2FFFF;
+}
+
+bool tt_reader_is_cjk_punct(uint32_t cp) {
+    if (cp >= 0x3001 && cp <= 0x303F) {
+        return true;
+    }
+    if ((cp >= 0xFF01 && cp <= 0xFF0F) || (cp >= 0xFF1A && cp <= 0xFF20)
+        || (cp >= 0xFF3B && cp <= 0xFF40) || (cp >= 0xFF5B && cp <= 0xFF65)) {
+        return true;
+    }
+    switch (cp) {
+        case 0x00B7:
+        case 0x2014:
+        case 0x2015:
+        case 0x2018:
+        case 0x2019:
+        case 0x201C:
+        case 0x201D:
+        case 0x2026:
+        case 0x2030:
+        case 0x30FB:
+            return true;
+        default:
+            return false;
+    }
+}
+
+bool tt_reader_is_emphasis_char(uint32_t cp) {
+    return tt_reader_is_ideograph(cp) || tt_reader_is_cjk_punct(cp);
+}
+
 bool tt_reader_is_wide(uint32_t cp) {
     if (cp >= 0x2E80 && cp <= 0x9FFF) {
         return true;
