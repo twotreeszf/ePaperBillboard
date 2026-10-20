@@ -7,6 +7,7 @@
 #include "../Base/TTLvglEpdDriver.h"
 #include "../Base/TTNavigationBar.h"
 #include "../Base/TTPopupLayer.h"
+#include "../Base/TTTextButton.h"
 #include "../Reader/TTReaderTextView.h"
 #include "../Service/TTOtaService.h"
 #include <EPDConfig.h>
@@ -15,6 +16,8 @@
 #include <new>
 
 #define TT_OTA_NOTES_TEXT_W  (EPD_WIDTH - 2 * TT_READER_MARGIN_X)
+#define TT_OTA_NOTES_TEXT_H  (TT_OTA_NOTES_CONTENT_H - TT_READER_MARGIN_TOP - TT_TEXT_BUTTON_H \
+                              - TT_OTA_NOTES_BUTTON_BOTTOM - TT_OTA_NOTES_BUTTON_TEXT_GAP)
 
 TTOtaNotesPage::TTOtaNotesPage(TTUpdatePage* host) : TTScreenPage("更新说明"), _host(host) {}
 
@@ -27,7 +30,7 @@ void TTOtaNotesPage::buildContent(lv_obj_t* screen) {
 
     _textView = tt_reader_text_view_create(screen);
     lv_obj_set_pos(_textView, TT_READER_MARGIN_X, TT_READER_MARGIN_TOP);
-    lv_obj_set_size(_textView, TT_OTA_NOTES_TEXT_W, EPD_HEIGHT - TT_NAV_PAGE_INSET - TT_READER_MARGIN_TOP);
+    lv_obj_set_size(_textView, TT_OTA_NOTES_TEXT_W, TT_OTA_NOTES_TEXT_H);
 
     _footer = lv_label_create(screen);
     lv_obj_set_style_text_font(_footer, footerFont, 0);
@@ -35,7 +38,13 @@ void TTOtaNotesPage::buildContent(lv_obj_t* screen) {
     lv_obj_set_style_bg_opa(_footer, LV_OPA_TRANSP, 0);
     lv_label_set_text(_footer, "");
     lv_obj_set_hidden(_footer, true);
+
+    lv_font_t* buttonFont = fonts.getFont(TT_READER_FONT_SIZE);
+    _updateBtn = TTTextButton::create(screen, TT_OTA_NOTES_UPDATE_TEXT, buttonFont);
+    lv_obj_align(_updateBtn, LV_ALIGN_BOTTOM_MID, 0, -TT_OTA_NOTES_BUTTON_BOTTOM);
+    lv_obj_add_event_cb(_updateBtn, onUpdateClicked, LV_EVENT_CLICKED, this);
     createGroup();
+    addToFocusGroup(_updateBtn);
 }
 
 bool TTOtaNotesPage::openNotes() {
@@ -54,10 +63,11 @@ bool TTOtaNotesPage::openNotes() {
         LOG_E("OTA notes: text font missing");
         return false;
     }
-    const int32_t lineH = textFont->getLineHeight();
-    const int32_t height = TT_READER_PAGE_LINES * lineH + (TT_READER_PAGE_LINES - 1) * TT_READER_LINE_GAP;
     lv_obj_set_pos(_textView, TT_READER_MARGIN_X, TT_READER_MARGIN_TOP);
-    lv_obj_set_size(_textView, TT_OTA_NOTES_TEXT_W, height);
+    lv_obj_set_size(_textView, TT_OTA_NOTES_TEXT_W, TT_OTA_NOTES_TEXT_H);
+    const int32_t height = TT_OTA_NOTES_TEXT_H;
+    LOG_I("OTA notes: text y=%d h=%d buttonBottom=%d",
+          TT_READER_MARGIN_TOP, (int)height, TT_OTA_NOTES_BUTTON_BOTTOM);
     if (!_layout.begin(textFont, codeFont, TT_OTA_NOTES_TEXT_W, (int16_t)height, true)) {
         LOG_E("OTA notes: layout begin failed");
         return false;
@@ -104,6 +114,9 @@ void TTOtaNotesPage::willAppear() {
         return;
     }
     attachFooter();
+    if (_updateBtn != nullptr) {
+        lv_group_focus_obj(_updateBtn);
+    }
     TTInstanceOf<TTLvglEpdDriver>().setAutoDeepRefresh(false);
     _deepPaused = true;
 }
@@ -172,6 +185,13 @@ void TTOtaNotesPage::confirmUpdate() {
     }
     if (nav != nullptr) {
         nav->pop();
+    }
+}
+
+void TTOtaNotesPage::onUpdateClicked(lv_event_t* e) {
+    TTOtaNotesPage* page = static_cast<TTOtaNotesPage*>(lv_event_get_user_data(e));
+    if (page != nullptr) {
+        page->confirmUpdate();
     }
 }
 

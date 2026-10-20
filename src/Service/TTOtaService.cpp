@@ -1361,9 +1361,6 @@ void TTOtaService::checkNow() {
     char local[TT_OTA_VER_MAX];
     readLocalVersion(local, sizeof(local));
     const char* baseline = TT_FW_VERSION;
-    if (local[0] != '\0' && strcmp(local, baseline) > 0) {
-        baseline = local;
-    }
     LOG_I("OTA: compare remote=%s local=%s fw=%s baseline=%s",
           doc.version, local, TT_FW_VERSION, baseline);
     const bool sameFw = strcmp(doc.version, TT_FW_VERSION) == 0;

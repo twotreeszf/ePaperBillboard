@@ -8,8 +8,9 @@
 class TTReaderSource {
 public:
     bool open(fs::FS& fs, const char* path);
+    bool openMemory(const uint8_t* data, uint32_t size);
     void close();
-    bool isOpen() const { return (bool)_file; }
+    bool isOpen() const { return (bool)_file || _size > 0; }
     bool failed() const { return _failed; }
     uint32_t size() const { return _size; }
 

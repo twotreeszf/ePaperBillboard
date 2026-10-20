@@ -2,6 +2,7 @@
 #include "TTReaderText.h"
 #include "../Base/Logger.h"
 #include "../Base/TTFile.h"
+#include <cstring>
 
 bool TTReaderSource::open(fs::FS& fs, const char* path) {
     close();
@@ -12,6 +13,21 @@ bool TTReaderSource::open(fs::FS& fs, const char* path) {
     _size = (uint32_t)_file.size();
     _failed = false;
     LOG_I("Reader source: open %s size=%u", path, (unsigned)_size);
+    return true;
+}
+
+bool TTReaderSource::openMemory(const uint8_t* data, uint32_t size) {
+    close();
+    if (data == nullptr || size == 0 || size > TT_READER_SOURCE_BUF_SIZE) {
+        LOG_E("Reader source: memory size %u rejected", (unsigned)size);
+        return false;
+    }
+    memcpy(_buf, data, size);
+    _bufStart = 0;
+    _bufLen = size;
+    _size = size;
+    _failed = false;
+    LOG_I("Reader source: memory size=%u", (unsigned)size);
     return true;
 }
 

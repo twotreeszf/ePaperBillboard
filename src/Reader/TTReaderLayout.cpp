@@ -526,7 +526,29 @@ bool TTReaderLayout::layoutPage(TTReaderSource& src, uint32_t start, TTReaderPag
             break;
         }
         line.y = lineY;
-        const LineEnd reason = fillLine(src, offset, x0, page, line, md);
+        const bool plainParagraph = (md == nullptr && paragraph)
+            || (mdBlockStart && cursor.block.kind == TT_MD_PARAGRAPH);
+        if (plainParagraph) {
+            x0 = 0;
+        }
+        const uint32_t tryOffset = offset;
+        const uint16_t tryText = page.textLen;
+        const uint16_t tryMissing = page.missingGlyphs;
+        TTMdInline tryInline;
+        if (md != nullptr) {
+            tryInline = md->inl;
+        }
+        LineEnd reason = fillLine(src, offset, x0, page, line, md);
+        if (plainParagraph && reason == TT_LINE_END_OVERFLOW) {
+            offset = tryOffset;
+            page.textLen = tryText;
+            page.missingGlyphs = tryMissing;
+            if (md != nullptr) {
+                md->inl = tryInline;
+            }
+            x0 = _indent;
+            reason = fillLine(src, offset, x0, page, line, md);
+        }
         if (src.failed()) {
             return false;
         }
