@@ -8,6 +8,7 @@
 #include "../Tasks/TTWiFiTask.h"
 #include <EPDConfig.h>
 #include <cstdio>
+#include <cstring>
 
 #define TT_TRANSFER_PAGE_STATUS_W (EPD_WIDTH - 2 * TT_TRANSFER_PAGE_LEFT)
 
@@ -138,7 +139,9 @@ void TTBookTransferPage::showReady(const char* ssid, const char* url) {
 void TTBookTransferPage::showUploadStatus(const TTBookTransferPayload& status) {
     char text[TT_TRANSFER_PAGE_STATUS_MAX];
     if (status.state == TT_BOOK_TRANSFER_RECEIVING) {
-        snprintf(text, sizeof(text), "正在接收：%s", status.fileName);
+        const char* format = strcmp(status.message, TT_TRANSFER_MSG_IMAGE) == 0
+            ? TT_TRANSFER_TEXT_RECEIVING_IMAGE : TT_TRANSFER_TEXT_RECEIVING;
+        snprintf(text, sizeof(text), format, status.fileName);
     } else if (status.state == TT_BOOK_TRANSFER_RECEIVED) {
         snprintf(text, sizeof(text), "已收到 %u 本，最新：%s", (unsigned)status.receivedCount, status.fileName);
     } else if (status.state == TT_BOOK_TRANSFER_DELETED) {

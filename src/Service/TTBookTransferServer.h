@@ -44,6 +44,7 @@ private:
     void handleBooks();
     void handleUpload();
     void handleUploadDone();
+    void handleImagesDone();
     void handleDelete();
     void startUpload(const String& rawName);
     void writeUpload(const uint8_t* data, size_t len);
@@ -69,6 +70,7 @@ private:
     bool _uploadActive = false;
     bool _uploadDone = false;
     bool _uploadIsImage = false;
+    bool _imageStatusShown = false;
     bool _routesReady = false;
     bool _running = false;
     bool _sdAcquired = false;

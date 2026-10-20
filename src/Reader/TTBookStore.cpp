@@ -7,6 +7,15 @@
 #include <algorithm>
 #include <strings.h>
 
+static void tt_book_yield(uint32_t& lastYieldMs) {
+    const uint32_t now = millis();
+    if ((uint32_t)(now - lastYieldMs) < TT_BOOKS_CACHE_YIELD_MS) {
+        return;
+    }
+    vTaskDelay(1);
+    lastYieldMs = millis();
+}
+
 static bool tt_book_ends_with(const char* name, const char* ext) {
     const size_t len = strlen(name);
     const size_t extLen = strlen(ext);
@@ -132,6 +141,7 @@ void TTBookStore::removeCache(const TTBookEntry& book) {
         return;
     }
     std::vector<String> files;
+    uint32_t lastYieldMs = millis();
     while (true) {
         File f = dir.openNextFile();
         if (!f) {
@@ -139,10 +149,13 @@ void TTBookStore::removeCache(const TTBookEntry& book) {
         }
         files.push_back(dirPath + "/" + f.name());
         f.close();
+        tt_book_yield(lastYieldMs);
     }
     dir.close();
+    LOG_I("Book store: clearing cache %s, %u file(s)", dirPath.c_str(), (unsigned)files.size());
     for (const String& file : files) {
         fs().remove(file);
+        tt_book_yield(lastYieldMs);
     }
     const bool removed = fs().rmdir(dirPath);
     LOG_I("Book store: cache %s cleared, %u file(s), rmdir=%d",

@@ -19,6 +19,8 @@
 #define TT_TRANSFER_TEXT_CONNECTING      "正在连接 Wi-Fi"
 #define TT_TRANSFER_TEXT_READY           "请用手机或电脑上传电子书"
 #define TT_TRANSFER_TEXT_WAITING         "等待上传..."
+#define TT_TRANSFER_TEXT_RECEIVING       "正在接收：%s"
+#define TT_TRANSFER_TEXT_RECEIVING_IMAGE "正在接收图片：%s"
 #define TT_TRANSFER_TEXT_NO_NETWORK      "尚未保存 Wi-Fi\n请先在 设置 > Web 设置 中配置"
 #define TT_TRANSFER_TEXT_BUSY            "正在进行 Web 设置\n请稍后再试"
 #define TT_TRANSFER_TEXT_CONNECT_FAILED  "无法连接已保存的 Wi-Fi\n请确认网络可用后重试"

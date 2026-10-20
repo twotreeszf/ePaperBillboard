@@ -10,7 +10,7 @@
 #define TT_NAV_BAR_FONT        12
 #define TT_NAV_STATUS_FONT     12
 #define TT_NAV_BAR_PAD         4
-#define TT_NAV_TITLE_MAX       32
+#define TT_NAV_TITLE_MAX       96
 #define TT_NAV_TITLE_BRACKET_GAP 1
 #define TT_NAV_ARROW_W         14
 #define TT_NAV_ARROW_Y         (-1)
@@ -112,6 +112,7 @@ private:
     lv_obj_t* _bar = nullptr;
     lv_obj_t* _titleBox = nullptr;
     lv_obj_t* _title = nullptr;
+    char _titleText[TT_NAV_TITLE_MAX] = {};
     lv_obj_t* _backBtn = nullptr;
     lv_obj_t* _statusRow = nullptr;
     lv_obj_t* _center = nullptr;

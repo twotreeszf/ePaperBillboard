@@ -28,6 +28,7 @@
 #define TT_TIME_TEXT_MAX   20
 #define TT_STATUS_MSG_MAX  48
 #define TT_BOOK_TRANSFER_NAME_MAX  128
+#define TT_TRANSFER_MSG_IMAGE      "image"
 
 enum TTWiFiLinkState {
     TT_WIFI_LINK_IDLE = 0,

@@ -7,11 +7,13 @@
 #include "TTRtc.h"
 #include "TTNotificationCenter.h"
 #include "Logger.h"
+#include "TTTextFit.h"
 #include "../Tasks/TTUITask.h"
 #include "../Tasks/TTWiFiTask.h"
 #include "../Tasks/TTSensorTask.h"
 #include <EPDConfig.h>
 #include <cstdio>
+#include <cstring>
 #include <cmath>
 
 void TTNavigationBar::begin(lv_obj_t* parent, ITTNavigationController* nav) {
@@ -78,7 +80,7 @@ void TTNavigationBar::begin(lv_obj_t* parent, ITTNavigationController* nav) {
     lv_obj_set_style_bg_opa(_title, LV_OPA_TRANSP, 0);
     lv_obj_set_style_text_font(_title, font, 0);
     lv_obj_set_style_text_align(_title, LV_TEXT_ALIGN_LEFT, 0);
-    lv_label_set_long_mode(_title, LV_LABEL_LONG_DOT);
+    lv_label_set_long_mode(_title, LV_LABEL_LONG_CLIP);
 
     lv_obj_t* rightBracket = lv_label_create(_titleBox);
     lv_label_set_text(rightBracket, "]");
@@ -250,7 +252,17 @@ void TTNavigationBar::subscribeStatus() {
 
 void TTNavigationBar::show(const char* title, bool showBack) {
     if (_bar == nullptr) return;
-    lv_label_set_text(_title, title != nullptr ? title : "");
+    const char* src = title != nullptr ? title : "";
+    size_t len = strlen(src);
+    if (len >= sizeof(_titleText)) {
+        len = sizeof(_titleText) - 1;
+        while (len > 0 && ((uint8_t)src[len] & 0xC0) == 0x80) {
+            len--;
+        }
+    }
+    memcpy(_titleText, src, len);
+    _titleText[len] = '\0';
+    lv_label_set_text(_title, _titleText);
     if (showBack) {
         lv_obj_set_hidden(_backBtn, false);
     } else {
@@ -299,11 +311,15 @@ void TTNavigationBar::layoutTitle(bool showBack) {
         if (maxTitle < 24) {
             maxTitle = 24;
         }
+        const lv_font_t* titleFont = lv_obj_get_style_text_font(_title, LV_PART_MAIN);
+        const int32_t letterSpace = lv_obj_get_style_text_letter_space(_title, LV_PART_MAIN);
+        char fitted[TT_NAV_TITLE_MAX];
+        ttTextFit(fitted, sizeof(fitted), _titleText, titleFont, maxTitle, letterSpace);
+        if (strcmp(lv_label_get_text(_title), fitted) != 0) {
+            lv_label_set_text(_title, fitted);
+        }
         lv_obj_set_size(_title, LV_SIZE_CONTENT, LV_SIZE_CONTENT);
-        lv_obj_update_layout(_title);
-        if (lv_obj_get_width(_title) > maxTitle) {
-            const lv_font_t* titleFont = lv_obj_get_style_text_font(_title, LV_PART_MAIN);
-            lv_obj_set_size(_title, maxTitle, lv_font_get_line_height(titleFont));
+        if (strcmp(fitted, _titleText) != 0) {
             LOG_D("NavBar: title truncated to %dpx", (int)maxTitle);
         }
         lv_obj_update_layout(_titleBox);

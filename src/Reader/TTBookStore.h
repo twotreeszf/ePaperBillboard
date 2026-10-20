@@ -17,6 +17,7 @@
 #define TT_BOOKS_ID_TEXT_MAX       12
 #define TT_BOOKS_PROGRESS_MAGIC    0x52505454u
 #define TT_BOOKS_PROGRESS_VERSION  1
+#define TT_BOOKS_CACHE_YIELD_MS    200
 
 struct TTBookEntry {
     String name;

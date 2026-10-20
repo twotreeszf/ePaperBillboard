@@ -17,6 +17,7 @@ TTBookTransferError TTBookTransferServer::begin(EventCallback onEvent) {
     }
     _abort = false;
     _received = 0;
+    _imageStatusShown = false;
     _onEvent = std::move(onEvent);
 
     TTSdCardService& sd = TTInstanceOf<TTSdCardService>();
@@ -41,6 +42,7 @@ TTBookTransferError TTBookTransferServer::begin(EventCallback onEvent) {
         _server.on("/", HTTP_GET, [this]() { handleRoot(); });
         _server.on("/books", HTTP_GET, [this]() { handleBooks(); });
         _server.on("/upload", HTTP_POST, [this]() { handleUploadDone(); }, [this]() { handleUpload(); });
+        _server.on("/images-done", HTTP_POST, [this]() { handleImagesDone(); });
         _server.on("/delete", HTTP_POST, [this]() { handleDelete(); });
         _server.onNotFound([this]() { _server.send(404, "text/plain", "Not found"); });
         _routesReady = true;
@@ -68,6 +70,7 @@ void TTBookTransferServer::stop() {
         _sdAcquired = false;
     }
     _onEvent = nullptr;
+    _imageStatusShown = false;
 }
 
 void TTBookTransferServer::handleClient() {
@@ -215,7 +218,15 @@ void TTBookTransferServer::startUpload(const String& rawName) {
     LOG_I("Transfer: receiving %s from %s heap=%u largest=%u", name.c_str(),
           _server.client().remoteIP().toString().c_str(),
           (unsigned)Util::heapFree(), (unsigned)Util::heapLargest());
-    emit(TT_BOOK_TRANSFER_RECEIVING, nullptr);
+    if (_uploadIsImage) {
+        if (!_imageStatusShown) {
+            _imageStatusShown = true;
+            emit(TT_BOOK_TRANSFER_RECEIVING, TT_TRANSFER_MSG_IMAGE);
+        }
+    } else {
+        _imageStatusShown = false;
+        emit(TT_BOOK_TRANSFER_RECEIVING, nullptr);
+    }
 }
 
 void TTBookTransferServer::writeUpload(const uint8_t* data, size_t len) {
@@ -272,10 +283,14 @@ void TTBookTransferServer::finishUpload() {
     _uploadDone = true;
     if (!_uploadIsImage) {
         _received++;
+        _imageStatusShown = false;
     }
     const uint32_t elapsed = millis() - _uploadStartMs;
     LOG_I("Transfer: saved %s %u bytes in %u ms (%u KB/s)", target.c_str(), (unsigned)_uploadBytes,
           (unsigned)elapsed, (unsigned)(elapsed > 0 ? (uint64_t)_uploadBytes * 1000 / 1024 / elapsed : 0));
+    if (_uploadIsImage) {
+        return;
+    }
     emit(TT_BOOK_TRANSFER_RECEIVED, nullptr);
 }
 
@@ -285,6 +300,7 @@ void TTBookTransferServer::failUpload(const char* reason) {
         _uploadActive = false;
     }
     _uploadError = reason;
+    _imageStatusShown = false;
     LOG_W("Transfer: %s failed at %u bytes: %s, %u ms since start, heap=%u largest=%u",
           _uploadName.c_str(), (unsigned)_uploadBytes, reason, (unsigned)(millis() - _uploadStartMs),
           (unsigned)Util::heapFree(), (unsigned)Util::heapLargest());
@@ -316,6 +332,33 @@ void TTBookTransferServer::handleUploadDone() {
         code = 400;
     }
     _uploadSeen = false;
+    String body;
+    serializeJson(doc, body);
+    _server.send(code, "application/json; charset=utf-8", body);
+}
+
+void TTBookTransferServer::handleImagesDone() {
+    const String name = _server.arg("name");
+    JsonDocument doc;
+    doc["name"] = name;
+    int code = 200;
+    const char* error = nameError(name);
+    if (error == nullptr && !TTInstanceOf<TTSdCardService>().fs().exists(String(TT_BOOKS_DIR "/") + name)) {
+        error = TT_TRANSFER_MSG_NOT_FOUND;
+    }
+    if (error == nullptr) {
+        doc["ok"] = true;
+        _imageStatusShown = false;
+        LOG_I("Transfer: images done %s, %u book(s) received", name.c_str(), (unsigned)_received);
+        if (_onEvent) {
+            _onEvent(TT_BOOK_TRANSFER_RECEIVED, name.c_str(), 0, nullptr);
+        }
+    } else {
+        doc["ok"] = false;
+        doc["error"] = error;
+        code = 400;
+        LOG_W("Transfer: images done '%s' refused: %s", name.c_str(), error);
+    }
     String body;
     serializeJson(doc, body);
     _server.send(code, "application/json; charset=utf-8", body);
@@ -426,7 +469,6 @@ progress { width: 100%; height: 8px; margin: 6px 0 2px; }
   const IMAGE_MAX = 300;
   const EDGE_LIMIT = 80;
   const IMAGE_MARK = "\u0002";
-  const RASTER_MAX = 1600;
 
   let styleRules = [];
   let pendingImages = [];
@@ -1330,6 +1372,71 @@ progress { width: 100%; height: 8px; margin: 6px 0 2px; }
     return "image/jpeg";
   }
 
+  function fitSize(srcW, srcH) {
+    const scale = Math.min(PAGE_W / srcW, PAGE_H / srcH);
+    let destW = Math.round(srcW * scale);
+    let destH = Math.round(srcH * scale);
+    if (destW < 2) {
+      destW = 2;
+    }
+    if (destH < 2) {
+      destH = 2;
+    }
+    if (destW > PAGE_W) {
+      destW = PAGE_W;
+    }
+    if (destH > PAGE_H) {
+      destH = PAGE_H;
+    }
+    return { width: destW, height: destH };
+  }
+
+  function boxGray(gray, srcW, srcH, destW, destH) {
+    const out = new Uint8Array(destW * destH);
+    for (let y = 0; y < destH; y++) {
+      const y0 = Math.floor(y * srcH / destH);
+      const y1 = Math.max(y0 + 1, Math.floor((y + 1) * srcH / destH));
+      for (let x = 0; x < destW; x++) {
+        const x0 = Math.floor(x * srcW / destW);
+        const x1 = Math.max(x0 + 1, Math.floor((x + 1) * srcW / destW));
+        let sum = 0;
+        let count = 0;
+        for (let sy = y0; sy < y1; sy++) {
+          for (let sx = x0; sx < x1; sx++) {
+            sum += gray[sy * srcW + sx];
+            count++;
+          }
+        }
+        out[y * destW + x] = count ? Math.round(sum / count) : 255;
+      }
+    }
+    return out;
+  }
+
+  function nearestGray(gray, srcW, srcH, destW, destH) {
+    const out = new Uint8Array(destW * destH);
+    for (let y = 0; y < destH; y++) {
+      const sy = Math.min(srcH - 1, Math.floor(y * srcH / destH));
+      for (let x = 0; x < destW; x++) {
+        const sx = Math.min(srcW - 1, Math.floor(x * srcW / destW));
+        out[y * destW + x] = gray[sy * srcW + sx];
+      }
+    }
+    return out;
+  }
+
+  function scaleToPage(raster) {
+    const fit = fitSize(raster.width, raster.height);
+    if (fit.width === raster.width && fit.height === raster.height) {
+      return raster;
+    }
+    const shrinking = fit.width <= raster.width && fit.height <= raster.height;
+    const gray = shrinking
+      ? boxGray(raster.gray, raster.width, raster.height, fit.width, fit.height)
+      : nearestGray(raster.gray, raster.width, raster.height, fit.width, fit.height);
+    return { width: fit.width, height: fit.height, gray: gray };
+  }
+
   function edgeMask(gray, width, height) {
     const mask = new Uint8Array(width * height);
     const limit = EDGE_LIMIT * EDGE_LIMIT;
@@ -1350,21 +1457,8 @@ progress { width: 100%; height: 8px; margin: 6px 0 2px; }
   }
 
   function packPage(mask, srcW, srcH) {
-    const scale = Math.min(PAGE_W / srcW, PAGE_H / srcH);
-    let destW = Math.round(srcW * scale);
-    let destH = Math.round(srcH * scale);
-    if (destW < 1) {
-      destW = 1;
-    }
-    if (destH < 1) {
-      destH = 1;
-    }
-    if (destW > PAGE_W) {
-      destW = PAGE_W;
-    }
-    if (destH > PAGE_H) {
-      destH = PAGE_H;
-    }
+    const destW = Math.min(srcW, PAGE_W);
+    const destH = Math.min(srcH, PAGE_H);
     const ox = (PAGE_W - destW) >> 1;
     const oy = (PAGE_H - destH) >> 1;
     const stride = (PAGE_W + 7) >> 3;
@@ -1379,21 +1473,8 @@ progress { width: 100%; height: 8px; margin: 6px 0 2px; }
     data[6] = PAGE_H & 0xff;
     data[7] = (PAGE_H >> 8) & 0xff;
     for (let y = 0; y < destH; y++) {
-      const y0 = Math.floor(y * srcH / destH);
-      const y1 = Math.max(y0 + 1, Math.floor((y + 1) * srcH / destH));
       for (let x = 0; x < destW; x++) {
-        const x0 = Math.floor(x * srcW / destW);
-        const x1 = Math.max(x0 + 1, Math.floor((x + 1) * srcW / destW));
-        let ink = 0;
-        for (let sy = y0; sy < y1 && !ink; sy++) {
-          for (let sx = x0; sx < x1; sx++) {
-            if (mask[sy * srcW + sx]) {
-              ink = 1;
-              break;
-            }
-          }
-        }
-        if (!ink) {
+        if (!mask[y * srcW + x]) {
           continue;
         }
         const px = ox + x;
@@ -1405,34 +1486,7 @@ progress { width: 100%; height: 8px; margin: 6px 0 2px; }
     return data;
   }
 
-  async function rasterOf(bytes, mime) {
-    if (typeof root.decodeEpubImage === "function") {
-      return root.decodeEpubImage(bytes, mime);
-    }
-    if (typeof createImageBitmap !== "function" || typeof document === "undefined") {
-      throw new Error("当前浏览器无法处理图片");
-    }
-    const blob = new Blob([bytes], { type: mime || "image/jpeg" });
-    const bitmap = await createImageBitmap(blob);
-    let width = bitmap.width;
-    let height = bitmap.height;
-    const longEdge = Math.max(width, height);
-    if (longEdge > RASTER_MAX) {
-      const scale = RASTER_MAX / longEdge;
-      width = Math.max(1, Math.round(width * scale));
-      height = Math.max(1, Math.round(height * scale));
-    }
-    const canvas = document.createElement("canvas");
-    canvas.width = width;
-    canvas.height = height;
-    const ctx = canvas.getContext("2d", { willReadFrequently: true });
-    ctx.fillStyle = "#fff";
-    ctx.fillRect(0, 0, width, height);
-    ctx.drawImage(bitmap, 0, 0, width, height);
-    if (bitmap.close) {
-      bitmap.close();
-    }
-    const rgba = ctx.getImageData(0, 0, width, height).data;
+  function grayFromRgba(rgba, width, height) {
     const gray = new Uint8Array(width * height);
     for (let i = 0; i < gray.length; i++) {
       const o = i * 4;
@@ -1440,7 +1494,44 @@ progress { width: 100%; height: 8px; margin: 6px 0 2px; }
       const lum = (rgba[o] * 77 + rgba[o + 1] * 150 + rgba[o + 2] * 29) >> 8;
       gray[i] = 255 - Math.round((255 - lum) * alpha);
     }
-    return { width: width, height: height, gray: gray };
+    return gray;
+  }
+
+  async function rasterOf(bytes, mime) {
+    if (typeof root.decodeEpubImage === "function") {
+      const decoded = await root.decodeEpubImage(bytes, mime);
+      if (!decoded || !decoded.gray || decoded.width < 2 || decoded.height < 2) {
+        return decoded;
+      }
+      return scaleToPage(decoded);
+    }
+    if (typeof createImageBitmap !== "function" || typeof document === "undefined") {
+      throw new Error("当前浏览器无法处理图片");
+    }
+    const blob = new Blob([bytes], { type: mime || "image/jpeg" });
+    const bitmap = await createImageBitmap(blob);
+    if (bitmap.width < 2 || bitmap.height < 2) {
+      if (bitmap.close) {
+        bitmap.close();
+      }
+      return { width: bitmap.width, height: bitmap.height, gray: new Uint8Array(0) };
+    }
+    const fit = fitSize(bitmap.width, bitmap.height);
+    const canvas = document.createElement("canvas");
+    canvas.width = fit.width;
+    canvas.height = fit.height;
+    const ctx = canvas.getContext("2d", { willReadFrequently: true });
+    const shrinking = fit.width <= bitmap.width && fit.height <= bitmap.height;
+    ctx.imageSmoothingEnabled = shrinking;
+    ctx.imageSmoothingQuality = "high";
+    ctx.fillStyle = "#fff";
+    ctx.fillRect(0, 0, fit.width, fit.height);
+    ctx.drawImage(bitmap, 0, 0, fit.width, fit.height);
+    if (bitmap.close) {
+      bitmap.close();
+    }
+    const gray = grayFromRgba(ctx.getImageData(0, 0, fit.width, fit.height).data, fit.width, fit.height);
+    return { width: fit.width, height: fit.height, gray: gray };
   }
 
   async function attachImages(u8, entries, text) {
@@ -1710,10 +1801,12 @@ async function start(list) {
     if (!/^完成/.test(msg.textContent)) continue;
     if (freeBytes >= 0) freeBytes -= upload.size;
     const images = upload.epubImages || [];
+    let imagesDone = images.length > 0;
     for (let n = 0; n < images.length; n++) {
       const image = images[n];
       if (freeBytes >= 0 && image.bytes.length > freeBytes) {
         msg.textContent = '正文已上传，图片空间不足';
+        imagesDone = false;
         break;
       }
       msg.textContent = '正在上传图片 ' + (n + 1) + '/' + images.length;
@@ -1721,11 +1814,21 @@ async function start(list) {
       await uploadOne(picture, bar, msg, upload.name, image.name);
       if (!/^完成/.test(msg.textContent)) {
         msg.textContent = '正文已上传，' + msg.textContent;
+        imagesDone = false;
         break;
       }
       if (freeBytes >= 0) freeBytes -= image.bytes.length;
     }
-    if (images.length && msg.textContent === '完成') msg.textContent = '完成，' + images.length + ' 张图';
+    if (imagesDone) {
+      try {
+        const r = await fetch('/images-done?name=' + encodeURIComponent(upload.name), { method: 'POST' });
+        const j = await r.json();
+        if (!j.ok) throw new Error(j.error || '确认失败');
+        msg.textContent = '完成，' + images.length + ' 张图';
+      } catch (err) {
+        msg.textContent = '图片已上传，设备状态未更新';
+      }
+    }
   }
   $('go').disabled = false;
   $('file').value = '';

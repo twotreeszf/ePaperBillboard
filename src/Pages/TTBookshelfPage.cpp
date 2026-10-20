@@ -5,6 +5,7 @@
 #include "../Base/TTFontManager.h"
 #include "../Base/TTInstance.h"
 #include "../Base/TTNavigationBar.h"
+#include "../Base/TTTextFit.h"
 #include "../Base/TTPopupLayer.h"
 #include "../Service/TTSdCardService.h"
 #include "../Tasks/TTWiFiTask.h"
@@ -225,7 +226,7 @@ void TTBookshelfPage::buildContent(lv_obj_t* screen) {
         lv_obj_set_style_text_color(_names[i], lv_color_black(), 0);
         lv_obj_set_pos(_names[i], TT_SHELF_TEXT_X, TT_SHELF_NAME_Y);
         lv_obj_set_width(_names[i], TT_SHELF_TEXT_W);
-        lv_label_set_long_mode(_names[i], LV_LABEL_LONG_DOT);
+        lv_label_set_long_mode(_names[i], LV_LABEL_LONG_CLIP);
         lv_label_set_text(_names[i], "");
 
         _sizes[i] = lv_label_create(_rows[i]);
@@ -526,7 +527,12 @@ void TTBookshelfPage::showRows() {
         formatSize(index, sizeText, sizeof(sizeText));
         formatType(_books[index].name, typeText, sizeof(typeText));
         formatProgress(index, progressText, sizeof(progressText));
-        lv_label_set_text(_names[row], store.displayName(_books[index].name).c_str());
+        const String shown = store.displayName(_books[index].name);
+        char fitted[TT_SHELF_NAME_FIT_MAX];
+        const lv_font_t* nameFont = lv_obj_get_style_text_font(_names[row], LV_PART_MAIN);
+        const int32_t letterSpace = lv_obj_get_style_text_letter_space(_names[row], LV_PART_MAIN);
+        ttTextFit(fitted, sizeof(fitted), shown.c_str(), nameFont, TT_SHELF_TEXT_W, letterSpace);
+        lv_label_set_text(_names[row], fitted);
         lv_label_set_text(_sizes[row], sizeText);
         lv_label_set_text(_types[row], typeText);
         lv_label_set_text(_percents[row], progressText);
