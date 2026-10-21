@@ -59,6 +59,25 @@ static void alignLevelLabel(lv_obj_t* level, lv_obj_t* value) {
     lv_obj_align_to(level, value, LV_ALIGN_OUT_RIGHT_MID, 2, TT_WEATHER_LEVEL_Y);
 }
 
+static void drawCityBold(lv_event_t* e) {
+    lv_obj_t* obj = (lv_obj_t*)lv_event_get_target(e);
+    const char* text = lv_label_get_text(obj);
+    if (text == nullptr || text[0] == '\0') {
+        return;
+    }
+    lv_layer_t* layer = lv_event_get_layer(e);
+    lv_area_t coords;
+    lv_obj_get_content_coords(obj, &coords);
+    coords.x1 += TT_WEATHER_CITY_BOLD_EXTRA;
+    coords.x2 += TT_WEATHER_CITY_BOLD_EXTRA;
+
+    lv_draw_label_dsc_t dsc;
+    lv_draw_label_dsc_init(&dsc);
+    lv_obj_init_draw_label_dsc(obj, LV_PART_MAIN, &dsc);
+    dsc.text = text;
+    lv_draw_label(layer, &dsc, &coords);
+}
+
 static lv_obj_t* createPlainLabel(lv_obj_t* parent, lv_font_t* font, const char* text) {
     lv_obj_t* label = lv_label_create(parent);
     lv_label_set_text(label, text);
@@ -325,6 +344,7 @@ void TTWeatherPage::buildContent(lv_obj_t* screen) {
     lv_obj_set_style_pad_ver(_cityLabel, TT_WEATHER_COND_PAD_Y, 0);
     lv_label_set_long_mode(_cityLabel, LV_LABEL_LONG_DOT);
     lv_obj_set_style_max_width(_cityLabel, TT_WEATHER_CITY_W, 0);
+    lv_obj_add_event_cb(_cityLabel, drawCityBold, LV_EVENT_DRAW_MAIN, nullptr);
     lv_obj_align(_cityLabel, LV_ALIGN_TOP_RIGHT, 0, TT_WEATHER_CITY_Y);
 
     for (int i = 0; i < TT_WEATHER_FORECAST_N; i++) {
