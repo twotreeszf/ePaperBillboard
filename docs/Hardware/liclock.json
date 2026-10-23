@@ -1,0 +1,4940 @@
+{
+  "source": "docs/Hardware/LiClock.epro2",
+  "editorVersion": "3.2.77",
+  "title": "schematic1",
+  "updated": "2026-02-09 14:50",
+  "sheets": [
+    {
+      "title": "主控",
+      "updated": "2026-02-09 14:50"
+    },
+    {
+      "title": "墨水屏",
+      "updated": "2024-01-18 10:48"
+    },
+    {
+      "title": "USB",
+      "updated": "2024-01-18 10:52"
+    },
+    {
+      "title": "电源",
+      "updated": "2024-01-18 11:06"
+    },
+    {
+      "title": "可选功能",
+      "updated": "2024-01-18 11:06"
+    }
+  ],
+  "parts": [
+    {
+      "designator": "C16",
+      "sheet": "主控",
+      "symbol": "CapAcitance",
+      "value": "100nF",
+      "manufacturer": "YAGEO(国巨)",
+      "manufacturerPart": "CC0603KRX7R9BB104",
+      "lcscPartName": "100nF ±10% 50V",
+      "lcsc": "C14663",
+      "footprint": "C0603",
+      "package": "0603",
+      "datasheet": "https://atta.szlcsc.com/upload/public/pdf/source/20180910/C282072_33301C7F631E79921B82A8DAC6BCC5B3.pdf",
+      "description": "容值:100nF;精度:±10%;额定电压:50V;材质(温度系数):X7R;",
+      "inBom": true,
+      "pins": [
+        {
+          "number": "1",
+          "name": "1",
+          "type": "IN",
+          "net": "3V3",
+          "noConnect": false
+        },
+        {
+          "number": "2",
+          "name": "2",
+          "type": "IN",
+          "net": "GND",
+          "noConnect": false
+        }
+      ]
+    },
+    {
+      "designator": "MP1",
+      "sheet": "主控",
+      "symbol": "螺丝孔",
+      "value": "M2螺丝",
+      "manufacturer": "",
+      "manufacturerPart": "",
+      "lcscPartName": "",
+      "lcsc": "",
+      "footprint": "M2螺丝孔",
+      "package": "",
+      "datasheet": "",
+      "description": "",
+      "inBom": true,
+      "pins": [
+        {
+          "number": "1",
+          "name": "1",
+          "type": "IN",
+          "net": null,
+          "noConnect": true
+        }
+      ]
+    },
+    {
+      "designator": "MP2",
+      "sheet": "主控",
+      "symbol": "螺丝孔",
+      "value": "M2螺丝",
+      "manufacturer": "",
+      "manufacturerPart": "",
+      "lcscPartName": "",
+      "lcsc": "",
+      "footprint": "M2螺丝孔",
+      "package": "",
+      "datasheet": "",
+      "description": "",
+      "inBom": true,
+      "pins": [
+        {
+          "number": "1",
+          "name": "1",
+          "type": "IN",
+          "net": null,
+          "noConnect": true
+        }
+      ]
+    },
+    {
+      "designator": "MP3",
+      "sheet": "主控",
+      "symbol": "螺丝孔",
+      "value": "M2螺丝",
+      "manufacturer": "",
+      "manufacturerPart": "",
+      "lcscPartName": "",
+      "lcsc": "",
+      "footprint": "M2螺丝孔",
+      "package": "",
+      "datasheet": "",
+      "description": "",
+      "inBom": true,
+      "pins": [
+        {
+          "number": "1",
+          "name": "1",
+          "type": "IN",
+          "net": null,
+          "noConnect": true
+        }
+      ]
+    },
+    {
+      "designator": "R1",
+      "sheet": "主控",
+      "symbol": "电阻",
+      "value": "100kΩ",
+      "manufacturer": "UNI-ROYAL(厚声)",
+      "manufacturerPart": "0603WAF1003T5E",
+      "lcscPartName": "100kΩ ±1% 100mW 厚膜电阻",
+      "lcsc": "C25803",
+      "footprint": "R0603",
+      "package": "0603",
+      "datasheet": "https://atta.szlcsc.com/upload/public/pdf/source/20200306/C422600_1E6D84923E4A46A82E41ADD87F860B5C.pdf",
+      "description": "阻值:100kΩ;精度:±1%;功率:100mW;温度系数:±100ppm/℃;电阻类型:厚膜电阻;",
+      "inBom": true,
+      "pins": [
+        {
+          "number": "1",
+          "name": "1",
+          "type": "IN",
+          "net": "3V3",
+          "noConnect": false
+        },
+        {
+          "number": "2",
+          "name": "2",
+          "type": "IN",
+          "net": "EN",
+          "noConnect": false
+        }
+      ]
+    },
+    {
+      "designator": "R2",
+      "sheet": "主控",
+      "symbol": "电阻",
+      "value": "100kΩ",
+      "manufacturer": "UNI-ROYAL(厚声)",
+      "manufacturerPart": "0603WAF1003T5E",
+      "lcscPartName": "100kΩ ±1% 100mW",
+      "lcsc": "C25803",
+      "footprint": "R0603",
+      "package": "0603",
+      "datasheet": "https://atta.szlcsc.com/upload/public/pdf/source/20200306/C422600_1E6D84923E4A46A82E41ADD87F860B5C.pdf",
+      "description": "电阻类型:厚膜电阻;阻值:100kΩ;精度:±1%;功率:100mW;",
+      "inBom": true,
+      "pins": [
+        {
+          "number": "1",
+          "name": "1",
+          "type": "IN",
+          "net": "ADC",
+          "noConnect": false
+        },
+        {
+          "number": "2",
+          "name": "2",
+          "type": "IN",
+          "net": "VCC",
+          "noConnect": false
+        }
+      ]
+    },
+    {
+      "designator": "R3",
+      "sheet": "主控",
+      "symbol": "电阻",
+      "value": "100kΩ",
+      "manufacturer": "UNI-ROYAL(厚声)",
+      "manufacturerPart": "0603WAF1003T5E",
+      "lcscPartName": "100kΩ ±1% 100mW",
+      "lcsc": "C25803",
+      "footprint": "R0603",
+      "package": "0603",
+      "datasheet": "https://atta.szlcsc.com/upload/public/pdf/source/20200306/C422600_1E6D84923E4A46A82E41ADD87F860B5C.pdf",
+      "description": "电阻类型:厚膜电阻;阻值:100kΩ;精度:±1%;功率:100mW;",
+      "inBom": true,
+      "pins": [
+        {
+          "number": "1",
+          "name": "1",
+          "type": "IN",
+          "net": "GND",
+          "noConnect": false
+        },
+        {
+          "number": "2",
+          "name": "2",
+          "type": "IN",
+          "net": "ADC",
+          "noConnect": false
+        }
+      ]
+    },
+    {
+      "designator": "R15",
+      "sheet": "主控",
+      "symbol": "电阻",
+      "value": "10kΩ",
+      "manufacturer": "UNI-ROYAL(厚声)",
+      "manufacturerPart": "0603WAF1002T5E",
+      "lcscPartName": "10kΩ ±1% 100mW 厚膜电阻",
+      "lcsc": "C25804",
+      "footprint": "R0603",
+      "package": "0603",
+      "datasheet": "https://atta.szlcsc.com/upload/public/pdf/source/20200306/C422600_1E6D84923E4A46A82E41ADD87F860B5C.pdf",
+      "description": "电阻类型:厚膜电阻;阻值:10kΩ;精度:±1%;功率:100mW;最大工作电压:75V;温度系数:±100ppm/℃;",
+      "inBom": true,
+      "pins": [
+        {
+          "number": "1",
+          "name": "1",
+          "type": "IN",
+          "net": "UNNAMED-1",
+          "noConnect": false
+        },
+        {
+          "number": "2",
+          "name": "2",
+          "type": "IN",
+          "net": "3V3",
+          "noConnect": false
+        }
+      ]
+    },
+    {
+      "designator": "R18",
+      "sheet": "主控",
+      "symbol": "电阻",
+      "value": "100kΩ",
+      "manufacturer": "UNI-ROYAL(厚声)",
+      "manufacturerPart": "0603WAF1003T5E",
+      "lcscPartName": "100kΩ ±1% 100mW 厚膜电阻",
+      "lcsc": "C25803",
+      "footprint": "R0603",
+      "package": "0603",
+      "datasheet": "https://atta.szlcsc.com/upload/public/pdf/source/20200306/C422600_1E6D84923E4A46A82E41ADD87F860B5C.pdf",
+      "description": "阻值:100kΩ;精度:±1%;功率:100mW;温度系数:±100ppm/℃;电阻类型:厚膜电阻;",
+      "inBom": true,
+      "pins": [
+        {
+          "number": "1",
+          "name": "1",
+          "type": "IN",
+          "net": "BUTTON3",
+          "noConnect": false
+        },
+        {
+          "number": "2",
+          "name": "2",
+          "type": "IN",
+          "net": "GND",
+          "noConnect": false
+        }
+      ]
+    },
+    {
+      "designator": "R19",
+      "sheet": "主控",
+      "symbol": "电阻",
+      "value": "100kΩ",
+      "manufacturer": "UNI-ROYAL(厚声)",
+      "manufacturerPart": "0603WAF1003T5E",
+      "lcscPartName": "100kΩ ±1% 100mW 厚膜电阻",
+      "lcsc": "C25803",
+      "footprint": "R0603",
+      "package": "0603",
+      "datasheet": "https://atta.szlcsc.com/upload/public/pdf/source/20200306/C422600_1E6D84923E4A46A82E41ADD87F860B5C.pdf",
+      "description": "阻值:100kΩ;精度:±1%;功率:100mW;温度系数:±100ppm/℃;电阻类型:厚膜电阻;",
+      "inBom": true,
+      "pins": [
+        {
+          "number": "1",
+          "name": "1",
+          "type": "IN",
+          "net": "BUTTON2",
+          "noConnect": false
+        },
+        {
+          "number": "2",
+          "name": "2",
+          "type": "IN",
+          "net": "GND",
+          "noConnect": false
+        }
+      ]
+    },
+    {
+      "designator": "R20",
+      "sheet": "主控",
+      "symbol": "电阻",
+      "value": "100kΩ",
+      "manufacturer": "UNI-ROYAL(厚声)",
+      "manufacturerPart": "0603WAF1003T5E",
+      "lcscPartName": "100kΩ ±1% 100mW 厚膜电阻",
+      "lcsc": "C25803",
+      "footprint": "R0603",
+      "package": "0603",
+      "datasheet": "https://atta.szlcsc.com/upload/public/pdf/source/20200306/C422600_1E6D84923E4A46A82E41ADD87F860B5C.pdf",
+      "description": "阻值:100kΩ;精度:±1%;功率:100mW;温度系数:±100ppm/℃;电阻类型:厚膜电阻;",
+      "inBom": true,
+      "pins": [
+        {
+          "number": "1",
+          "name": "1",
+          "type": "IN",
+          "net": "BUTTON1",
+          "noConnect": false
+        },
+        {
+          "number": "2",
+          "name": "2",
+          "type": "IN",
+          "net": "GND",
+          "noConnect": false
+        }
+      ]
+    },
+    {
+      "designator": "SW1",
+      "sheet": "主控",
+      "symbol": "TS-1076S-A9B3",
+      "value": "",
+      "manufacturer": "Yuandi(元迪)",
+      "manufacturerPart": "TS-1076S-A9B3",
+      "lcscPartName": "轻触开关5.2*5.2*3.0mm铜头4*4贴片四脚轻触开关250gf",
+      "lcsc": "C492952",
+      "footprint": "SW-SMD_4P-L5.2-W5.2-P3.70-LS6.4",
+      "package": "-",
+      "datasheet": "https://atta.szlcsc.com/upload/public/pdf/source/20200316/C493015_ECB49FCDBAE25465FE4F7A4C79754635.pdf",
+      "description": "电路结构:单刀单掷;安装方式:-;按钮形状:圆形按钮;带灯:-;作用力:250gf@±30gf;开关长度:5.2mm;开关宽度:5.2mm;开关高度:3mm;",
+      "inBom": true,
+      "pins": [
+        {
+          "number": "1",
+          "name": "1",
+          "type": "IN",
+          "net": "EN",
+          "noConnect": false
+        },
+        {
+          "number": "2",
+          "name": "2",
+          "type": "IN",
+          "net": null,
+          "noConnect": true
+        },
+        {
+          "number": "3",
+          "name": "3",
+          "type": "IN",
+          "net": "GND",
+          "noConnect": false
+        },
+        {
+          "number": "4",
+          "name": "4",
+          "type": "IN",
+          "net": null,
+          "noConnect": true
+        }
+      ]
+    },
+    {
+      "designator": "SW4",
+      "sheet": "主控",
+      "symbol": "TM-2023",
+      "value": "",
+      "manufacturer": "XKB Connectivity(中国星坤)",
+      "manufacturerPart": "TM-2023",
+      "lcscPartName": "3挡拨轮开关",
+      "lcsc": "C318951",
+      "footprint": "SW-SMD_TM-2023-1",
+      "package": "SMD",
+      "datasheet": "https://atta.szlcsc.com/upload/public/pdf/source/20211015/4E21B3A9DEF1E687333BA1DF36F89D09.pdf",
+      "description": "3挡拨轮开关  音响周边开关 多功能开关上中下按键",
+      "inBom": true,
+      "pins": [
+        {
+          "number": "1",
+          "name": "1",
+          "type": "IN",
+          "net": "BUTTON1",
+          "noConnect": false
+        },
+        {
+          "number": "2",
+          "name": "2",
+          "type": "IN",
+          "net": "BUTTON2",
+          "noConnect": false
+        },
+        {
+          "number": "3",
+          "name": "3",
+          "type": "IN",
+          "net": "GND",
+          "noConnect": false
+        },
+        {
+          "number": "4",
+          "name": "4",
+          "type": "IN",
+          "net": "GND",
+          "noConnect": false
+        },
+        {
+          "number": "5",
+          "name": "5",
+          "type": "IN",
+          "net": "GND",
+          "noConnect": false
+        },
+        {
+          "number": "6",
+          "name": "6",
+          "type": "IN",
+          "net": "GND",
+          "noConnect": false
+        },
+        {
+          "number": "C",
+          "name": "C",
+          "type": "IN",
+          "net": "UNNAMED-1",
+          "noConnect": false
+        },
+        {
+          "number": "T",
+          "name": "T",
+          "type": "IN",
+          "net": "BUTTON3",
+          "noConnect": false
+        }
+      ]
+    },
+    {
+      "designator": "U2",
+      "sheet": "主控",
+      "symbol": "ESP32-WROOM-32D-N16",
+      "value": "",
+      "manufacturer": "ESPRESSIF 乐鑫",
+      "manufacturerPart": "ESP32-WROOM-32D-N16",
+      "lcscPartName": "ESP32-WROOM-32D-N16",
+      "lcsc": "C2973676",
+      "footprint": "WIFIM-SMD_ESP32-WROOM-32D",
+      "package": "Module",
+      "datasheet": "https://atta.szlcsc.com/upload/public/pdf/source/20220601/A36BD30A0F4FF988571DB814F845B32D.pdf",
+      "description": "",
+      "inBom": true,
+      "pins": [
+        {
+          "number": "1",
+          "name": "GND",
+          "type": "IN",
+          "net": "GND",
+          "noConnect": false
+        },
+        {
+          "number": "2",
+          "name": "3V3",
+          "type": "IN",
+          "net": "3V3",
+          "noConnect": false
+        },
+        {
+          "number": "3",
+          "name": "EN",
+          "type": "IN",
+          "net": "EN",
+          "noConnect": false
+        },
+        {
+          "number": "4",
+          "name": "SENSOR_VP",
+          "type": "IN",
+          "net": null,
+          "noConnect": true
+        },
+        {
+          "number": "5",
+          "name": "SENSOR_VN",
+          "type": "IN",
+          "net": "BUTTON1",
+          "noConnect": false
+        },
+        {
+          "number": "6",
+          "name": "IO34",
+          "type": "IN",
+          "net": "BUTTON3",
+          "noConnect": false
+        },
+        {
+          "number": "7",
+          "name": "IO35",
+          "type": "IN",
+          "net": "BUTTON2",
+          "noConnect": false
+        },
+        {
+          "number": "8",
+          "name": "IO32",
+          "type": "IN",
+          "net": null,
+          "noConnect": true
+        },
+        {
+          "number": "9",
+          "name": "IO33",
+          "type": "IN",
+          "net": "ADC",
+          "noConnect": false
+        },
+        {
+          "number": "10",
+          "name": "IO25",
+          "type": "IN",
+          "net": "RTC_IRQ",
+          "noConnect": false
+        },
+        {
+          "number": "11",
+          "name": "IO26",
+          "type": "IN",
+          "net": "CHARGING",
+          "noConnect": false
+        },
+        {
+          "number": "12",
+          "name": "IO27",
+          "type": "IN",
+          "net": "SDVDD_CTRL",
+          "noConnect": false
+        },
+        {
+          "number": "13",
+          "name": "IO14",
+          "type": "IN",
+          "net": "SD_CS",
+          "noConnect": false
+        },
+        {
+          "number": "14",
+          "name": "IO12",
+          "type": "IN",
+          "net": "SD_MOSI",
+          "noConnect": false
+        },
+        {
+          "number": "15",
+          "name": "GND",
+          "type": "IN",
+          "net": "GND",
+          "noConnect": false
+        },
+        {
+          "number": "16",
+          "name": "IO13",
+          "type": "IN",
+          "net": "SD_SCLK",
+          "noConnect": false
+        },
+        {
+          "number": "17",
+          "name": "SD2",
+          "type": "IN",
+          "net": null,
+          "noConnect": true
+        },
+        {
+          "number": "18",
+          "name": "SD3",
+          "type": "IN",
+          "net": null,
+          "noConnect": true
+        },
+        {
+          "number": "19",
+          "name": "CMD",
+          "type": "IN",
+          "net": null,
+          "noConnect": true
+        },
+        {
+          "number": "20",
+          "name": "CLK",
+          "type": "IN",
+          "net": null,
+          "noConnect": true
+        },
+        {
+          "number": "21",
+          "name": "SD0",
+          "type": "IN",
+          "net": null,
+          "noConnect": true
+        },
+        {
+          "number": "22",
+          "name": "SD1",
+          "type": "IN",
+          "net": null,
+          "noConnect": true
+        },
+        {
+          "number": "23",
+          "name": "IO15",
+          "type": "IN",
+          "net": "SD_MISO",
+          "noConnect": false
+        },
+        {
+          "number": "24",
+          "name": "IO2",
+          "type": "IN",
+          "net": "CARDDETECT",
+          "noConnect": false
+        },
+        {
+          "number": "25",
+          "name": "IO0",
+          "type": "IN",
+          "net": "GPIO0",
+          "noConnect": false
+        },
+        {
+          "number": "26",
+          "name": "IO4",
+          "type": "IN",
+          "net": "EPD_DIN",
+          "noConnect": false
+        },
+        {
+          "number": "27",
+          "name": "IO16",
+          "type": "IN",
+          "net": "EPD_CLK",
+          "noConnect": false
+        },
+        {
+          "number": "28",
+          "name": "IO17",
+          "type": "IN",
+          "net": "EPD_CS",
+          "noConnect": false
+        },
+        {
+          "number": "29",
+          "name": "IO5",
+          "type": "IN",
+          "net": "EPD_DC",
+          "noConnect": false
+        },
+        {
+          "number": "30",
+          "name": "IO18",
+          "type": "IN",
+          "net": "EPD_RST",
+          "noConnect": false
+        },
+        {
+          "number": "31",
+          "name": "IO19",
+          "type": "IN",
+          "net": "EPD_BUSY",
+          "noConnect": false
+        },
+        {
+          "number": "32",
+          "name": "NC",
+          "type": "IN",
+          "net": null,
+          "noConnect": true
+        },
+        {
+          "number": "33",
+          "name": "IO21",
+          "type": "IN",
+          "net": "BUZZER",
+          "noConnect": false
+        },
+        {
+          "number": "34",
+          "name": "RXD0",
+          "type": "IN",
+          "net": "RXD",
+          "noConnect": false
+        },
+        {
+          "number": "35",
+          "name": "TXD0",
+          "type": "IN",
+          "net": "TXD",
+          "noConnect": false
+        },
+        {
+          "number": "36",
+          "name": "IO22",
+          "type": "IN",
+          "net": "SCL",
+          "noConnect": false
+        },
+        {
+          "number": "37",
+          "name": "IO23",
+          "type": "IN",
+          "net": "SDA",
+          "noConnect": false
+        },
+        {
+          "number": "38",
+          "name": "GND",
+          "type": "IN",
+          "net": "GND",
+          "noConnect": false
+        },
+        {
+          "number": "39",
+          "name": "GND",
+          "type": "IN",
+          "net": "GND",
+          "noConnect": false
+        }
+      ]
+    },
+    {
+      "designator": "C2",
+      "sheet": "墨水屏",
+      "symbol": "CC0805KRX7R9BB104",
+      "value": "1uF",
+      "manufacturer": "FH(风华)",
+      "manufacturerPart": "0603B105K500NT",
+      "lcscPartName": "1uF(105) ±10% 50V",
+      "lcsc": "C90540",
+      "footprint": "C0603",
+      "package": "0603",
+      "datasheet": "https://atta.szlcsc.com/upload/public/pdf/source/20170923/C90540_1506149560830988967.pdf",
+      "description": "温度系数:X7R;精度:±10%;额定电压:50V;容值:1uF;",
+      "inBom": true,
+      "pins": [
+        {
+          "number": "1",
+          "name": "1",
+          "type": "IN",
+          "net": "UNNAMED-2",
+          "noConnect": false
+        },
+        {
+          "number": "2",
+          "name": "2",
+          "type": "IN",
+          "net": "GND",
+          "noConnect": false
+        }
+      ]
+    },
+    {
+      "designator": "C3",
+      "sheet": "墨水屏",
+      "symbol": "CC0805KRX7R9BB104",
+      "value": "1uF",
+      "manufacturer": "FH(风华)",
+      "manufacturerPart": "0603B105K500NT",
+      "lcscPartName": "1uF(105) ±10% 50V",
+      "lcsc": "C90540",
+      "footprint": "C0603",
+      "package": "0603",
+      "datasheet": "https://atta.szlcsc.com/upload/public/pdf/source/20170923/C90540_1506149560830988967.pdf",
+      "description": "温度系数:X7R;精度:±10%;额定电压:50V;容值:1uF;",
+      "inBom": true,
+      "pins": [
+        {
+          "number": "1",
+          "name": "1",
+          "type": "IN",
+          "net": "UNNAMED-3",
+          "noConnect": false
+        },
+        {
+          "number": "2",
+          "name": "2",
+          "type": "IN",
+          "net": "GND",
+          "noConnect": false
+        }
+      ]
+    },
+    {
+      "designator": "C4",
+      "sheet": "墨水屏",
+      "symbol": "CC0805KRX7R9BB104",
+      "value": "100nF",
+      "manufacturer": "YAGEO(国巨)",
+      "manufacturerPart": "CC0603KRX7R9BB104",
+      "lcscPartName": "100nF ±10% 50V",
+      "lcsc": "C14663",
+      "footprint": "C0603",
+      "package": "0603",
+      "datasheet": "https://atta.szlcsc.com/upload/public/pdf/source/20180910/C282072_33301C7F631E79921B82A8DAC6BCC5B3.pdf",
+      "description": "容值:100nF;精度:±10%;额定电压:50V;材质(温度系数):X7R;",
+      "inBom": true,
+      "pins": [
+        {
+          "number": "1",
+          "name": "1",
+          "type": "IN",
+          "net": "UNNAMED-9",
+          "noConnect": false
+        },
+        {
+          "number": "2",
+          "name": "2",
+          "type": "IN",
+          "net": "UNNAMED-10",
+          "noConnect": false
+        }
+      ]
+    },
+    {
+      "designator": "C5",
+      "sheet": "墨水屏",
+      "symbol": "CC0805KRX7R9BB104",
+      "value": "100nF",
+      "manufacturer": "YAGEO(国巨)",
+      "manufacturerPart": "CC0603KRX7R9BB104",
+      "lcscPartName": "100nF ±10% 50V",
+      "lcsc": "C14663",
+      "footprint": "C0603",
+      "package": "0603",
+      "datasheet": "https://atta.szlcsc.com/upload/public/pdf/source/20180910/C282072_33301C7F631E79921B82A8DAC6BCC5B3.pdf",
+      "description": "容值:100nF;精度:±10%;额定电压:50V;材质(温度系数):X7R;",
+      "inBom": true,
+      "pins": [
+        {
+          "number": "1",
+          "name": "1",
+          "type": "IN",
+          "net": "3V3",
+          "noConnect": false
+        },
+        {
+          "number": "2",
+          "name": "2",
+          "type": "IN",
+          "net": "GND",
+          "noConnect": false
+        }
+      ]
+    },
+    {
+      "designator": "C6",
+      "sheet": "墨水屏",
+      "symbol": "CC0805KRX7R9BB104",
+      "value": "1uF",
+      "manufacturer": "FH(风华)",
+      "manufacturerPart": "0603B105K500NT",
+      "lcscPartName": "1uF(105) ±10% 50V",
+      "lcsc": "C90540",
+      "footprint": "C0603",
+      "package": "0603",
+      "datasheet": "https://atta.szlcsc.com/upload/public/pdf/source/20170923/C90540_1506149560830988967.pdf",
+      "description": "温度系数:X7R;精度:±10%;额定电压:50V;容值:1uF;",
+      "inBom": true,
+      "pins": [
+        {
+          "number": "1",
+          "name": "1",
+          "type": "IN",
+          "net": "UNNAMED-4",
+          "noConnect": false
+        },
+        {
+          "number": "2",
+          "name": "2",
+          "type": "IN",
+          "net": "GND",
+          "noConnect": false
+        }
+      ]
+    },
+    {
+      "designator": "C8",
+      "sheet": "墨水屏",
+      "symbol": "CC0805KRX7R9BB104",
+      "value": "4.7uF",
+      "manufacturer": "SAMSUNG(三星)",
+      "manufacturerPart": "CL10A475KO8NNNC",
+      "lcscPartName": "4.7uF ±10% 16V",
+      "lcsc": "C19666",
+      "footprint": "C0603",
+      "package": "0603",
+      "datasheet": "https://atta.szlcsc.com/upload/public/pdf/source/20160103/1457707703134.pdf",
+      "description": "容值:4.7uF;精度:±10%;额定电压:16V;材质(温度系数):X5R;",
+      "inBom": true,
+      "pins": [
+        {
+          "number": "1",
+          "name": "1",
+          "type": "IN",
+          "net": "3V3",
+          "noConnect": false
+        },
+        {
+          "number": "2",
+          "name": "2",
+          "type": "IN",
+          "net": "GND",
+          "noConnect": false
+        }
+      ]
+    },
+    {
+      "designator": "C9",
+      "sheet": "墨水屏",
+      "symbol": "CC0805KRX7R9BB104",
+      "value": "1uF",
+      "manufacturer": "FH(风华)",
+      "manufacturerPart": "0603B105K500NT",
+      "lcscPartName": "1uF(105) ±10% 50V",
+      "lcsc": "C90540",
+      "footprint": "C0603",
+      "package": "0603",
+      "datasheet": "https://atta.szlcsc.com/upload/public/pdf/source/20170923/C90540_1506149560830988967.pdf",
+      "description": "温度系数:X7R;精度:±10%;额定电压:50V;容值:1uF;",
+      "inBom": true,
+      "pins": [
+        {
+          "number": "1",
+          "name": "1",
+          "type": "IN",
+          "net": "UNNAMED-5",
+          "noConnect": false
+        },
+        {
+          "number": "2",
+          "name": "2",
+          "type": "IN",
+          "net": "GND",
+          "noConnect": false
+        }
+      ]
+    },
+    {
+      "designator": "C11",
+      "sheet": "墨水屏",
+      "symbol": "CC0805KRX7R9BB104",
+      "value": "1uF",
+      "manufacturer": "FH(风华)",
+      "manufacturerPart": "0603B105K500NT",
+      "lcscPartName": "1uF(105) ±10% 50V",
+      "lcsc": "C90540",
+      "footprint": "C0603",
+      "package": "0603",
+      "datasheet": "https://atta.szlcsc.com/upload/public/pdf/source/20170923/C90540_1506149560830988967.pdf",
+      "description": "温度系数:X7R;精度:±10%;额定电压:50V;容值:1uF;",
+      "inBom": true,
+      "pins": [
+        {
+          "number": "1",
+          "name": "1",
+          "type": "IN",
+          "net": "UNNAMED-6",
+          "noConnect": false
+        },
+        {
+          "number": "2",
+          "name": "2",
+          "type": "IN",
+          "net": "GND",
+          "noConnect": false
+        }
+      ]
+    },
+    {
+      "designator": "C12",
+      "sheet": "墨水屏",
+      "symbol": "CC0805KRX7R9BB104",
+      "value": "1uF",
+      "manufacturer": "FH(风华)",
+      "manufacturerPart": "0603B105K500NT",
+      "lcscPartName": "1uF(105) ±10% 50V",
+      "lcsc": "C90540",
+      "footprint": "C0603",
+      "package": "0603",
+      "datasheet": "https://atta.szlcsc.com/upload/public/pdf/source/20170923/C90540_1506149560830988967.pdf",
+      "description": "温度系数:X7R;精度:±10%;额定电压:50V;容值:1uF;",
+      "inBom": true,
+      "pins": [
+        {
+          "number": "1",
+          "name": "1",
+          "type": "IN",
+          "net": "PREVGH",
+          "noConnect": false
+        },
+        {
+          "number": "2",
+          "name": "2",
+          "type": "IN",
+          "net": "GND",
+          "noConnect": false
+        }
+      ]
+    },
+    {
+      "designator": "C13",
+      "sheet": "墨水屏",
+      "symbol": "CC0805KRX7R9BB104",
+      "value": "1uF",
+      "manufacturer": "FH(风华)",
+      "manufacturerPart": "0603B105K500NT",
+      "lcscPartName": "1uF(105) ±10% 50V",
+      "lcsc": "C90540",
+      "footprint": "C0603",
+      "package": "0603",
+      "datasheet": "https://atta.szlcsc.com/upload/public/pdf/source/20170923/C90540_1506149560830988967.pdf",
+      "description": "温度系数:X7R;精度:±10%;额定电压:50V;容值:1uF;",
+      "inBom": true,
+      "pins": [
+        {
+          "number": "1",
+          "name": "1",
+          "type": "IN",
+          "net": "UNNAMED-7",
+          "noConnect": false
+        },
+        {
+          "number": "2",
+          "name": "2",
+          "type": "IN",
+          "net": "GND",
+          "noConnect": false
+        }
+      ]
+    },
+    {
+      "designator": "C14",
+      "sheet": "墨水屏",
+      "symbol": "CC0805KRX7R9BB104",
+      "value": "1uF",
+      "manufacturer": "FH(风华)",
+      "manufacturerPart": "0603B105K500NT",
+      "lcscPartName": "1uF(105) ±10% 50V",
+      "lcsc": "C90540",
+      "footprint": "C0603",
+      "package": "0603",
+      "datasheet": "https://atta.szlcsc.com/upload/public/pdf/source/20170923/C90540_1506149560830988967.pdf",
+      "description": "温度系数:X7R;精度:±10%;额定电压:50V;容值:1uF;",
+      "inBom": true,
+      "pins": [
+        {
+          "number": "1",
+          "name": "1",
+          "type": "IN",
+          "net": "PREVGL",
+          "noConnect": false
+        },
+        {
+          "number": "2",
+          "name": "2",
+          "type": "IN",
+          "net": "GND",
+          "noConnect": false
+        }
+      ]
+    },
+    {
+      "designator": "C15",
+      "sheet": "墨水屏",
+      "symbol": "CC0805KRX7R9BB104",
+      "value": "1uF",
+      "manufacturer": "FH(风华)",
+      "manufacturerPart": "0603B105K500NT",
+      "lcscPartName": "1uF(105) ±10% 50V",
+      "lcsc": "C90540",
+      "footprint": "C0603",
+      "package": "0603",
+      "datasheet": "https://atta.szlcsc.com/upload/public/pdf/source/20170923/C90540_1506149560830988967.pdf",
+      "description": "温度系数:X7R;精度:±10%;额定电压:50V;容值:1uF;",
+      "inBom": true,
+      "pins": [
+        {
+          "number": "1",
+          "name": "1",
+          "type": "IN",
+          "net": "UNNAMED-8",
+          "noConnect": false
+        },
+        {
+          "number": "2",
+          "name": "2",
+          "type": "IN",
+          "net": "GND",
+          "noConnect": false
+        }
+      ]
+    },
+    {
+      "designator": "D1",
+      "sheet": "墨水屏",
+      "symbol": "MBR0530_C699108",
+      "value": "",
+      "manufacturer": "YANGJIE(扬杰)",
+      "manufacturerPart": "MBR0530",
+      "lcscPartName": "30V 500mA 550mV@500mA",
+      "lcsc": "C699108",
+      "footprint": "SOD-123_L2.7-W1.6-LS3.7-RD-1",
+      "package": "SOD-123",
+      "datasheet": "https://atta.szlcsc.com/upload/public/pdf/source/20200709/C699108_94C8F1A54679DD603C9696C8694A3BC2.pdf",
+      "description": "直流反向耐压(Vr):30V;平均整流电流(Io):500mA;正向压降(Vf):550mV@500mA;",
+      "inBom": true,
+      "pins": [
+        {
+          "number": "1",
+          "name": "K",
+          "type": "IN",
+          "net": "GND",
+          "noConnect": false
+        },
+        {
+          "number": "2",
+          "name": "A",
+          "type": "IN",
+          "net": "UNNAMED-9",
+          "noConnect": false
+        }
+      ]
+    },
+    {
+      "designator": "D3",
+      "sheet": "墨水屏",
+      "symbol": "MBR0530_C699108",
+      "value": "",
+      "manufacturer": "YANGJIE(扬杰)",
+      "manufacturerPart": "MBR0530",
+      "lcscPartName": "30V 500mA 550mV@500mA",
+      "lcsc": "C699108",
+      "footprint": "SOD-123_L2.7-W1.6-LS3.7-RD-1",
+      "package": "SOD-123",
+      "datasheet": "https://atta.szlcsc.com/upload/public/pdf/source/20200709/C699108_94C8F1A54679DD603C9696C8694A3BC2.pdf",
+      "description": "直流反向耐压(Vr):30V;平均整流电流(Io):500mA;正向压降(Vf):550mV@500mA;",
+      "inBom": true,
+      "pins": [
+        {
+          "number": "1",
+          "name": "K",
+          "type": "IN",
+          "net": "UNNAMED-9",
+          "noConnect": false
+        },
+        {
+          "number": "2",
+          "name": "A",
+          "type": "IN",
+          "net": "PREVGL",
+          "noConnect": false
+        }
+      ]
+    },
+    {
+      "designator": "D4",
+      "sheet": "墨水屏",
+      "symbol": "MBR0530_C699108",
+      "value": "",
+      "manufacturer": "YANGJIE(扬杰)",
+      "manufacturerPart": "MBR0530",
+      "lcscPartName": "30V 500mA 550mV@500mA",
+      "lcsc": "C699108",
+      "footprint": "SOD-123_L2.7-W1.6-LS3.7-RD-1",
+      "package": "SOD-123",
+      "datasheet": "https://atta.szlcsc.com/upload/public/pdf/source/20200709/C699108_94C8F1A54679DD603C9696C8694A3BC2.pdf",
+      "description": "直流反向耐压(Vr):30V;平均整流电流(Io):500mA;正向压降(Vf):550mV@500mA;",
+      "inBom": true,
+      "pins": [
+        {
+          "number": "1",
+          "name": "K",
+          "type": "IN",
+          "net": "PREVGH",
+          "noConnect": false
+        },
+        {
+          "number": "2",
+          "name": "A",
+          "type": "IN",
+          "net": "UNNAMED-10",
+          "noConnect": false
+        }
+      ]
+    },
+    {
+      "designator": "FPC1",
+      "sheet": "墨水屏",
+      "symbol": "FPC 0.5MM 24P Pull type H2.0mm Pick up",
+      "value": "",
+      "manufacturer": "JS(钜硕电子)",
+      "manufacturerPart": "AFC07-S24ECC-00",
+      "lcscPartName": "0.5mm P数:24 抽屉式 上接",
+      "lcsc": "C11092",
+      "footprint": "FPC-SMD_24P-L17.5-W5.4-P0.50",
+      "package": "SMD,P=0.5mm",
+      "datasheet": "https://atta.szlcsc.com/upload/public/pdf/source/20151024/1457707484416.pdf",
+      "description": "间距:0.5mm;触点数量:24;锁定特性:抽屉式;安装类型:卧贴;触点类型:上接;",
+      "inBom": true,
+      "pins": [
+        {
+          "number": "1",
+          "name": "1",
+          "type": "IN",
+          "net": null,
+          "noConnect": true
+        },
+        {
+          "number": "2",
+          "name": "2",
+          "type": "IN",
+          "net": "GDR",
+          "noConnect": false
+        },
+        {
+          "number": "3",
+          "name": "3",
+          "type": "IN",
+          "net": "RESE",
+          "noConnect": false
+        },
+        {
+          "number": "4",
+          "name": "4",
+          "type": "IN",
+          "net": "UNNAMED-2",
+          "noConnect": false
+        },
+        {
+          "number": "5",
+          "name": "5",
+          "type": "IN",
+          "net": "UNNAMED-3",
+          "noConnect": false
+        },
+        {
+          "number": "6",
+          "name": "6",
+          "type": "IN",
+          "net": null,
+          "noConnect": true
+        },
+        {
+          "number": "7",
+          "name": "7",
+          "type": "IN",
+          "net": null,
+          "noConnect": true
+        },
+        {
+          "number": "8",
+          "name": "8",
+          "type": "IN",
+          "net": "GND",
+          "noConnect": false
+        },
+        {
+          "number": "9",
+          "name": "9",
+          "type": "IN",
+          "net": "EPD_BUSY",
+          "noConnect": false
+        },
+        {
+          "number": "10",
+          "name": "10",
+          "type": "IN",
+          "net": "EPD_RST",
+          "noConnect": false
+        },
+        {
+          "number": "11",
+          "name": "11",
+          "type": "IN",
+          "net": "EPD_DC",
+          "noConnect": false
+        },
+        {
+          "number": "12",
+          "name": "12",
+          "type": "IN",
+          "net": "EPD_CS",
+          "noConnect": false
+        },
+        {
+          "number": "13",
+          "name": "13",
+          "type": "IN",
+          "net": "EPD_CLK",
+          "noConnect": false
+        },
+        {
+          "number": "14",
+          "name": "14",
+          "type": "IN",
+          "net": "EPD_DIN",
+          "noConnect": false
+        },
+        {
+          "number": "15",
+          "name": "15",
+          "type": "IN",
+          "net": "3V3",
+          "noConnect": false
+        },
+        {
+          "number": "16",
+          "name": "16",
+          "type": "IN",
+          "net": "3V3",
+          "noConnect": false
+        },
+        {
+          "number": "17",
+          "name": "17",
+          "type": "IN",
+          "net": "GND",
+          "noConnect": false
+        },
+        {
+          "number": "18",
+          "name": "18",
+          "type": "IN",
+          "net": "UNNAMED-4",
+          "noConnect": false
+        },
+        {
+          "number": "19",
+          "name": "19",
+          "type": "IN",
+          "net": "UNNAMED-5",
+          "noConnect": false
+        },
+        {
+          "number": "20",
+          "name": "20",
+          "type": "IN",
+          "net": "UNNAMED-6",
+          "noConnect": false
+        },
+        {
+          "number": "21",
+          "name": "21",
+          "type": "IN",
+          "net": "PREVGH",
+          "noConnect": false
+        },
+        {
+          "number": "22",
+          "name": "22",
+          "type": "IN",
+          "net": "UNNAMED-7",
+          "noConnect": false
+        },
+        {
+          "number": "23",
+          "name": "23",
+          "type": "IN",
+          "net": "PREVGL",
+          "noConnect": false
+        },
+        {
+          "number": "24",
+          "name": "24",
+          "type": "IN",
+          "net": "UNNAMED-8",
+          "noConnect": false
+        },
+        {
+          "number": "25",
+          "name": "25",
+          "type": "IN",
+          "net": "GND",
+          "noConnect": false
+        },
+        {
+          "number": "26",
+          "name": "26",
+          "type": "IN",
+          "net": "GND",
+          "noConnect": false
+        }
+      ]
+    },
+    {
+      "designator": "L2",
+      "sheet": "墨水屏",
+      "symbol": "CMI321611J680KT",
+      "value": "68uH",
+      "manufacturer": "FH(风华)",
+      "manufacturerPart": "CMI321611J680KT",
+      "lcscPartName": "68uH ±10%",
+      "lcsc": "C394989",
+      "footprint": "L1206",
+      "package": "1206",
+      "datasheet": "https://atta.szlcsc.com/upload/public/pdf/source/20190710/C394989_A5DCB44B190F59EB9B750278A5EB9174.pdf",
+      "description": "电感值:68uH;精度:±10%;额定电流:-;饱和电流(Isat):-;直流电阻(DCR):-;",
+      "inBom": true,
+      "pins": [
+        {
+          "number": "1",
+          "name": "1",
+          "type": "IN",
+          "net": "3V3",
+          "noConnect": false
+        },
+        {
+          "number": "2",
+          "name": "2",
+          "type": "IN",
+          "net": "UNNAMED-10",
+          "noConnect": false
+        }
+      ]
+    },
+    {
+      "designator": "Q2",
+      "sheet": "墨水屏",
+      "symbol": "AO3402_C14385",
+      "value": "",
+      "manufacturer": "AOS",
+      "manufacturerPart": "AO3402",
+      "lcscPartName": "N沟道 30V 4A",
+      "lcsc": "C14385",
+      "footprint": "SOT-23_L2.9-W1.3-P1.90-LS2.4-BR",
+      "package": "SOT-23",
+      "datasheet": "https://atta.szlcsc.com/upload/public/pdf/source/20171023/C14385_15087455190191052858.pdf",
+      "description": "类型:N沟道;漏源电压(Vdss):30V;连续漏极电流(Id):4A;功率(Pd):1.4W;导通电阻(RDS(on)@Vgs,Id):55mΩ@10V,4A;",
+      "inBom": true,
+      "pins": [
+        {
+          "number": "1",
+          "name": "G",
+          "type": "IN",
+          "net": "GDR",
+          "noConnect": false
+        },
+        {
+          "number": "2",
+          "name": "S",
+          "type": "IN",
+          "net": "RESE",
+          "noConnect": false
+        },
+        {
+          "number": "3",
+          "name": "D",
+          "type": "IN",
+          "net": "UNNAMED-10",
+          "noConnect": false
+        }
+      ]
+    },
+    {
+      "designator": "R7",
+      "sheet": "墨水屏",
+      "symbol": "TR0603B10KP05250.1W",
+      "value": "1kΩ",
+      "manufacturer": "UNI-ROYAL(厚声)",
+      "manufacturerPart": "0603WAF1001T5E",
+      "lcscPartName": "1kΩ ±1% 100mW",
+      "lcsc": "C21190",
+      "footprint": "R0603",
+      "package": "0603",
+      "datasheet": "https://atta.szlcsc.com/upload/public/pdf/source/20200306/C422600_1E6D84923E4A46A82E41ADD87F860B5C.pdf",
+      "description": "电阻类型:厚膜电阻;阻值:1kΩ;精度:±1%;功率:100mW;",
+      "inBom": true,
+      "pins": [
+        {
+          "number": "1",
+          "name": "1",
+          "type": "IN",
+          "net": "GND",
+          "noConnect": false
+        },
+        {
+          "number": "2",
+          "name": "2",
+          "type": "IN",
+          "net": "GDR",
+          "noConnect": false
+        }
+      ]
+    },
+    {
+      "designator": "R8",
+      "sheet": "墨水屏",
+      "symbol": "TR0603B10KP05250.1W",
+      "value": "470mΩ",
+      "manufacturer": "EVER OHMS(天二科技)",
+      "manufacturerPart": "CR0603FR470P05Z",
+      "lcscPartName": "470mΩ ±1% 100mW",
+      "lcsc": "C175657",
+      "footprint": "R0603",
+      "package": "0603",
+      "datasheet": "https://atta.szlcsc.com/upload/public/pdf/source/20190415/C175657_F1869629BC873F67D55F7EAB199C1830.pdf",
+      "description": "阻值:470mΩ;精度:±1%;功率:100mW;",
+      "inBom": true,
+      "pins": [
+        {
+          "number": "1",
+          "name": "1",
+          "type": "IN",
+          "net": "GND",
+          "noConnect": false
+        },
+        {
+          "number": "2",
+          "name": "2",
+          "type": "IN",
+          "net": "RESE",
+          "noConnect": false
+        }
+      ]
+    },
+    {
+      "designator": "C17",
+      "sheet": "USB",
+      "symbol": "CapAcitance",
+      "value": "1uF",
+      "manufacturer": "FH(风华)",
+      "manufacturerPart": "0603B105K500NT",
+      "lcscPartName": "1uF ±10% 50V",
+      "lcsc": "C90540",
+      "footprint": "C0603",
+      "package": "0603",
+      "datasheet": "https://atta.szlcsc.com/upload/public/pdf/source/20200305/C486355_26A10D38EF8C2A5C37091D0039909270.pdf",
+      "description": "容值:1uF;精度:±10%;额定电压:50V;材质(温度系数):X7R;",
+      "inBom": true,
+      "pins": [
+        {
+          "number": "1",
+          "name": "1",
+          "type": "IN",
+          "net": "GND",
+          "noConnect": false
+        },
+        {
+          "number": "2",
+          "name": "2",
+          "type": "IN",
+          "net": "+5V",
+          "noConnect": false
+        }
+      ]
+    },
+    {
+      "designator": "C18",
+      "sheet": "USB",
+      "symbol": "CapAcitance",
+      "value": "1uF",
+      "manufacturer": "FH(风华)",
+      "manufacturerPart": "0603B105K500NT",
+      "lcscPartName": "1uF ±10% 50V",
+      "lcsc": "C90540",
+      "footprint": "C0603",
+      "package": "0603",
+      "datasheet": "https://atta.szlcsc.com/upload/public/pdf/source/20200305/C486355_26A10D38EF8C2A5C37091D0039909270.pdf",
+      "description": "容值:1uF;精度:±10%;额定电压:50V;材质(温度系数):X7R;",
+      "inBom": true,
+      "pins": [
+        {
+          "number": "1",
+          "name": "1",
+          "type": "IN",
+          "net": "UNNAMED-11",
+          "noConnect": false
+        },
+        {
+          "number": "2",
+          "name": "2",
+          "type": "IN",
+          "net": "GND",
+          "noConnect": false
+        }
+      ]
+    },
+    {
+      "designator": "Q3",
+      "sheet": "USB",
+      "symbol": "S8050",
+      "value": "",
+      "manufacturer": "CJ(江苏长电/长晶)",
+      "manufacturerPart": "SS8050",
+      "lcscPartName": "NPN 25V 1.5A Y1 200-350",
+      "lcsc": "C2150",
+      "footprint": "SOT-23-3_L2.9-W1.3-P1.90-LS2.4-BR",
+      "package": "SOT-23",
+      "datasheet": "https://atta.szlcsc.com/upload/public/pdf/source/20230322/AEE86F4B043774EFF80CAEA14A37D9E9.pdf",
+      "description": "晶体管类型:NPN;集射极击穿电压(Vceo):25V;集电极电流(Ic):1.5A;功率(Pd):300mW;直流电流增益(hFE@Ic,Vce):200@100mA,1V;",
+      "inBom": true,
+      "pins": [
+        {
+          "number": "1",
+          "name": "B",
+          "type": "IN",
+          "net": "UNNAMED-12",
+          "noConnect": false
+        },
+        {
+          "number": "2",
+          "name": "E",
+          "type": "IN",
+          "net": "RTS",
+          "noConnect": false
+        },
+        {
+          "number": "3",
+          "name": "C",
+          "type": "IN",
+          "net": "EN",
+          "noConnect": false
+        }
+      ]
+    },
+    {
+      "designator": "Q4",
+      "sheet": "USB",
+      "symbol": "S8050",
+      "value": "",
+      "manufacturer": "CJ(江苏长电/长晶)",
+      "manufacturerPart": "SS8050",
+      "lcscPartName": "NPN 25V 1.5A Y1 200-350",
+      "lcsc": "C2150",
+      "footprint": "SOT-23-3_L2.9-W1.3-P1.90-LS2.4-BR",
+      "package": "SOT-23",
+      "datasheet": "https://atta.szlcsc.com/upload/public/pdf/source/20230322/AEE86F4B043774EFF80CAEA14A37D9E9.pdf",
+      "description": "晶体管类型:NPN;集射极击穿电压(Vceo):25V;集电极电流(Ic):1.5A;功率(Pd):300mW;直流电流增益(hFE@Ic,Vce):200@100mA,1V;",
+      "inBom": true,
+      "pins": [
+        {
+          "number": "1",
+          "name": "B",
+          "type": "IN",
+          "net": "UNNAMED-13",
+          "noConnect": false
+        },
+        {
+          "number": "2",
+          "name": "E",
+          "type": "IN",
+          "net": "DTR",
+          "noConnect": false
+        },
+        {
+          "number": "3",
+          "name": "C",
+          "type": "IN",
+          "net": "GPIO0",
+          "noConnect": false
+        }
+      ]
+    },
+    {
+      "designator": "R4",
+      "sheet": "USB",
+      "symbol": "电阻",
+      "value": "5.1kΩ",
+      "manufacturer": "UNI-ROYAL(厚声)",
+      "manufacturerPart": "0603WAF5101T5E",
+      "lcscPartName": "5.1kΩ ±1% 100mW 厚膜电阻",
+      "lcsc": "C23186",
+      "footprint": "R0603",
+      "package": "0603",
+      "datasheet": "https://atta.szlcsc.com/upload/public/pdf/source/20200306/C422600_1E6D84923E4A46A82E41ADD87F860B5C.pdf",
+      "description": "阻值:5.1kΩ;精度:±1%;功率:100mW;温度系数:±100ppm/℃;电阻类型:厚膜电阻;",
+      "inBom": true,
+      "pins": [
+        {
+          "number": "1",
+          "name": "1",
+          "type": "IN",
+          "net": "UNNAMED-14",
+          "noConnect": false
+        },
+        {
+          "number": "2",
+          "name": "2",
+          "type": "IN",
+          "net": "GND",
+          "noConnect": false
+        }
+      ]
+    },
+    {
+      "designator": "R5",
+      "sheet": "USB",
+      "symbol": "电阻",
+      "value": "5.1kΩ",
+      "manufacturer": "UNI-ROYAL(厚声)",
+      "manufacturerPart": "0603WAF5101T5E",
+      "lcscPartName": "5.1kΩ ±1% 100mW 厚膜电阻",
+      "lcsc": "C23186",
+      "footprint": "R0603",
+      "package": "0603",
+      "datasheet": "https://atta.szlcsc.com/upload/public/pdf/source/20200306/C422600_1E6D84923E4A46A82E41ADD87F860B5C.pdf",
+      "description": "阻值:5.1kΩ;精度:±1%;功率:100mW;温度系数:±100ppm/℃;电阻类型:厚膜电阻;",
+      "inBom": true,
+      "pins": [
+        {
+          "number": "1",
+          "name": "1",
+          "type": "IN",
+          "net": "UNNAMED-15",
+          "noConnect": false
+        },
+        {
+          "number": "2",
+          "name": "2",
+          "type": "IN",
+          "net": "GND",
+          "noConnect": false
+        }
+      ]
+    },
+    {
+      "designator": "R11",
+      "sheet": "USB",
+      "symbol": "0603WAF1002T5E",
+      "value": "10kΩ",
+      "manufacturer": "UNI-ROYAL(厚声)",
+      "manufacturerPart": "0603WAF1002T5E",
+      "lcscPartName": "厚膜电阻 10kΩ ±1% 100mW",
+      "lcsc": "C25804",
+      "footprint": "R0603",
+      "package": "0603",
+      "datasheet": "https://atta.szlcsc.com/upload/public/pdf/source/20200306/C422600_1E6D84923E4A46A82E41ADD87F860B5C.pdf",
+      "description": "电阻类型:厚膜电阻;阻值:10kΩ;精度:±1%;功率:100mW;",
+      "inBom": true,
+      "pins": [
+        {
+          "number": "1",
+          "name": "1",
+          "type": "IN",
+          "net": "DTR",
+          "noConnect": false
+        },
+        {
+          "number": "2",
+          "name": "2",
+          "type": "IN",
+          "net": "UNNAMED-12",
+          "noConnect": false
+        }
+      ]
+    },
+    {
+      "designator": "R12",
+      "sheet": "USB",
+      "symbol": "0603WAF1002T5E",
+      "value": "10kΩ",
+      "manufacturer": "UNI-ROYAL(厚声)",
+      "manufacturerPart": "0603WAF1002T5E",
+      "lcscPartName": "厚膜电阻 10kΩ ±1% 100mW",
+      "lcsc": "C25804",
+      "footprint": "R0603",
+      "package": "0603",
+      "datasheet": "https://atta.szlcsc.com/upload/public/pdf/source/20200306/C422600_1E6D84923E4A46A82E41ADD87F860B5C.pdf",
+      "description": "电阻类型:厚膜电阻;阻值:10kΩ;精度:±1%;功率:100mW;",
+      "inBom": true,
+      "pins": [
+        {
+          "number": "1",
+          "name": "1",
+          "type": "IN",
+          "net": "RTS",
+          "noConnect": false
+        },
+        {
+          "number": "2",
+          "name": "2",
+          "type": "IN",
+          "net": "UNNAMED-13",
+          "noConnect": false
+        }
+      ]
+    },
+    {
+      "designator": "U6",
+      "sheet": "USB",
+      "symbol": "CH9102F",
+      "value": "",
+      "manufacturer": "WCH(南京沁恒)",
+      "manufacturerPart": "CH9102F",
+      "lcscPartName": "CH9102F",
+      "lcsc": "C2858418",
+      "footprint": "QFN-24_L4.0-W4.0-P0.50-BL-EP2.5",
+      "package": "QFN-24-EP(4x4)",
+      "datasheet": "https://atta.szlcsc.com/upload/public/pdf/source/20211016/C2858418_C3D66D242DBFEF06B4830254B68CDF56.pdf",
+      "description": "",
+      "inBom": true,
+      "pins": [
+        {
+          "number": "1",
+          "name": "RI",
+          "type": "IN",
+          "net": null,
+          "noConnect": true
+        },
+        {
+          "number": "2",
+          "name": "GND",
+          "type": "IN",
+          "net": "GND",
+          "noConnect": false
+        },
+        {
+          "number": "3",
+          "name": "UD+",
+          "type": "IN",
+          "net": "DP",
+          "noConnect": false
+        },
+        {
+          "number": "4",
+          "name": "UD-",
+          "type": "IN",
+          "net": "DN",
+          "noConnect": false
+        },
+        {
+          "number": "5",
+          "name": "VIO",
+          "type": "IN",
+          "net": "3V3",
+          "noConnect": false
+        },
+        {
+          "number": "6",
+          "name": "V3",
+          "type": "IN",
+          "net": "UNNAMED-11",
+          "noConnect": false
+        },
+        {
+          "number": "7",
+          "name": "VDD5",
+          "type": "IN",
+          "net": "+5V",
+          "noConnect": false
+        },
+        {
+          "number": "8",
+          "name": "VBUS",
+          "type": "IN",
+          "net": "+5V",
+          "noConnect": false
+        },
+        {
+          "number": "9",
+          "name": "RST#",
+          "type": "IN",
+          "net": null,
+          "noConnect": true
+        },
+        {
+          "number": "10",
+          "name": "ACT#",
+          "type": "IN",
+          "net": null,
+          "noConnect": true
+        },
+        {
+          "number": "11",
+          "name": "WAKEUP/GPIO3",
+          "type": "IN",
+          "net": null,
+          "noConnect": true
+        },
+        {
+          "number": "12",
+          "name": "TNOW/GPIO2",
+          "type": "IN",
+          "net": null,
+          "noConnect": true
+        },
+        {
+          "number": "13",
+          "name": "RXS/GPIO1",
+          "type": "IN",
+          "net": null,
+          "noConnect": true
+        },
+        {
+          "number": "14",
+          "name": "TXS/GPIO0",
+          "type": "IN",
+          "net": null,
+          "noConnect": true
+        },
+        {
+          "number": "15",
+          "name": "SUSPEND#",
+          "type": "IN",
+          "net": null,
+          "noConnect": true
+        },
+        {
+          "number": "16",
+          "name": "GPIO4",
+          "type": "IN",
+          "net": null,
+          "noConnect": true
+        },
+        {
+          "number": "17",
+          "name": "SUSPEND",
+          "type": "IN",
+          "net": null,
+          "noConnect": true
+        },
+        {
+          "number": "18",
+          "name": "CTS",
+          "type": "IN",
+          "net": null,
+          "noConnect": true
+        },
+        {
+          "number": "19",
+          "name": "RTS",
+          "type": "IN",
+          "net": "RTS",
+          "noConnect": false
+        },
+        {
+          "number": "20",
+          "name": "RXD",
+          "type": "IN",
+          "net": "TXD",
+          "noConnect": false
+        },
+        {
+          "number": "21",
+          "name": "TXD",
+          "type": "IN",
+          "net": "RXD",
+          "noConnect": false
+        },
+        {
+          "number": "22",
+          "name": "DSR",
+          "type": "IN",
+          "net": null,
+          "noConnect": true
+        },
+        {
+          "number": "23",
+          "name": "DTR",
+          "type": "IN",
+          "net": "DTR",
+          "noConnect": false
+        },
+        {
+          "number": "24",
+          "name": "DCD",
+          "type": "IN",
+          "net": null,
+          "noConnect": true
+        },
+        {
+          "number": "25",
+          "name": "EP",
+          "type": "IN",
+          "net": "GND",
+          "noConnect": false
+        }
+      ]
+    },
+    {
+      "designator": "USB1",
+      "sheet": "USB",
+      "symbol": "TYPE-C 16PIN 3MD(385)",
+      "value": "",
+      "manufacturer": "SHOU HAN(首韩)",
+      "manufacturerPart": "TYPE-C 16PIN 3MD(385)",
+      "lcscPartName": "TYPE-C 16PIN 3MD(385)",
+      "lcsc": "C2858270",
+      "footprint": "USB-C-SMD_TYPE-C16PIN",
+      "package": "SMT",
+      "datasheet": "https://atta.szlcsc.com/upload/public/pdf/source/20190521/C393939_7B9043D4CF1026AF443AB60D91FBCD5C.pdf",
+      "description": "TYPE-C母座 16PIN 4脚插件带柱 壳长7.35mm 3次模顶品质款 不锈钢外壳",
+      "inBom": true,
+      "pins": [
+        {
+          "number": "1",
+          "name": "SHELL",
+          "type": "IN",
+          "net": "GND",
+          "noConnect": false
+        },
+        {
+          "number": "2",
+          "name": "SHELL",
+          "type": "IN",
+          "net": "GND",
+          "noConnect": false
+        },
+        {
+          "number": "3",
+          "name": "SHELL",
+          "type": "IN",
+          "net": "GND",
+          "noConnect": false
+        },
+        {
+          "number": "4",
+          "name": "SHELL",
+          "type": "IN",
+          "net": "GND",
+          "noConnect": false
+        },
+        {
+          "number": "A1B12",
+          "name": "GND",
+          "type": "IN",
+          "net": "GND",
+          "noConnect": false
+        },
+        {
+          "number": "A4B9",
+          "name": "VBUS",
+          "type": "IN",
+          "net": "+5V",
+          "noConnect": false
+        },
+        {
+          "number": "A5",
+          "name": "CC1",
+          "type": "IN",
+          "net": "UNNAMED-15",
+          "noConnect": false
+        },
+        {
+          "number": "A6",
+          "name": "DP1",
+          "type": "IN",
+          "net": "DP",
+          "noConnect": false
+        },
+        {
+          "number": "A7",
+          "name": "DN1",
+          "type": "IN",
+          "net": "DN",
+          "noConnect": false
+        },
+        {
+          "number": "A8",
+          "name": "SBU1",
+          "type": "IN",
+          "net": null,
+          "noConnect": true
+        },
+        {
+          "number": "B1A12",
+          "name": "GND",
+          "type": "IN",
+          "net": "GND",
+          "noConnect": false
+        },
+        {
+          "number": "B4A9",
+          "name": "VBUS",
+          "type": "IN",
+          "net": "+5V",
+          "noConnect": false
+        },
+        {
+          "number": "B5",
+          "name": "CC2",
+          "type": "IN",
+          "net": "UNNAMED-14",
+          "noConnect": false
+        },
+        {
+          "number": "B6",
+          "name": "DP2",
+          "type": "IN",
+          "net": "DP",
+          "noConnect": false
+        },
+        {
+          "number": "B7",
+          "name": "DN2",
+          "type": "IN",
+          "net": "DN",
+          "noConnect": false
+        },
+        {
+          "number": "B8",
+          "name": "SBU2",
+          "type": "IN",
+          "net": null,
+          "noConnect": true
+        }
+      ]
+    },
+    {
+      "designator": "C7",
+      "sheet": "电源",
+      "symbol": "CapAcitance",
+      "value": "10uF",
+      "manufacturer": "SAMSUNG(三星)",
+      "manufacturerPart": "CL10A106MA8NRNC",
+      "lcscPartName": "10uF ±20% 25V",
+      "lcsc": "C96446",
+      "footprint": "C0603",
+      "package": "0603",
+      "datasheet": "https://atta.szlcsc.com/upload/public/pdf/source/20170325/1490427913016.pdf",
+      "description": "容值:10uF;精度:±20%;额定电压:25V;材质(温度系数):X5R;",
+      "inBom": true,
+      "pins": [
+        {
+          "number": "1",
+          "name": "1",
+          "type": "IN",
+          "net": "GND",
+          "noConnect": false
+        },
+        {
+          "number": "2",
+          "name": "2",
+          "type": "IN",
+          "net": "3V3",
+          "noConnect": false
+        }
+      ]
+    },
+    {
+      "designator": "C10",
+      "sheet": "电源",
+      "symbol": "CapAcitance",
+      "value": "10uF",
+      "manufacturer": "SAMSUNG(三星)",
+      "manufacturerPart": "CL10A106MA8NRNC",
+      "lcscPartName": "10uF ±20% 25V",
+      "lcsc": "C96446",
+      "footprint": "C0603",
+      "package": "0603",
+      "datasheet": "https://atta.szlcsc.com/upload/public/pdf/source/20170325/1490427913016.pdf",
+      "description": "容值:10uF;精度:±20%;额定电压:25V;材质(温度系数):X5R;",
+      "inBom": true,
+      "pins": [
+        {
+          "number": "1",
+          "name": "1",
+          "type": "IN",
+          "net": "GND",
+          "noConnect": false
+        },
+        {
+          "number": "2",
+          "name": "2",
+          "type": "IN",
+          "net": "VCC",
+          "noConnect": false
+        }
+      ]
+    },
+    {
+      "designator": "D6",
+      "sheet": "电源",
+      "symbol": "SS34-MS",
+      "value": "",
+      "manufacturer": "MSKSEMI(美森科)",
+      "manufacturerPart": "SS34-MS",
+      "lcscPartName": "电压:40V 电流:3A",
+      "lcsc": "C2836396",
+      "footprint": "DO-214AC_L4.3-W2.7-LS5.0-RD",
+      "package": "SMA(DO-214AC)",
+      "datasheet": "https://atta.szlcsc.com/upload/public/pdf/source/20231010/B8429D209A8A83BAE11971393C9E7848.pdf",
+      "description": "二极管配置:-;正向压降(Vf):550mV@3A;直流反向耐压(Vr):40V;平均整流电流(Io):3A;",
+      "inBom": true,
+      "pins": [
+        {
+          "number": "1",
+          "name": "A",
+          "type": "Undefined",
+          "net": "VCC",
+          "noConnect": false
+        },
+        {
+          "number": "2",
+          "name": "K",
+          "type": "Undefined",
+          "net": "+5V",
+          "noConnect": false
+        }
+      ]
+    },
+    {
+      "designator": "Q1",
+      "sheet": "电源",
+      "symbol": "2301 A1SHB",
+      "value": "",
+      "manufacturer": "VISHAY(威世)",
+      "manufacturerPart": "SI2301CDS-T1-GE3",
+      "lcscPartName": "P沟道 20V 3.1A",
+      "lcsc": "C10487",
+      "footprint": "SOT-23-3_L3.0-W1.7-P0.95-LS2.9-BR",
+      "package": "SOT-23",
+      "datasheet": "https://atta.szlcsc.com/upload/public/pdf/source/20180621/C10487_757133A2CC00440C4C7DD3E7E73681E9.pdf",
+      "description": "类型:P沟道;漏源电压(Vdss):20V;连续漏极电流(Id):3.1A;功率(Pd):860mW；1.6W;导通电阻(RDS(on)@Vgs,Id):112mΩ@4.5V,2.8A;",
+      "inBom": true,
+      "pins": [
+        {
+          "number": "1",
+          "name": "G",
+          "type": "IN",
+          "net": "+5V",
+          "noConnect": false
+        },
+        {
+          "number": "2",
+          "name": "S",
+          "type": "IN",
+          "net": "VCC",
+          "noConnect": false
+        },
+        {
+          "number": "3",
+          "name": "D",
+          "type": "IN",
+          "net": "BAT",
+          "noConnect": false
+        }
+      ]
+    },
+    {
+      "designator": "R6",
+      "sheet": "电源",
+      "symbol": "电阻",
+      "value": "100kΩ",
+      "manufacturer": "UNI-ROYAL(厚声)",
+      "manufacturerPart": "0603WAF1003T5E",
+      "lcscPartName": "100kΩ ±1% 100mW 厚膜电阻",
+      "lcsc": "C25803",
+      "footprint": "R0603",
+      "package": "0603",
+      "datasheet": "https://atta.szlcsc.com/upload/public/pdf/source/20200306/C422600_1E6D84923E4A46A82E41ADD87F860B5C.pdf",
+      "description": "阻值:100kΩ;精度:±1%;功率:100mW;温度系数:±100ppm/℃;电阻类型:厚膜电阻;",
+      "inBom": true,
+      "pins": [
+        {
+          "number": "1",
+          "name": "1",
+          "type": "IN",
+          "net": "+5V",
+          "noConnect": false
+        },
+        {
+          "number": "2",
+          "name": "2",
+          "type": "IN",
+          "net": "GND",
+          "noConnect": false
+        }
+      ]
+    },
+    {
+      "designator": "R9",
+      "sheet": "电源",
+      "symbol": "电阻",
+      "value": "4.7kΩ",
+      "manufacturer": "UNI-ROYAL(厚声)",
+      "manufacturerPart": "0603WAF4701T5E",
+      "lcscPartName": "4.7kΩ ±1% 100mW",
+      "lcsc": "C23162",
+      "footprint": "R0603",
+      "package": "0603",
+      "datasheet": "https://atta.szlcsc.com/upload/public/pdf/source/20200306/C422600_1E6D84923E4A46A82E41ADD87F860B5C.pdf",
+      "description": "电阻类型:厚膜电阻;阻值:4.7kΩ;精度:±1%;功率:100mW;",
+      "inBom": true,
+      "pins": [
+        {
+          "number": "1",
+          "name": "1",
+          "type": "IN",
+          "net": "UNNAMED-16",
+          "noConnect": false
+        },
+        {
+          "number": "2",
+          "name": "2",
+          "type": "IN",
+          "net": "GND",
+          "noConnect": false
+        }
+      ]
+    },
+    {
+      "designator": "R10",
+      "sheet": "电源",
+      "symbol": "电阻",
+      "value": "100kΩ",
+      "manufacturer": "UNI-ROYAL(厚声)",
+      "manufacturerPart": "0603WAF1003T5E",
+      "lcscPartName": "100kΩ ±1% 100mW 厚膜电阻",
+      "lcsc": "C25803",
+      "footprint": "R0603",
+      "package": "0603",
+      "datasheet": "https://atta.szlcsc.com/upload/public/pdf/source/20200306/C422600_1E6D84923E4A46A82E41ADD87F860B5C.pdf",
+      "description": "阻值:100kΩ;精度:±1%;功率:100mW;温度系数:±100ppm/℃;电阻类型:厚膜电阻;",
+      "inBom": true,
+      "pins": [
+        {
+          "number": "1",
+          "name": "1",
+          "type": "IN",
+          "net": "3V3",
+          "noConnect": false
+        },
+        {
+          "number": "2",
+          "name": "2",
+          "type": "IN",
+          "net": "CHARGING",
+          "noConnect": false
+        }
+      ]
+    },
+    {
+      "designator": "U4",
+      "sheet": "电源",
+      "symbol": "LTH7",
+      "value": "",
+      "manufacturer": "FM(富满)",
+      "manufacturerPart": "LTH7R.",
+      "lcscPartName": "4054",
+      "lcsc": "C841234",
+      "footprint": "SOT-23-5_L3.0-W1.7-P0.95-LS2.8-BL",
+      "package": "SOT23-5",
+      "datasheet": "https://atta.szlcsc.com/upload/public/pdf/watermark/20200922/C841234_3C53FAF5AD8735FEFC41B6316B95ED82.pdf",
+      "description": "充电电池的类型:-;电池单元组数:-;最大充电电流:-;充满的电池组电压:-;最大供应电压:-;",
+      "inBom": true,
+      "pins": [
+        {
+          "number": "1",
+          "name": "CHRG",
+          "type": "IN",
+          "net": "CHARGING",
+          "noConnect": false
+        },
+        {
+          "number": "2",
+          "name": "GND",
+          "type": "IN",
+          "net": "GND",
+          "noConnect": false
+        },
+        {
+          "number": "3",
+          "name": "BAT",
+          "type": "IN",
+          "net": "BAT",
+          "noConnect": false
+        },
+        {
+          "number": "4",
+          "name": "VCC",
+          "type": "IN",
+          "net": "+5V",
+          "noConnect": false
+        },
+        {
+          "number": "5",
+          "name": "PROG",
+          "type": "IN",
+          "net": "UNNAMED-16",
+          "noConnect": false
+        }
+      ]
+    },
+    {
+      "designator": "U10",
+      "sheet": "电源",
+      "symbol": "SPX3819M5-L-3-3/TR",
+      "value": "",
+      "manufacturer": "MaxLinear(迈凌)",
+      "manufacturerPart": "SPX3819M5-L-3-3/TR",
+      "lcscPartName": "输入16V 输出3.3V 500mA",
+      "lcsc": "C9055",
+      "footprint": "SOT-23-5_L3.0-W1.7-P0.95-LS2.8-BL",
+      "package": "SOT-23-5",
+      "datasheet": "https://atta.szlcsc.com/upload/public/pdf/source/20150720/1457707331934.pdf",
+      "description": "输出类型:固定;最大输入电压:16V;输出电压:3.3V;最大输出电流:500mA;电源纹波抑制比(PSRR):70dB;输出极性:正极;",
+      "inBom": true,
+      "pins": [
+        {
+          "number": "1",
+          "name": "IN",
+          "type": "IN",
+          "net": "VCC",
+          "noConnect": false
+        },
+        {
+          "number": "2",
+          "name": "GND",
+          "type": "IN",
+          "net": "GND",
+          "noConnect": false
+        },
+        {
+          "number": "3",
+          "name": "EN",
+          "type": "IN",
+          "net": "VCC",
+          "noConnect": false
+        },
+        {
+          "number": "4",
+          "name": "BYP",
+          "type": "IN",
+          "net": null,
+          "noConnect": false
+        },
+        {
+          "number": "5",
+          "name": "OUT",
+          "type": "IN",
+          "net": "3V3",
+          "noConnect": false
+        }
+      ]
+    },
+    {
+      "designator": "U12",
+      "sheet": "电源",
+      "symbol": "ZX-MX1.25-2PWT",
+      "value": "",
+      "manufacturer": "Megastar(兆星)",
+      "manufacturerPart": "ZX-MX1.25-2PWT",
+      "lcscPartName": "1x2P 间距:1.25mm 卧贴 系列:MX",
+      "lcsc": "C7430468",
+      "footprint": "CONN-SMD_2P-P1.25_MEGASTAR_ZX-MX1.25-2PWT",
+      "package": "SMD,P=1.25mm",
+      "datasheet": "https://atta.szlcsc.com/upload/public/pdf/source/20230619/2BD294665F872DB10EDB44FDEDF5F6D3.pdf",
+      "description": "插针结构:1x2P;间距:1.25mm;安装方式:卧贴;行距:-;总PIN数:2P;排数:1;每排PIN数:2;参考系列:MX;额定电流:1A;触头材质:黄铜;触头镀层:锡;工作温度范围:-25℃~+85℃;",
+      "inBom": true,
+      "pins": [
+        {
+          "number": "1",
+          "name": "1",
+          "type": "Undefined",
+          "net": "BAT",
+          "noConnect": false
+        },
+        {
+          "number": "2",
+          "name": "2",
+          "type": "Undefined",
+          "net": "GND",
+          "noConnect": false
+        },
+        {
+          "number": "3",
+          "name": "3",
+          "type": "Undefined",
+          "net": "GND",
+          "noConnect": false
+        },
+        {
+          "number": "4",
+          "name": "4",
+          "type": "Undefined",
+          "net": "GND",
+          "noConnect": false
+        }
+      ]
+    },
+    {
+      "designator": "BUZZER1",
+      "sheet": "可选功能",
+      "symbol": "SMD-5025-0340-12Ω",
+      "value": "",
+      "manufacturer": "S&amp;S(海旭)",
+      "manufacturerPart": "SMD-5025-0340-12Ω",
+      "lcscPartName": "贴片无源蜂鸣器",
+      "lcsc": "C2693575",
+      "footprint": "BUZ-SMD_3P-L5.0-W5.0-BL",
+      "package": "SMD,5x5mm",
+      "datasheet": "https://atta.szlcsc.com/upload/public/pdf/source/20210304/C2693575_C016F81F20CF44788ED1674423B845A2.pdf",
+      "description": "",
+      "inBom": true,
+      "pins": [
+        {
+          "number": "1",
+          "name": "1",
+          "type": "IN",
+          "net": "UNNAMED-17",
+          "noConnect": false
+        },
+        {
+          "number": "2",
+          "name": "2",
+          "type": "IN",
+          "net": "GND",
+          "noConnect": false
+        },
+        {
+          "number": "3",
+          "name": "3",
+          "type": "IN",
+          "net": "GND",
+          "noConnect": false
+        }
+      ]
+    },
+    {
+      "designator": "C19",
+      "sheet": "可选功能",
+      "symbol": "CapAcitance",
+      "value": "10uF",
+      "manufacturer": "SAMSUNG(三星)",
+      "manufacturerPart": "CL10A106MA8NRNC",
+      "lcscPartName": "10uF ±20% 25V",
+      "lcsc": "C96446",
+      "footprint": "C0603",
+      "package": "0603",
+      "datasheet": "https://atta.szlcsc.com/upload/public/pdf/source/20170325/1490427913016.pdf",
+      "description": "容值:10uF;精度:±20%;额定电压:25V;材质(温度系数):X5R;",
+      "inBom": true,
+      "pins": [
+        {
+          "number": "1",
+          "name": "1",
+          "type": "IN",
+          "net": "GND",
+          "noConnect": false
+        },
+        {
+          "number": "2",
+          "name": "2",
+          "type": "IN",
+          "net": "SD_VDD",
+          "noConnect": false
+        }
+      ]
+    },
+    {
+      "designator": "C20",
+      "sheet": "可选功能",
+      "symbol": "CapAcitance",
+      "value": "10uF",
+      "manufacturer": "SAMSUNG(三星)",
+      "manufacturerPart": "CL10A106MA8NRNC",
+      "lcscPartName": "10uF ±20% 25V",
+      "lcsc": "C96446",
+      "footprint": "C0603",
+      "package": "0603",
+      "datasheet": "https://atta.szlcsc.com/upload/public/pdf/source/20170325/1490427913016.pdf",
+      "description": "容值:10uF;精度:±20%;额定电压:25V;材质(温度系数):X5R;",
+      "inBom": true,
+      "pins": [
+        {
+          "number": "1",
+          "name": "1",
+          "type": "IN",
+          "net": "GND",
+          "noConnect": false
+        },
+        {
+          "number": "2",
+          "name": "2",
+          "type": "IN",
+          "net": "3V3",
+          "noConnect": false
+        }
+      ]
+    },
+    {
+      "designator": "CARD1",
+      "sheet": "可选功能",
+      "symbol": "TF PUSH",
+      "value": "",
+      "manufacturer": "SHOU HAN(首韩)",
+      "manufacturerPart": "TF PUSH",
+      "lcscPartName": "自弹式TF卡座 TF外焊式内存卡卡座",
+      "lcsc": "C393941",
+      "footprint": "TF-SMD_TF-PUSH",
+      "package": "SMD",
+      "datasheet": "https://atta.szlcsc.com/upload/public/pdf/source/20191011/C393941_0DDD896EE907FEB750D8B7B8982E2A67.pdf",
+      "description": "卡类型:MicroSD卡(TF卡);连接器类型:卡座;卡连接方式:自弹式;本体最大高度:2mm;工作温度范围:-20℃~+90℃;",
+      "inBom": true,
+      "pins": [
+        {
+          "number": "1",
+          "name": "DAT2",
+          "type": "IN",
+          "net": null,
+          "noConnect": true
+        },
+        {
+          "number": "2",
+          "name": "CD/DAT3",
+          "type": "IN",
+          "net": "SD_CS",
+          "noConnect": false
+        },
+        {
+          "number": "3",
+          "name": "CMD",
+          "type": "IN",
+          "net": "SD_MOSI",
+          "noConnect": false
+        },
+        {
+          "number": "4",
+          "name": "VDD",
+          "type": "IN",
+          "net": "SD_VDD",
+          "noConnect": false
+        },
+        {
+          "number": "5",
+          "name": "CLX",
+          "type": "IN",
+          "net": "SD_SCLK",
+          "noConnect": false
+        },
+        {
+          "number": "6",
+          "name": "VSS",
+          "type": "IN",
+          "net": "GND",
+          "noConnect": false
+        },
+        {
+          "number": "7",
+          "name": "DAT0",
+          "type": "IN",
+          "net": "SD_MISO",
+          "noConnect": false
+        },
+        {
+          "number": "8",
+          "name": "DAT1",
+          "type": "IN",
+          "net": null,
+          "noConnect": true
+        },
+        {
+          "number": "10",
+          "name": "10",
+          "type": "IN",
+          "net": "GND",
+          "noConnect": false
+        },
+        {
+          "number": "11",
+          "name": "11",
+          "type": "IN",
+          "net": "GND",
+          "noConnect": false
+        },
+        {
+          "number": "12",
+          "name": "12",
+          "type": "IN",
+          "net": "GND",
+          "noConnect": false
+        },
+        {
+          "number": "13",
+          "name": "13",
+          "type": "IN",
+          "net": "GND",
+          "noConnect": false
+        },
+        {
+          "number": "CD",
+          "name": "CD",
+          "type": "IN",
+          "net": "CARDDETECT",
+          "noConnect": false
+        }
+      ]
+    },
+    {
+      "designator": "Q5",
+      "sheet": "可选功能",
+      "symbol": "2301 A1SHB",
+      "value": "",
+      "manufacturer": "VISHAY(威世)",
+      "manufacturerPart": "SI2301CDS-T1-GE3",
+      "lcscPartName": "P沟道 20V 3.1A",
+      "lcsc": "C10487",
+      "footprint": "SOT-23-3_L3.0-W1.7-P0.95-LS2.9-BR",
+      "package": "SOT-23",
+      "datasheet": "https://atta.szlcsc.com/upload/public/pdf/source/20180621/C10487_757133A2CC00440C4C7DD3E7E73681E9.pdf",
+      "description": "类型:P沟道;漏源电压(Vdss):20V;连续漏极电流(Id):3.1A;功率(Pd):860mW；1.6W;导通电阻(RDS(on)@Vgs,Id):112mΩ@4.5V,2.8A;",
+      "inBom": true,
+      "pins": [
+        {
+          "number": "1",
+          "name": "G",
+          "type": "IN",
+          "net": "SDVDD_CTRL",
+          "noConnect": false
+        },
+        {
+          "number": "2",
+          "name": "S",
+          "type": "IN",
+          "net": "3V3",
+          "noConnect": false
+        },
+        {
+          "number": "3",
+          "name": "D",
+          "type": "IN",
+          "net": "SD_VDD",
+          "noConnect": false
+        }
+      ]
+    },
+    {
+      "designator": "Q6",
+      "sheet": "可选功能",
+      "symbol": "SS8050_C2150",
+      "value": "",
+      "manufacturer": "CJ(江苏长电/长晶)",
+      "manufacturerPart": "SS8050",
+      "lcscPartName": "NPN 25V 1.5A Y1 200-350",
+      "lcsc": "C2150",
+      "footprint": "SOT-23-3_L2.9-W1.3-P1.90-LS2.4-BR",
+      "package": "SOT-23",
+      "datasheet": "https://atta.szlcsc.com/upload/public/pdf/source/20230322/AEE86F4B043774EFF80CAEA14A37D9E9.pdf",
+      "description": "晶体管类型:NPN;集射极击穿电压(Vceo):25V;集电极电流(Ic):1.5A;功率(Pd):300mW;直流电流增益(hFE@Ic,Vce):200@100mA,1V;",
+      "inBom": true,
+      "pins": [
+        {
+          "number": "1",
+          "name": "B",
+          "type": "IN",
+          "net": "BUZZER",
+          "noConnect": false
+        },
+        {
+          "number": "2",
+          "name": "E",
+          "type": "IN",
+          "net": "UNNAMED-17",
+          "noConnect": false
+        },
+        {
+          "number": "3",
+          "name": "C",
+          "type": "IN",
+          "net": "VCC",
+          "noConnect": false
+        }
+      ]
+    },
+    {
+      "designator": "R16",
+      "sheet": "可选功能",
+      "symbol": "电阻",
+      "value": "100kΩ",
+      "manufacturer": "UNI-ROYAL(厚声)",
+      "manufacturerPart": "0603WAF1003T5E",
+      "lcscPartName": "100kΩ ±1% 100mW 厚膜电阻",
+      "lcsc": "C25803",
+      "footprint": "R0603",
+      "package": "0603",
+      "datasheet": "https://atta.szlcsc.com/upload/public/pdf/source/20200306/C422600_1E6D84923E4A46A82E41ADD87F860B5C.pdf",
+      "description": "阻值:100kΩ;精度:±1%;功率:100mW;温度系数:±100ppm/℃;电阻类型:厚膜电阻;",
+      "inBom": true,
+      "pins": [
+        {
+          "number": "1",
+          "name": "1",
+          "type": "IN",
+          "net": "SDVDD_CTRL",
+          "noConnect": false
+        },
+        {
+          "number": "2",
+          "name": "2",
+          "type": "IN",
+          "net": "3V3",
+          "noConnect": false
+        }
+      ]
+    },
+    {
+      "designator": "R17",
+      "sheet": "可选功能",
+      "symbol": "0603WAF1002T5E",
+      "value": "10kΩ",
+      "manufacturer": "UNI-ROYAL(厚声)",
+      "manufacturerPart": "0603WAF1002T5E",
+      "lcscPartName": "厚膜电阻 10kΩ ±1% 100mW",
+      "lcsc": "C25804",
+      "footprint": "R0603",
+      "package": "0603",
+      "datasheet": "https://atta.szlcsc.com/upload/public/pdf/source/20200306/C422600_1E6D84923E4A46A82E41ADD87F860B5C.pdf",
+      "description": "电阻类型:厚膜电阻;阻值:10kΩ;精度:±1%;功率:100mW;",
+      "inBom": true,
+      "pins": [
+        {
+          "number": "1",
+          "name": "1",
+          "type": "IN",
+          "net": "RTC_IRQ",
+          "noConnect": false
+        },
+        {
+          "number": "2",
+          "name": "2",
+          "type": "IN",
+          "net": "3V3",
+          "noConnect": false
+        }
+      ]
+    },
+    {
+      "designator": "U8",
+      "sheet": "可选功能",
+      "symbol": "BMP280",
+      "value": "",
+      "manufacturer": "Bosch(博世)",
+      "manufacturerPart": "BMP280",
+      "lcscPartName": "BMP280",
+      "lcsc": "C83291",
+      "footprint": "LGA-8_L2.5-W2.0-P0.65_AMP6127",
+      "package": "LGA-8(2x2.5)",
+      "datasheet": "https://atta.szlcsc.com/upload/public/pdf/source/20200702/C83291_F39E84AB7DFC569A4C7554F8659640A1.pdf",
+      "description": "Bosch气压传感器新品，可测量大气压力，带高精度温度测量，可校准精确计算海拔高度。I2C或SPI接口，宽量程（300-1100hpa），精度高",
+      "inBom": true,
+      "pins": [
+        {
+          "number": "1",
+          "name": "GND",
+          "type": "IN",
+          "net": "GND",
+          "noConnect": false
+        },
+        {
+          "number": "2",
+          "name": "CSB",
+          "type": "IN",
+          "net": "3V3",
+          "noConnect": false
+        },
+        {
+          "number": "3",
+          "name": "SDI",
+          "type": "IN",
+          "net": "SDA",
+          "noConnect": false
+        },
+        {
+          "number": "4",
+          "name": "SCK",
+          "type": "IN",
+          "net": "SCL",
+          "noConnect": false
+        },
+        {
+          "number": "5",
+          "name": "SDO",
+          "type": "IN",
+          "net": "3V3",
+          "noConnect": false
+        },
+        {
+          "number": "6",
+          "name": "VDDIO",
+          "type": "IN",
+          "net": "3V3",
+          "noConnect": false
+        },
+        {
+          "number": "7",
+          "name": "GND",
+          "type": "IN",
+          "net": "GND",
+          "noConnect": false
+        },
+        {
+          "number": "8",
+          "name": "VDD",
+          "type": "IN",
+          "net": "3V3",
+          "noConnect": false
+        }
+      ]
+    },
+    {
+      "designator": "U9",
+      "sheet": "可选功能",
+      "symbol": "AHT20_C2757850",
+      "value": "",
+      "manufacturer": "广州奥松",
+      "manufacturerPart": "AHT20",
+      "lcscPartName": "AHT20",
+      "lcsc": "C2757850",
+      "footprint": "SENSOR-SMD_L3.0-W3.0-P1.00-BR",
+      "package": "SMD",
+      "datasheet": "https://atta.szlcsc.com/upload/public/pdf/source/20200407/C503357_487829B2F97386053400E2E73B0ABB4D.pdf",
+      "description": "",
+      "inBom": true,
+      "pins": [
+        {
+          "number": "1",
+          "name": "NC",
+          "type": "IN",
+          "net": null,
+          "noConnect": true
+        },
+        {
+          "number": "2",
+          "name": "VDD",
+          "type": "IN",
+          "net": "3V3",
+          "noConnect": false
+        },
+        {
+          "number": "3",
+          "name": "SCL",
+          "type": "IN",
+          "net": "SCL",
+          "noConnect": false
+        },
+        {
+          "number": "4",
+          "name": "SDA",
+          "type": "IN",
+          "net": "SDA",
+          "noConnect": false
+        },
+        {
+          "number": "5",
+          "name": "GND",
+          "type": "IN",
+          "net": "GND",
+          "noConnect": false
+        },
+        {
+          "number": "6",
+          "name": "NC",
+          "type": "IN",
+          "net": null,
+          "noConnect": true
+        }
+      ]
+    },
+    {
+      "designator": "U11",
+      "sheet": "可选功能",
+      "symbol": "DS3231MZ+",
+      "value": "",
+      "manufacturer": "ADI(亚德诺)/MAXIM(美信)",
+      "manufacturerPart": "DS3231MZ+TRL",
+      "lcscPartName": "I2C 2.3V~5.5V",
+      "lcsc": "C107410",
+      "footprint": "SOIC-8_L4.9-W3.9-P1.27-LS6.0-BL",
+      "package": "SOIC-8",
+      "datasheet": "https://atta.szlcsc.com/upload/public/pdf/source/20170620/1497944726830.pdf",
+      "description": "接口:I2C;",
+      "inBom": true,
+      "pins": [
+        {
+          "number": "1",
+          "name": "32kHz",
+          "type": "IN",
+          "net": null,
+          "noConnect": true
+        },
+        {
+          "number": "2",
+          "name": "VCC",
+          "type": "IN",
+          "net": "3V3",
+          "noConnect": false
+        },
+        {
+          "number": "3",
+          "name": "INT#/SQW",
+          "type": "BI",
+          "net": "RTC_IRQ",
+          "noConnect": false
+        },
+        {
+          "number": "4",
+          "name": "RST#",
+          "type": "BI",
+          "net": "3V3",
+          "noConnect": false
+        },
+        {
+          "number": "5",
+          "name": "GND",
+          "type": "IN",
+          "net": "GND",
+          "noConnect": false
+        },
+        {
+          "number": "6",
+          "name": "VBAT",
+          "type": "IN",
+          "net": "GND",
+          "noConnect": false
+        },
+        {
+          "number": "7",
+          "name": "SDA",
+          "type": "BI",
+          "net": "SDA",
+          "noConnect": false
+        },
+        {
+          "number": "8",
+          "name": "SCL",
+          "type": "IN",
+          "net": "SCL",
+          "noConnect": false
+        }
+      ]
+    }
+  ],
+  "nets": [
+    {
+      "name": "+5V",
+      "aliases": [],
+      "kind": "power",
+      "sheet": null,
+      "pins": [
+        {
+          "designator": "C17",
+          "pin": "2",
+          "name": "2",
+          "sheet": "USB"
+        },
+        {
+          "designator": "U6",
+          "pin": "7",
+          "name": "VDD5",
+          "sheet": "USB"
+        },
+        {
+          "designator": "U6",
+          "pin": "8",
+          "name": "VBUS",
+          "sheet": "USB"
+        },
+        {
+          "designator": "USB1",
+          "pin": "A4B9",
+          "name": "VBUS",
+          "sheet": "USB"
+        },
+        {
+          "designator": "USB1",
+          "pin": "B4A9",
+          "name": "VBUS",
+          "sheet": "USB"
+        },
+        {
+          "designator": "U4",
+          "pin": "4",
+          "name": "VCC",
+          "sheet": "电源"
+        },
+        {
+          "designator": "Q1",
+          "pin": "1",
+          "name": "G",
+          "sheet": "电源"
+        },
+        {
+          "designator": "R6",
+          "pin": "1",
+          "name": "1",
+          "sheet": "电源"
+        },
+        {
+          "designator": "D6",
+          "pin": "2",
+          "name": "K",
+          "sheet": "电源"
+        }
+      ]
+    },
+    {
+      "name": "BAT",
+      "aliases": [],
+      "kind": "power",
+      "sheet": null,
+      "pins": [
+        {
+          "designator": "U4",
+          "pin": "3",
+          "name": "BAT",
+          "sheet": "电源"
+        },
+        {
+          "designator": "Q1",
+          "pin": "3",
+          "name": "D",
+          "sheet": "电源"
+        },
+        {
+          "designator": "U12",
+          "pin": "1",
+          "name": "1",
+          "sheet": "电源"
+        }
+      ]
+    },
+    {
+      "name": "VCC",
+      "aliases": [],
+      "kind": "power",
+      "sheet": null,
+      "pins": [
+        {
+          "designator": "R2",
+          "pin": "2",
+          "name": "2",
+          "sheet": "主控"
+        },
+        {
+          "designator": "Q1",
+          "pin": "2",
+          "name": "S",
+          "sheet": "电源"
+        },
+        {
+          "designator": "D6",
+          "pin": "1",
+          "name": "A",
+          "sheet": "电源"
+        },
+        {
+          "designator": "U10",
+          "pin": "1",
+          "name": "IN",
+          "sheet": "电源"
+        },
+        {
+          "designator": "U10",
+          "pin": "3",
+          "name": "EN",
+          "sheet": "电源"
+        },
+        {
+          "designator": "C10",
+          "pin": "2",
+          "name": "2",
+          "sheet": "电源"
+        },
+        {
+          "designator": "Q6",
+          "pin": "3",
+          "name": "C",
+          "sheet": "可选功能"
+        }
+      ]
+    },
+    {
+      "name": "3V3",
+      "aliases": [],
+      "kind": "power",
+      "sheet": null,
+      "pins": [
+        {
+          "designator": "U2",
+          "pin": "2",
+          "name": "3V3",
+          "sheet": "主控"
+        },
+        {
+          "designator": "C16",
+          "pin": "1",
+          "name": "1",
+          "sheet": "主控"
+        },
+        {
+          "designator": "R1",
+          "pin": "1",
+          "name": "1",
+          "sheet": "主控"
+        },
+        {
+          "designator": "R15",
+          "pin": "2",
+          "name": "2",
+          "sheet": "主控"
+        },
+        {
+          "designator": "FPC1",
+          "pin": "15",
+          "name": "15",
+          "sheet": "墨水屏"
+        },
+        {
+          "designator": "FPC1",
+          "pin": "16",
+          "name": "16",
+          "sheet": "墨水屏"
+        },
+        {
+          "designator": "C5",
+          "pin": "1",
+          "name": "1",
+          "sheet": "墨水屏"
+        },
+        {
+          "designator": "C8",
+          "pin": "1",
+          "name": "1",
+          "sheet": "墨水屏"
+        },
+        {
+          "designator": "L2",
+          "pin": "1",
+          "name": "1",
+          "sheet": "墨水屏"
+        },
+        {
+          "designator": "U6",
+          "pin": "5",
+          "name": "VIO",
+          "sheet": "USB"
+        },
+        {
+          "designator": "R10",
+          "pin": "1",
+          "name": "1",
+          "sheet": "电源"
+        },
+        {
+          "designator": "U10",
+          "pin": "5",
+          "name": "OUT",
+          "sheet": "电源"
+        },
+        {
+          "designator": "C7",
+          "pin": "2",
+          "name": "2",
+          "sheet": "电源"
+        },
+        {
+          "designator": "U8",
+          "pin": "2",
+          "name": "CSB",
+          "sheet": "可选功能"
+        },
+        {
+          "designator": "U8",
+          "pin": "5",
+          "name": "SDO",
+          "sheet": "可选功能"
+        },
+        {
+          "designator": "U8",
+          "pin": "6",
+          "name": "VDDIO",
+          "sheet": "可选功能"
+        },
+        {
+          "designator": "U8",
+          "pin": "8",
+          "name": "VDD",
+          "sheet": "可选功能"
+        },
+        {
+          "designator": "U9",
+          "pin": "2",
+          "name": "VDD",
+          "sheet": "可选功能"
+        },
+        {
+          "designator": "C20",
+          "pin": "2",
+          "name": "2",
+          "sheet": "可选功能"
+        },
+        {
+          "designator": "R17",
+          "pin": "2",
+          "name": "2",
+          "sheet": "可选功能"
+        },
+        {
+          "designator": "U11",
+          "pin": "2",
+          "name": "VCC",
+          "sheet": "可选功能"
+        },
+        {
+          "designator": "U11",
+          "pin": "4",
+          "name": "RST#",
+          "sheet": "可选功能"
+        },
+        {
+          "designator": "Q5",
+          "pin": "2",
+          "name": "S",
+          "sheet": "可选功能"
+        },
+        {
+          "designator": "R16",
+          "pin": "2",
+          "name": "2",
+          "sheet": "可选功能"
+        }
+      ]
+    },
+    {
+      "name": "SD_VDD",
+      "aliases": [],
+      "kind": "power",
+      "sheet": null,
+      "pins": [
+        {
+          "designator": "CARD1",
+          "pin": "4",
+          "name": "VDD",
+          "sheet": "可选功能"
+        },
+        {
+          "designator": "C19",
+          "pin": "2",
+          "name": "2",
+          "sheet": "可选功能"
+        },
+        {
+          "designator": "Q5",
+          "pin": "3",
+          "name": "D",
+          "sheet": "可选功能"
+        }
+      ]
+    },
+    {
+      "name": "GND",
+      "aliases": [],
+      "kind": "ground",
+      "sheet": null,
+      "pins": [
+        {
+          "designator": "U2",
+          "pin": "1",
+          "name": "GND",
+          "sheet": "主控"
+        },
+        {
+          "designator": "C16",
+          "pin": "2",
+          "name": "2",
+          "sheet": "主控"
+        },
+        {
+          "designator": "U2",
+          "pin": "15",
+          "name": "GND",
+          "sheet": "主控"
+        },
+        {
+          "designator": "U2",
+          "pin": "38",
+          "name": "GND",
+          "sheet": "主控"
+        },
+        {
+          "designator": "U2",
+          "pin": "39",
+          "name": "GND",
+          "sheet": "主控"
+        },
+        {
+          "designator": "R3",
+          "pin": "1",
+          "name": "1",
+          "sheet": "主控"
+        },
+        {
+          "designator": "SW1",
+          "pin": "3",
+          "name": "3",
+          "sheet": "主控"
+        },
+        {
+          "designator": "SW4",
+          "pin": "3",
+          "name": "3",
+          "sheet": "主控"
+        },
+        {
+          "designator": "SW4",
+          "pin": "4",
+          "name": "4",
+          "sheet": "主控"
+        },
+        {
+          "designator": "SW4",
+          "pin": "5",
+          "name": "5",
+          "sheet": "主控"
+        },
+        {
+          "designator": "SW4",
+          "pin": "6",
+          "name": "6",
+          "sheet": "主控"
+        },
+        {
+          "designator": "R18",
+          "pin": "2",
+          "name": "2",
+          "sheet": "主控"
+        },
+        {
+          "designator": "R19",
+          "pin": "2",
+          "name": "2",
+          "sheet": "主控"
+        },
+        {
+          "designator": "R20",
+          "pin": "2",
+          "name": "2",
+          "sheet": "主控"
+        },
+        {
+          "designator": "FPC1",
+          "pin": "8",
+          "name": "8",
+          "sheet": "墨水屏"
+        },
+        {
+          "designator": "FPC1",
+          "pin": "17",
+          "name": "17",
+          "sheet": "墨水屏"
+        },
+        {
+          "designator": "FPC1",
+          "pin": "25",
+          "name": "25",
+          "sheet": "墨水屏"
+        },
+        {
+          "designator": "FPC1",
+          "pin": "26",
+          "name": "26",
+          "sheet": "墨水屏"
+        },
+        {
+          "designator": "D1",
+          "pin": "1",
+          "name": "K",
+          "sheet": "墨水屏"
+        },
+        {
+          "designator": "C2",
+          "pin": "2",
+          "name": "2",
+          "sheet": "墨水屏"
+        },
+        {
+          "designator": "C3",
+          "pin": "2",
+          "name": "2",
+          "sheet": "墨水屏"
+        },
+        {
+          "designator": "C6",
+          "pin": "2",
+          "name": "2",
+          "sheet": "墨水屏"
+        },
+        {
+          "designator": "C9",
+          "pin": "2",
+          "name": "2",
+          "sheet": "墨水屏"
+        },
+        {
+          "designator": "C11",
+          "pin": "2",
+          "name": "2",
+          "sheet": "墨水屏"
+        },
+        {
+          "designator": "C12",
+          "pin": "2",
+          "name": "2",
+          "sheet": "墨水屏"
+        },
+        {
+          "designator": "C13",
+          "pin": "2",
+          "name": "2",
+          "sheet": "墨水屏"
+        },
+        {
+          "designator": "C14",
+          "pin": "2",
+          "name": "2",
+          "sheet": "墨水屏"
+        },
+        {
+          "designator": "C15",
+          "pin": "2",
+          "name": "2",
+          "sheet": "墨水屏"
+        },
+        {
+          "designator": "C5",
+          "pin": "2",
+          "name": "2",
+          "sheet": "墨水屏"
+        },
+        {
+          "designator": "C8",
+          "pin": "2",
+          "name": "2",
+          "sheet": "墨水屏"
+        },
+        {
+          "designator": "R7",
+          "pin": "1",
+          "name": "1",
+          "sheet": "墨水屏"
+        },
+        {
+          "designator": "R8",
+          "pin": "1",
+          "name": "1",
+          "sheet": "墨水屏"
+        },
+        {
+          "designator": "C18",
+          "pin": "2",
+          "name": "2",
+          "sheet": "USB"
+        },
+        {
+          "designator": "C17",
+          "pin": "1",
+          "name": "1",
+          "sheet": "USB"
+        },
+        {
+          "designator": "U6",
+          "pin": "2",
+          "name": "GND",
+          "sheet": "USB"
+        },
+        {
+          "designator": "U6",
+          "pin": "25",
+          "name": "EP",
+          "sheet": "USB"
+        },
+        {
+          "designator": "R4",
+          "pin": "2",
+          "name": "2",
+          "sheet": "USB"
+        },
+        {
+          "designator": "R5",
+          "pin": "2",
+          "name": "2",
+          "sheet": "USB"
+        },
+        {
+          "designator": "USB1",
+          "pin": "1",
+          "name": "SHELL",
+          "sheet": "USB"
+        },
+        {
+          "designator": "USB1",
+          "pin": "2",
+          "name": "SHELL",
+          "sheet": "USB"
+        },
+        {
+          "designator": "USB1",
+          "pin": "3",
+          "name": "SHELL",
+          "sheet": "USB"
+        },
+        {
+          "designator": "USB1",
+          "pin": "4",
+          "name": "SHELL",
+          "sheet": "USB"
+        },
+        {
+          "designator": "USB1",
+          "pin": "A1B12",
+          "name": "GND",
+          "sheet": "USB"
+        },
+        {
+          "designator": "USB1",
+          "pin": "B1A12",
+          "name": "GND",
+          "sheet": "USB"
+        },
+        {
+          "designator": "U4",
+          "pin": "2",
+          "name": "GND",
+          "sheet": "电源"
+        },
+        {
+          "designator": "R6",
+          "pin": "2",
+          "name": "2",
+          "sheet": "电源"
+        },
+        {
+          "designator": "R9",
+          "pin": "2",
+          "name": "2",
+          "sheet": "电源"
+        },
+        {
+          "designator": "U10",
+          "pin": "2",
+          "name": "GND",
+          "sheet": "电源"
+        },
+        {
+          "designator": "C10",
+          "pin": "1",
+          "name": "1",
+          "sheet": "电源"
+        },
+        {
+          "designator": "C7",
+          "pin": "1",
+          "name": "1",
+          "sheet": "电源"
+        },
+        {
+          "designator": "U12",
+          "pin": "2",
+          "name": "2",
+          "sheet": "电源"
+        },
+        {
+          "designator": "U12",
+          "pin": "3",
+          "name": "3",
+          "sheet": "电源"
+        },
+        {
+          "designator": "U12",
+          "pin": "4",
+          "name": "4",
+          "sheet": "电源"
+        },
+        {
+          "designator": "U8",
+          "pin": "1",
+          "name": "GND",
+          "sheet": "可选功能"
+        },
+        {
+          "designator": "U8",
+          "pin": "7",
+          "name": "GND",
+          "sheet": "可选功能"
+        },
+        {
+          "designator": "U9",
+          "pin": "5",
+          "name": "GND",
+          "sheet": "可选功能"
+        },
+        {
+          "designator": "C20",
+          "pin": "1",
+          "name": "1",
+          "sheet": "可选功能"
+        },
+        {
+          "designator": "U11",
+          "pin": "5",
+          "name": "GND",
+          "sheet": "可选功能"
+        },
+        {
+          "designator": "U11",
+          "pin": "6",
+          "name": "VBAT",
+          "sheet": "可选功能"
+        },
+        {
+          "designator": "BUZZER1",
+          "pin": "2",
+          "name": "2",
+          "sheet": "可选功能"
+        },
+        {
+          "designator": "BUZZER1",
+          "pin": "3",
+          "name": "3",
+          "sheet": "可选功能"
+        },
+        {
+          "designator": "CARD1",
+          "pin": "6",
+          "name": "VSS",
+          "sheet": "可选功能"
+        },
+        {
+          "designator": "CARD1",
+          "pin": "10",
+          "name": "10",
+          "sheet": "可选功能"
+        },
+        {
+          "designator": "CARD1",
+          "pin": "11",
+          "name": "11",
+          "sheet": "可选功能"
+        },
+        {
+          "designator": "CARD1",
+          "pin": "12",
+          "name": "12",
+          "sheet": "可选功能"
+        },
+        {
+          "designator": "CARD1",
+          "pin": "13",
+          "name": "13",
+          "sheet": "可选功能"
+        },
+        {
+          "designator": "C19",
+          "pin": "1",
+          "name": "1",
+          "sheet": "可选功能"
+        }
+      ]
+    },
+    {
+      "name": "ADC",
+      "aliases": [],
+      "kind": "signal",
+      "sheet": null,
+      "pins": [
+        {
+          "designator": "U2",
+          "pin": "9",
+          "name": "IO33",
+          "sheet": "主控"
+        },
+        {
+          "designator": "R2",
+          "pin": "1",
+          "name": "1",
+          "sheet": "主控"
+        },
+        {
+          "designator": "R3",
+          "pin": "2",
+          "name": "2",
+          "sheet": "主控"
+        }
+      ]
+    },
+    {
+      "name": "BUTTON1",
+      "aliases": [],
+      "kind": "signal",
+      "sheet": null,
+      "pins": [
+        {
+          "designator": "U2",
+          "pin": "5",
+          "name": "SENSOR_VN",
+          "sheet": "主控"
+        },
+        {
+          "designator": "SW4",
+          "pin": "1",
+          "name": "1",
+          "sheet": "主控"
+        },
+        {
+          "designator": "R20",
+          "pin": "1",
+          "name": "1",
+          "sheet": "主控"
+        }
+      ]
+    },
+    {
+      "name": "BUTTON2",
+      "aliases": [],
+      "kind": "signal",
+      "sheet": null,
+      "pins": [
+        {
+          "designator": "U2",
+          "pin": "7",
+          "name": "IO35",
+          "sheet": "主控"
+        },
+        {
+          "designator": "SW4",
+          "pin": "2",
+          "name": "2",
+          "sheet": "主控"
+        },
+        {
+          "designator": "R19",
+          "pin": "1",
+          "name": "1",
+          "sheet": "主控"
+        }
+      ]
+    },
+    {
+      "name": "BUTTON3",
+      "aliases": [],
+      "kind": "signal",
+      "sheet": null,
+      "pins": [
+        {
+          "designator": "U2",
+          "pin": "6",
+          "name": "IO34",
+          "sheet": "主控"
+        },
+        {
+          "designator": "SW4",
+          "pin": "T",
+          "name": "T",
+          "sheet": "主控"
+        },
+        {
+          "designator": "R18",
+          "pin": "1",
+          "name": "1",
+          "sheet": "主控"
+        }
+      ]
+    },
+    {
+      "name": "BUZZER",
+      "aliases": [],
+      "kind": "signal",
+      "sheet": null,
+      "pins": [
+        {
+          "designator": "U2",
+          "pin": "33",
+          "name": "IO21",
+          "sheet": "主控"
+        },
+        {
+          "designator": "Q6",
+          "pin": "1",
+          "name": "B",
+          "sheet": "可选功能"
+        }
+      ]
+    },
+    {
+      "name": "CARDDETECT",
+      "aliases": [],
+      "kind": "signal",
+      "sheet": null,
+      "pins": [
+        {
+          "designator": "U2",
+          "pin": "24",
+          "name": "IO2",
+          "sheet": "主控"
+        },
+        {
+          "designator": "CARD1",
+          "pin": "CD",
+          "name": "CD",
+          "sheet": "可选功能"
+        }
+      ]
+    },
+    {
+      "name": "CHARGING",
+      "aliases": [],
+      "kind": "signal",
+      "sheet": null,
+      "pins": [
+        {
+          "designator": "U2",
+          "pin": "11",
+          "name": "IO26",
+          "sheet": "主控"
+        },
+        {
+          "designator": "U4",
+          "pin": "1",
+          "name": "CHRG",
+          "sheet": "电源"
+        },
+        {
+          "designator": "R10",
+          "pin": "2",
+          "name": "2",
+          "sheet": "电源"
+        }
+      ]
+    },
+    {
+      "name": "DN",
+      "aliases": [],
+      "kind": "signal",
+      "sheet": null,
+      "pins": [
+        {
+          "designator": "U6",
+          "pin": "4",
+          "name": "UD-",
+          "sheet": "USB"
+        },
+        {
+          "designator": "USB1",
+          "pin": "A7",
+          "name": "DN1",
+          "sheet": "USB"
+        },
+        {
+          "designator": "USB1",
+          "pin": "B7",
+          "name": "DN2",
+          "sheet": "USB"
+        }
+      ]
+    },
+    {
+      "name": "DP",
+      "aliases": [],
+      "kind": "signal",
+      "sheet": null,
+      "pins": [
+        {
+          "designator": "U6",
+          "pin": "3",
+          "name": "UD+",
+          "sheet": "USB"
+        },
+        {
+          "designator": "USB1",
+          "pin": "A6",
+          "name": "DP1",
+          "sheet": "USB"
+        },
+        {
+          "designator": "USB1",
+          "pin": "B6",
+          "name": "DP2",
+          "sheet": "USB"
+        }
+      ]
+    },
+    {
+      "name": "DTR",
+      "aliases": [],
+      "kind": "signal",
+      "sheet": null,
+      "pins": [
+        {
+          "designator": "U6",
+          "pin": "23",
+          "name": "DTR",
+          "sheet": "USB"
+        },
+        {
+          "designator": "Q4",
+          "pin": "2",
+          "name": "E",
+          "sheet": "USB"
+        },
+        {
+          "designator": "R11",
+          "pin": "1",
+          "name": "1",
+          "sheet": "USB"
+        }
+      ]
+    },
+    {
+      "name": "EN",
+      "aliases": [],
+      "kind": "signal",
+      "sheet": null,
+      "pins": [
+        {
+          "designator": "U2",
+          "pin": "3",
+          "name": "EN",
+          "sheet": "主控"
+        },
+        {
+          "designator": "R1",
+          "pin": "2",
+          "name": "2",
+          "sheet": "主控"
+        },
+        {
+          "designator": "SW1",
+          "pin": "1",
+          "name": "1",
+          "sheet": "主控"
+        },
+        {
+          "designator": "Q3",
+          "pin": "3",
+          "name": "C",
+          "sheet": "USB"
+        }
+      ]
+    },
+    {
+      "name": "EPD_BUSY",
+      "aliases": [],
+      "kind": "signal",
+      "sheet": null,
+      "pins": [
+        {
+          "designator": "U2",
+          "pin": "31",
+          "name": "IO19",
+          "sheet": "主控"
+        },
+        {
+          "designator": "FPC1",
+          "pin": "9",
+          "name": "9",
+          "sheet": "墨水屏"
+        }
+      ]
+    },
+    {
+      "name": "EPD_CLK",
+      "aliases": [],
+      "kind": "signal",
+      "sheet": null,
+      "pins": [
+        {
+          "designator": "U2",
+          "pin": "27",
+          "name": "IO16",
+          "sheet": "主控"
+        },
+        {
+          "designator": "FPC1",
+          "pin": "13",
+          "name": "13",
+          "sheet": "墨水屏"
+        }
+      ]
+    },
+    {
+      "name": "EPD_CS",
+      "aliases": [],
+      "kind": "signal",
+      "sheet": null,
+      "pins": [
+        {
+          "designator": "U2",
+          "pin": "28",
+          "name": "IO17",
+          "sheet": "主控"
+        },
+        {
+          "designator": "FPC1",
+          "pin": "12",
+          "name": "12",
+          "sheet": "墨水屏"
+        }
+      ]
+    },
+    {
+      "name": "EPD_DC",
+      "aliases": [],
+      "kind": "signal",
+      "sheet": null,
+      "pins": [
+        {
+          "designator": "U2",
+          "pin": "29",
+          "name": "IO5",
+          "sheet": "主控"
+        },
+        {
+          "designator": "FPC1",
+          "pin": "11",
+          "name": "11",
+          "sheet": "墨水屏"
+        }
+      ]
+    },
+    {
+      "name": "EPD_DIN",
+      "aliases": [],
+      "kind": "signal",
+      "sheet": null,
+      "pins": [
+        {
+          "designator": "U2",
+          "pin": "26",
+          "name": "IO4",
+          "sheet": "主控"
+        },
+        {
+          "designator": "FPC1",
+          "pin": "14",
+          "name": "14",
+          "sheet": "墨水屏"
+        }
+      ]
+    },
+    {
+      "name": "EPD_RST",
+      "aliases": [],
+      "kind": "signal",
+      "sheet": null,
+      "pins": [
+        {
+          "designator": "U2",
+          "pin": "30",
+          "name": "IO18",
+          "sheet": "主控"
+        },
+        {
+          "designator": "FPC1",
+          "pin": "10",
+          "name": "10",
+          "sheet": "墨水屏"
+        }
+      ]
+    },
+    {
+      "name": "GDR",
+      "aliases": [],
+      "kind": "signal",
+      "sheet": null,
+      "pins": [
+        {
+          "designator": "FPC1",
+          "pin": "2",
+          "name": "2",
+          "sheet": "墨水屏"
+        },
+        {
+          "designator": "R7",
+          "pin": "2",
+          "name": "2",
+          "sheet": "墨水屏"
+        },
+        {
+          "designator": "Q2",
+          "pin": "1",
+          "name": "G",
+          "sheet": "墨水屏"
+        }
+      ]
+    },
+    {
+      "name": "GPIO0",
+      "aliases": [],
+      "kind": "signal",
+      "sheet": null,
+      "pins": [
+        {
+          "designator": "U2",
+          "pin": "25",
+          "name": "IO0",
+          "sheet": "主控"
+        },
+        {
+          "designator": "Q4",
+          "pin": "3",
+          "name": "C",
+          "sheet": "USB"
+        }
+      ]
+    },
+    {
+      "name": "PREVGH",
+      "aliases": [],
+      "kind": "signal",
+      "sheet": null,
+      "pins": [
+        {
+          "designator": "FPC1",
+          "pin": "21",
+          "name": "21",
+          "sheet": "墨水屏"
+        },
+        {
+          "designator": "C12",
+          "pin": "1",
+          "name": "1",
+          "sheet": "墨水屏"
+        },
+        {
+          "designator": "D4",
+          "pin": "1",
+          "name": "K",
+          "sheet": "墨水屏"
+        }
+      ]
+    },
+    {
+      "name": "PREVGL",
+      "aliases": [],
+      "kind": "signal",
+      "sheet": null,
+      "pins": [
+        {
+          "designator": "FPC1",
+          "pin": "23",
+          "name": "23",
+          "sheet": "墨水屏"
+        },
+        {
+          "designator": "C14",
+          "pin": "1",
+          "name": "1",
+          "sheet": "墨水屏"
+        },
+        {
+          "designator": "D3",
+          "pin": "2",
+          "name": "A",
+          "sheet": "墨水屏"
+        }
+      ]
+    },
+    {
+      "name": "RESE",
+      "aliases": [],
+      "kind": "signal",
+      "sheet": null,
+      "pins": [
+        {
+          "designator": "FPC1",
+          "pin": "3",
+          "name": "3",
+          "sheet": "墨水屏"
+        },
+        {
+          "designator": "R8",
+          "pin": "2",
+          "name": "2",
+          "sheet": "墨水屏"
+        },
+        {
+          "designator": "Q2",
+          "pin": "2",
+          "name": "S",
+          "sheet": "墨水屏"
+        }
+      ]
+    },
+    {
+      "name": "RTC_IRQ",
+      "aliases": [],
+      "kind": "signal",
+      "sheet": null,
+      "pins": [
+        {
+          "designator": "U2",
+          "pin": "10",
+          "name": "IO25",
+          "sheet": "主控"
+        },
+        {
+          "designator": "R17",
+          "pin": "1",
+          "name": "1",
+          "sheet": "可选功能"
+        },
+        {
+          "designator": "U11",
+          "pin": "3",
+          "name": "INT#/SQW",
+          "sheet": "可选功能"
+        }
+      ]
+    },
+    {
+      "name": "RTS",
+      "aliases": [],
+      "kind": "signal",
+      "sheet": null,
+      "pins": [
+        {
+          "designator": "U6",
+          "pin": "19",
+          "name": "RTS",
+          "sheet": "USB"
+        },
+        {
+          "designator": "Q3",
+          "pin": "2",
+          "name": "E",
+          "sheet": "USB"
+        },
+        {
+          "designator": "R12",
+          "pin": "1",
+          "name": "1",
+          "sheet": "USB"
+        }
+      ]
+    },
+    {
+      "name": "RXD",
+      "aliases": [],
+      "kind": "signal",
+      "sheet": null,
+      "pins": [
+        {
+          "designator": "U2",
+          "pin": "34",
+          "name": "RXD0",
+          "sheet": "主控"
+        },
+        {
+          "designator": "U6",
+          "pin": "21",
+          "name": "TXD",
+          "sheet": "USB"
+        }
+      ]
+    },
+    {
+      "name": "SCL",
+      "aliases": [],
+      "kind": "signal",
+      "sheet": null,
+      "pins": [
+        {
+          "designator": "U2",
+          "pin": "36",
+          "name": "IO22",
+          "sheet": "主控"
+        },
+        {
+          "designator": "U8",
+          "pin": "4",
+          "name": "SCK",
+          "sheet": "可选功能"
+        },
+        {
+          "designator": "U9",
+          "pin": "3",
+          "name": "SCL",
+          "sheet": "可选功能"
+        },
+        {
+          "designator": "U11",
+          "pin": "8",
+          "name": "SCL",
+          "sheet": "可选功能"
+        }
+      ]
+    },
+    {
+      "name": "SDA",
+      "aliases": [],
+      "kind": "signal",
+      "sheet": null,
+      "pins": [
+        {
+          "designator": "U2",
+          "pin": "37",
+          "name": "IO23",
+          "sheet": "主控"
+        },
+        {
+          "designator": "U8",
+          "pin": "3",
+          "name": "SDI",
+          "sheet": "可选功能"
+        },
+        {
+          "designator": "U9",
+          "pin": "4",
+          "name": "SDA",
+          "sheet": "可选功能"
+        },
+        {
+          "designator": "U11",
+          "pin": "7",
+          "name": "SDA",
+          "sheet": "可选功能"
+        }
+      ]
+    },
+    {
+      "name": "SDVDD_CTRL",
+      "aliases": [],
+      "kind": "signal",
+      "sheet": null,
+      "pins": [
+        {
+          "designator": "U2",
+          "pin": "12",
+          "name": "IO27",
+          "sheet": "主控"
+        },
+        {
+          "designator": "Q5",
+          "pin": "1",
+          "name": "G",
+          "sheet": "可选功能"
+        },
+        {
+          "designator": "R16",
+          "pin": "1",
+          "name": "1",
+          "sheet": "可选功能"
+        }
+      ]
+    },
+    {
+      "name": "SD_CS",
+      "aliases": [],
+      "kind": "signal",
+      "sheet": null,
+      "pins": [
+        {
+          "designator": "U2",
+          "pin": "13",
+          "name": "IO14",
+          "sheet": "主控"
+        },
+        {
+          "designator": "CARD1",
+          "pin": "2",
+          "name": "CD/DAT3",
+          "sheet": "可选功能"
+        }
+      ]
+    },
+    {
+      "name": "SD_MISO",
+      "aliases": [],
+      "kind": "signal",
+      "sheet": null,
+      "pins": [
+        {
+          "designator": "U2",
+          "pin": "23",
+          "name": "IO15",
+          "sheet": "主控"
+        },
+        {
+          "designator": "CARD1",
+          "pin": "7",
+          "name": "DAT0",
+          "sheet": "可选功能"
+        }
+      ]
+    },
+    {
+      "name": "SD_MOSI",
+      "aliases": [],
+      "kind": "signal",
+      "sheet": null,
+      "pins": [
+        {
+          "designator": "U2",
+          "pin": "14",
+          "name": "IO12",
+          "sheet": "主控"
+        },
+        {
+          "designator": "CARD1",
+          "pin": "3",
+          "name": "CMD",
+          "sheet": "可选功能"
+        }
+      ]
+    },
+    {
+      "name": "SD_SCLK",
+      "aliases": [],
+      "kind": "signal",
+      "sheet": null,
+      "pins": [
+        {
+          "designator": "U2",
+          "pin": "16",
+          "name": "IO13",
+          "sheet": "主控"
+        },
+        {
+          "designator": "CARD1",
+          "pin": "5",
+          "name": "CLX",
+          "sheet": "可选功能"
+        }
+      ]
+    },
+    {
+      "name": "TXD",
+      "aliases": [],
+      "kind": "signal",
+      "sheet": null,
+      "pins": [
+        {
+          "designator": "U2",
+          "pin": "35",
+          "name": "TXD0",
+          "sheet": "主控"
+        },
+        {
+          "designator": "U6",
+          "pin": "20",
+          "name": "RXD",
+          "sheet": "USB"
+        }
+      ]
+    },
+    {
+      "name": "UNNAMED-1",
+      "aliases": [],
+      "kind": "unnamed",
+      "sheet": "主控",
+      "pins": [
+        {
+          "designator": "SW4",
+          "pin": "C",
+          "name": "C",
+          "sheet": "主控"
+        },
+        {
+          "designator": "R15",
+          "pin": "1",
+          "name": "1",
+          "sheet": "主控"
+        }
+      ]
+    },
+    {
+      "name": "UNNAMED-10",
+      "aliases": [],
+      "kind": "unnamed",
+      "sheet": "墨水屏",
+      "pins": [
+        {
+          "designator": "D4",
+          "pin": "2",
+          "name": "A",
+          "sheet": "墨水屏"
+        },
+        {
+          "designator": "C4",
+          "pin": "2",
+          "name": "2",
+          "sheet": "墨水屏"
+        },
+        {
+          "designator": "Q2",
+          "pin": "3",
+          "name": "D",
+          "sheet": "墨水屏"
+        },
+        {
+          "designator": "L2",
+          "pin": "2",
+          "name": "2",
+          "sheet": "墨水屏"
+        }
+      ]
+    },
+    {
+      "name": "UNNAMED-11",
+      "aliases": [],
+      "kind": "unnamed",
+      "sheet": "USB",
+      "pins": [
+        {
+          "designator": "C18",
+          "pin": "1",
+          "name": "1",
+          "sheet": "USB"
+        },
+        {
+          "designator": "U6",
+          "pin": "6",
+          "name": "V3",
+          "sheet": "USB"
+        }
+      ]
+    },
+    {
+      "name": "UNNAMED-12",
+      "aliases": [],
+      "kind": "unnamed",
+      "sheet": "USB",
+      "pins": [
+        {
+          "designator": "Q3",
+          "pin": "1",
+          "name": "B",
+          "sheet": "USB"
+        },
+        {
+          "designator": "R11",
+          "pin": "2",
+          "name": "2",
+          "sheet": "USB"
+        }
+      ]
+    },
+    {
+      "name": "UNNAMED-13",
+      "aliases": [],
+      "kind": "unnamed",
+      "sheet": "USB",
+      "pins": [
+        {
+          "designator": "Q4",
+          "pin": "1",
+          "name": "B",
+          "sheet": "USB"
+        },
+        {
+          "designator": "R12",
+          "pin": "2",
+          "name": "2",
+          "sheet": "USB"
+        }
+      ]
+    },
+    {
+      "name": "UNNAMED-14",
+      "aliases": [],
+      "kind": "unnamed",
+      "sheet": "USB",
+      "pins": [
+        {
+          "designator": "R4",
+          "pin": "1",
+          "name": "1",
+          "sheet": "USB"
+        },
+        {
+          "designator": "USB1",
+          "pin": "B5",
+          "name": "CC2",
+          "sheet": "USB"
+        }
+      ]
+    },
+    {
+      "name": "UNNAMED-15",
+      "aliases": [],
+      "kind": "unnamed",
+      "sheet": "USB",
+      "pins": [
+        {
+          "designator": "R5",
+          "pin": "1",
+          "name": "1",
+          "sheet": "USB"
+        },
+        {
+          "designator": "USB1",
+          "pin": "A5",
+          "name": "CC1",
+          "sheet": "USB"
+        }
+      ]
+    },
+    {
+      "name": "UNNAMED-16",
+      "aliases": [],
+      "kind": "unnamed",
+      "sheet": "电源",
+      "pins": [
+        {
+          "designator": "U4",
+          "pin": "5",
+          "name": "PROG",
+          "sheet": "电源"
+        },
+        {
+          "designator": "R9",
+          "pin": "1",
+          "name": "1",
+          "sheet": "电源"
+        }
+      ]
+    },
+    {
+      "name": "UNNAMED-17",
+      "aliases": [],
+      "kind": "unnamed",
+      "sheet": "可选功能",
+      "pins": [
+        {
+          "designator": "BUZZER1",
+          "pin": "1",
+          "name": "1",
+          "sheet": "可选功能"
+        },
+        {
+          "designator": "Q6",
+          "pin": "2",
+          "name": "E",
+          "sheet": "可选功能"
+        }
+      ]
+    },
+    {
+      "name": "UNNAMED-2",
+      "aliases": [],
+      "kind": "unnamed",
+      "sheet": "墨水屏",
+      "pins": [
+        {
+          "designator": "FPC1",
+          "pin": "4",
+          "name": "4",
+          "sheet": "墨水屏"
+        },
+        {
+          "designator": "C2",
+          "pin": "1",
+          "name": "1",
+          "sheet": "墨水屏"
+        }
+      ]
+    },
+    {
+      "name": "UNNAMED-3",
+      "aliases": [],
+      "kind": "unnamed",
+      "sheet": "墨水屏",
+      "pins": [
+        {
+          "designator": "FPC1",
+          "pin": "5",
+          "name": "5",
+          "sheet": "墨水屏"
+        },
+        {
+          "designator": "C3",
+          "pin": "1",
+          "name": "1",
+          "sheet": "墨水屏"
+        }
+      ]
+    },
+    {
+      "name": "UNNAMED-4",
+      "aliases": [],
+      "kind": "unnamed",
+      "sheet": "墨水屏",
+      "pins": [
+        {
+          "designator": "FPC1",
+          "pin": "18",
+          "name": "18",
+          "sheet": "墨水屏"
+        },
+        {
+          "designator": "C6",
+          "pin": "1",
+          "name": "1",
+          "sheet": "墨水屏"
+        }
+      ]
+    },
+    {
+      "name": "UNNAMED-5",
+      "aliases": [],
+      "kind": "unnamed",
+      "sheet": "墨水屏",
+      "pins": [
+        {
+          "designator": "FPC1",
+          "pin": "19",
+          "name": "19",
+          "sheet": "墨水屏"
+        },
+        {
+          "designator": "C9",
+          "pin": "1",
+          "name": "1",
+          "sheet": "墨水屏"
+        }
+      ]
+    },
+    {
+      "name": "UNNAMED-6",
+      "aliases": [],
+      "kind": "unnamed",
+      "sheet": "墨水屏",
+      "pins": [
+        {
+          "designator": "FPC1",
+          "pin": "20",
+          "name": "20",
+          "sheet": "墨水屏"
+        },
+        {
+          "designator": "C11",
+          "pin": "1",
+          "name": "1",
+          "sheet": "墨水屏"
+        }
+      ]
+    },
+    {
+      "name": "UNNAMED-7",
+      "aliases": [],
+      "kind": "unnamed",
+      "sheet": "墨水屏",
+      "pins": [
+        {
+          "designator": "FPC1",
+          "pin": "22",
+          "name": "22",
+          "sheet": "墨水屏"
+        },
+        {
+          "designator": "C13",
+          "pin": "1",
+          "name": "1",
+          "sheet": "墨水屏"
+        }
+      ]
+    },
+    {
+      "name": "UNNAMED-8",
+      "aliases": [],
+      "kind": "unnamed",
+      "sheet": "墨水屏",
+      "pins": [
+        {
+          "designator": "FPC1",
+          "pin": "24",
+          "name": "24",
+          "sheet": "墨水屏"
+        },
+        {
+          "designator": "C15",
+          "pin": "1",
+          "name": "1",
+          "sheet": "墨水屏"
+        }
+      ]
+    },
+    {
+      "name": "UNNAMED-9",
+      "aliases": [],
+      "kind": "unnamed",
+      "sheet": "墨水屏",
+      "pins": [
+        {
+          "designator": "D1",
+          "pin": "2",
+          "name": "A",
+          "sheet": "墨水屏"
+        },
+        {
+          "designator": "D3",
+          "pin": "1",
+          "name": "K",
+          "sheet": "墨水屏"
+        },
+        {
+          "designator": "C4",
+          "pin": "1",
+          "name": "1",
+          "sheet": "墨水屏"
+        }
+      ]
+    }
+  ],
+  "rails": [
+    "+5V",
+    "BAT",
+    "VCC",
+    "3V3",
+    "SD_VDD",
+    "GND"
+  ]
+}
