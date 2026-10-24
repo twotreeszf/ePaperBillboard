@@ -3,6 +3,20 @@
 #include "../Base/Util.h"
 #include <SD.h>
 #include <driver/gpio.h>
+#include <esp_attr.h>
+#include <esp_private/cache_utils.h>
+#include <esp_rom_sys.h>
+#include <soc/gpio_reg.h>
+
+static_assert(TT_SD_PIN_POWER < 32, "SD power pin must use the low GPIO out register");
+
+// Runs with flash cache off and the other core parked, so it must not touch flash.
+static void IRAM_ATTR __attribute__((noinline)) sdPowerOnGuarded() {
+    spi_flash_disable_interrupts_caches_and_other_cpu();
+    REG_WRITE(TT_SD_POWER_ON_LEVEL == LOW ? GPIO_OUT_W1TC_REG : GPIO_OUT_W1TS_REG, BIT(TT_SD_PIN_POWER));
+    esp_rom_delay_us(TT_SD_POWER_GUARD_US);
+    spi_flash_enable_interrupts_caches_and_other_cpu();
+}
 
 void TTSdCardService::begin() {
     pinMode(TT_SD_PIN_DETECT, INPUT_PULLUP);
@@ -123,7 +137,14 @@ void TTSdCardService::unmount() {
 }
 
 void TTSdCardService::powerOn() {
+#if TT_SD_POWER_GUARD_ENABLED
+    LOG_I("SD: power on with flash guard %u us", (unsigned)TT_SD_POWER_GUARD_US);
+    const uint32_t startUs = micros();
+    sdPowerOnGuarded();
+    LOG_I("SD: flash guard released after %u us", (unsigned)(micros() - startUs));
+#else
     digitalWrite(TT_SD_PIN_POWER, TT_SD_POWER_ON_LEVEL);
+#endif
     delay(TT_SD_POWER_SETTLE_MS);
     LOG_I("SD: power on");
 }
