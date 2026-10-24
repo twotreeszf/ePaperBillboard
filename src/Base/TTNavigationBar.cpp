@@ -440,10 +440,10 @@ void TTNavigationBar::placeTrailing() {
 void TTNavigationBar::applyStatusVisibility() {
     bool changed = false;
     const bool showIndoor = _sensorsAllowed && _metricsAllowed && _hasSensor;
+    const bool showPressure = _sensorsAllowed && _hasSensor && _pressure > 0.0f;
     changed |= setHidden(_tempLabel != nullptr ? lv_obj_get_parent(_tempLabel) : nullptr, !showIndoor);
     changed |= setHidden(_humLabel != nullptr ? lv_obj_get_parent(_humLabel) : nullptr, !showIndoor);
-    changed |= setHidden(_pressLabel != nullptr ? lv_obj_get_parent(_pressLabel) : nullptr,
-                         !_sensorsAllowed || !_hasSensor);
+    changed |= setHidden(_pressLabel != nullptr ? lv_obj_get_parent(_pressLabel) : nullptr, !showPressure);
     changed |= setHidden(_batteryLabel != nullptr ? lv_obj_get_parent(_batteryLabel) : nullptr, !_hasSensor);
     const bool showTime = _timeAllowed && _metricsAllowed && _lastMinute >= 0;
     changed |= setHidden(_timeLabel, !showTime);
