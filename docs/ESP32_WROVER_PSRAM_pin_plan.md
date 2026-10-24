@@ -37,7 +37,7 @@ WROVER 与 WROOM-32D 同为 38 脚，IO16/IO17 挪走后可以原位替换。
 #define TT_UI_EPD_CS    25
 ```
 
-`platformio.ini` 里现在是 `-D BOARD_HAS_PSRAM=0`，换模组后改为启用 PSRAM。当前分区是 8MB Flash（`partitions_8MB.csv`），模组 Flash 至少 8MB，例如 WROVER-E 的 N8R8 或 N16R8。N4（4MB Flash）放不下现有分区。
+`platformio.ini` 里现在是 `-D BOARD_HAS_PSRAM=0`，换模组后改为启用 PSRAM。当前分区是 16MB Flash（`partitions_16MB.csv`），模组 Flash 需要 16MB，例如 WROVER-E 的 N16R8。N4（4MB Flash）和 N8（8MB Flash）放不下这张表。
 
 ## 不改线的情况
 

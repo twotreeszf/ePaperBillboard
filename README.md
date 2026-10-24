@@ -8,7 +8,7 @@ ESP32-WROOM-32E weather and calendar billboard: LVGL 9, custom binary fonts, Lit
 
 ### Components
 
-- **MCU**: ESP32-WROOM-32E (8MB Flash, no PSRAM)
+- **MCU**: ESP32-WROOM-32E (16MB Flash, no PSRAM)
 - **Display** (pick one in `include/EPDConfig.h`; must match the panel):
 
 | Macro | Panel | Size | Notes |
@@ -77,16 +77,16 @@ pio run --target uploadfs   # after changing data/res/fonts or data/res/icons
 
 ### Flash layout
 
-Custom 8MB table (`partitions_8MB.csv`):
+Custom 16MB table (`partitions_16MB.csv`):
 
 | Partition | Size | Description |
 |-----------|------|-------------|
-| app0 | 2 MB | Main application (OTA slot 0) |
-| app1 | 2 MB | OTA slot 1 |
-| spiffs | ~3.875 MB | LittleFS: `/res` fonts and icons, `/tmp` cache and scratch files |
-| coredump | 64 KB | Core dump |
+| app0 | 2 MB | Main application (OTA slot 0), same offset as the 8MB table |
+| app1 | 2 MB | OTA slot 1, same offset as the 8MB table |
+| spiffs | 11.8125 MB | LittleFS: `/res` fonts and icons, `/tmp` cache and scratch files |
+| coredump | 64 KB | Core dump, at the end of the 16MB flash |
 
-`board_build.flash_size` and `board_upload.flash_size` must both be `8MB`.
+`board_build.flash_size` and `board_upload.flash_size` must both be `16MB`. The previous 8MB table remains in `partitions_8MB.csv`.
 
 ## Fonts
 

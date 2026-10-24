@@ -23,8 +23,8 @@ NOTES_PATH = ROOT / "release-notes.md"
 NOTES_MAX_CHARS = 100
 HISTORY_MAX = 24
 CONTENT_ROOTS = ("src", "include", "lib")
-CONTENT_FILES = ("platformio.ini", "partitions_8MB.csv")
-CHANGELOG_PATHS = ("src", "include", "lib", "data/res", "platformio.ini", "partitions_8MB.csv")
+CONTENT_FILES = ("platformio.ini", "partitions_16MB.csv")
+CHANGELOG_PATHS = ("src", "include", "lib", "data/res", "platformio.ini", "partitions_16MB.csv")
 
 
 def load_env(path):
