@@ -8,6 +8,7 @@
 
 #define TT_SENSOR_I2C_SDA   23
 #define TT_SENSOR_I2C_SCL   22
+#define PREF_DEV_BARO_OFF   "dev_baro_off"
 #define TT_SENSOR_UPDATE_INTERVAL  60
 #define TT_BATTERY_ADC_PIN          33
 #define TT_BATTERY_CHARGE_PIN       26
@@ -61,10 +62,13 @@ private:
     void performSensorRead();
     void pollUsbPlug();
     void arm();
+    void beginBarometer();
+    bool barometerDisabled() const;
 
     TTAHT20 _aht20;
     Adafruit_BMP280 _bmp280;
     bool _bmp280Ok = false;
+    bool _bmp280Tried = false;
     bool _hasIndoor = false;
     float _lastTemperature = 0;
     float _lastHumidity = 0;

@@ -8,6 +8,7 @@
 #include "../Models/TTCalendarTypes.h"
 #include "TTPreference.h"
 #include "TTRtc.h"
+#include "../Tasks/TTSensorTask.h"
 #include <EPDConfig.h>
 #include <ArduinoJson.h>
 #include <WiFi.h>
@@ -438,13 +439,15 @@ void TTConfigServer::_handleDevSave() {
         return;
     }
     const bool enabled = _server.arg("shot") == "1";
+    const bool baroOff = _server.arg("baro_off") == "1";
     auto& pref = TTInstanceOf<TTPreference>();
-    if (!pref.set(PREF_DEV_SHOT, enabled) || !pref.sync()) {
+    if (!pref.set(PREF_DEV_SHOT, enabled) || !pref.set(PREF_DEV_BARO_OFF, baroOff) || !pref.sync()) {
         LOG_E("Dev: save failed");
         _sendSaveResult(500, "保存失败", "无法保存开发者选项");
         return;
     }
-    LOG_I("Dev: screenshot %s", enabled ? "on" : "off");
+    LOG_I("Dev: screenshot %s, barometer %s", enabled ? "on" : "off", baroOff ? "off" : "on");
+    TTInstanceOf<TTSensorTask>().requestSensorUpdateAsync();
     _server.send(200, "text/html; charset=utf-8", _getHTMLContent(true, false, _server.arg("password")));
 }
 
@@ -463,6 +466,8 @@ String TTConfigServer::_devPanelHtml(bool devOpen, bool devDenied, const String&
         return html;
     }
     const bool enabled = TTInstanceOf<TTScreenshotDisplay>().shotsEnabled();
+    bool baroOff = false;
+    TTInstanceOf<TTPreference>().get(PREF_DEV_BARO_OFF, baroOff, false);
     html += F("<form method='post' action='/dev/save'>");
     html += F("<input type='hidden' name='password' value='");
     appendHtmlText(html, devPassword.c_str());
@@ -472,6 +477,11 @@ String TTConfigServer::_devPanelHtml(bool devOpen, bool devDenied, const String&
         html += F(" checked");
     }
     html += F(">长按上键截图</label>");
+    html += F("<label class='row'><input type='checkbox' name='baro_off' value='1'");
+    if (baroOff) {
+        html += F(" checked");
+    }
+    html += F(">关闭气压计</label>");
     html += F("<button class='devbtn' type='submit'>保存</button></form>");
     if (enabled) {
         html += F("<a class='shots' href='/shots'>截图下载与删除</a>");

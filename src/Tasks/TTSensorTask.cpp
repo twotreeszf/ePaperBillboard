@@ -4,6 +4,7 @@
 #include "../Base/TTInstance.h"
 #include "../Models/TTNotificationPayloads.h"
 #include "../Base/TTRtc.h"
+#include "../Base/TTPreference.h"
 #include "TTUITask.h"
 #include <freertos/FreeRTOS.h>
 #include <freertos/task.h>
@@ -78,12 +79,10 @@ void TTSensorTask::setup() {
         LOG_W("AHT20 sensor not found! Check wiring.");
     }
 
-    LOG_I("Initializing BMP280 sensor...");
-    _bmp280Ok = _bmp280.begin(BMP280_ADDRESS);
-    if (_bmp280Ok) {
-        LOG_I("BMP280 sensor initialized");
+    if (barometerDisabled()) {
+        LOG_I("BMP280 disabled by developer option");
     } else {
-        LOG_W("BMP280 sensor not found! Check wiring or I2C address.");
+        beginBarometer();
     }
 
     pinMode(TT_BATTERY_ADC_PIN, INPUT);
@@ -126,9 +125,14 @@ void TTSensorTask::performSensorRead() {
         LOG_I("AHT20: Temperature=%.1f°C, Humidity=%.1f%%", temperature, humidity);
     }
 
-    if (_bmp280Ok) {
-        pressure = _bmp280.readPressure() / 100.0f;  // Pa to hPa
-        LOG_I("BMP280: Pressure=%.1f hPa", pressure);
+    if (barometerDisabled()) {
+        LOG_I("BMP280 disabled, pressure=0");
+    } else {
+        beginBarometer();
+        if (_bmp280Ok) {
+            pressure = _bmp280.readPressure() / 100.0f;  // Pa to hPa
+            LOG_I("BMP280: Pressure=%.1f hPa", pressure);
+        }
     }
 
     const long adc = analogRead(TT_BATTERY_ADC_PIN);
@@ -147,6 +151,26 @@ void TTSensorTask::performSensorRead() {
         temperature, humidity, pressure, voltageMv, percent, charging, usbPlugged
     };
     TTInstanceOf<TTUITask>().postNotification(TT_NOTIFICATION_SENSOR_DATA_UPDATE, payload);
+}
+
+void TTSensorTask::beginBarometer() {
+    if (_bmp280Ok || _bmp280Tried) {
+        return;
+    }
+    _bmp280Tried = true;
+    LOG_I("Initializing BMP280 sensor...");
+    _bmp280Ok = _bmp280.begin(BMP280_ADDRESS);
+    if (_bmp280Ok) {
+        LOG_I("BMP280 sensor initialized");
+    } else {
+        LOG_W("BMP280 sensor not found! Check wiring or I2C address.");
+    }
+}
+
+bool TTSensorTask::barometerDisabled() const {
+    bool disabled = false;
+    TTInstanceOf<TTPreference>().get(PREF_DEV_BARO_OFF, disabled, false);
+    return disabled;
 }
 
 bool TTSensorTask::copyLastIndoor(float& temperature, float& humidity) const {
