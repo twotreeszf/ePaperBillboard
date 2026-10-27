@@ -129,9 +129,11 @@ void TTSensorTask::performSensorRead() {
         LOG_I("BMP280 disabled, pressure=0");
     } else {
         beginBarometer();
-        if (_bmp280Ok) {
+        if (_bmp280Ok && _bmp280.takeForcedMeasurement()) {
             pressure = _bmp280.readPressure() / 100.0f;  // Pa to hPa
             LOG_I("BMP280: Pressure=%.1f hPa", pressure);
+        } else if (_bmp280Ok) {
+            LOG_W("BMP280: forced measurement failed");
         }
     }
 
@@ -161,7 +163,14 @@ void TTSensorTask::beginBarometer() {
     LOG_I("Initializing BMP280 sensor...");
     _bmp280Ok = _bmp280.begin(BMP280_ADDRESS);
     if (_bmp280Ok) {
-        LOG_I("BMP280 sensor initialized");
+        _bmp280.setSampling(Adafruit_BMP280::MODE_SLEEP);
+        _bmp280.setSampling(
+            Adafruit_BMP280::MODE_FORCED,
+            Adafruit_BMP280::SAMPLING_X16,
+            Adafruit_BMP280::SAMPLING_X16,
+            Adafruit_BMP280::FILTER_OFF,
+            Adafruit_BMP280::STANDBY_MS_1000);
+        LOG_I("BMP280 sensor initialized, forced mode");
     } else {
         LOG_W("BMP280 sensor not found! Check wiring or I2C address.");
     }
