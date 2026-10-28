@@ -478,7 +478,7 @@ Third parties that serve their own pictorial image implement the HTTPS GET, `Tok
 
 ## Debug server and manual screenshots
 
-Developer options, the port 8080 key and screenshot API, on-device `/shots` download, and how those images are placed in the user manual are in [docs/debug-and-manual.md](docs/debug-and-manual.md). Keep that procedure out of `docs/index.html`.
+Developer options, the USB serial monitor, the port 8080 key and screenshot API, on-device `/shots` download, and how those images are placed in the user manual are in [docs/debug-and-manual.md](docs/debug-and-manual.md). Keep that procedure out of `docs/index.html`.
 
 ## License
 
