@@ -21,7 +21,7 @@ IMAGE_SUFFIXES = {".jpg", ".jpeg", ".png", ".webp", ".gif"}
 DEFAULT_INPUT = eink_comic.project_root() / "tools" / "comics" / "input"
 DEFAULT_OUTPUT = eink_comic.project_root() / "tools" / "comics" / "output"
 PROGRESS_NAME = "progress.json"
-MAX_WORKERS = 10
+MAX_WORKERS = 20
 
 
 def list_pages(input_dir):

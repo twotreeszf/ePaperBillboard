@@ -222,7 +222,7 @@ python tools/batch_eink_comic.py
 # optional: --input tools/comics/input --output tools/comics/output
 ```
 
-Re-run until exit code `0`. Finished pages are skipped; failures stay in `output/progress.json` for retry. `IMAGE_SAFETY` skips are recorded and not retried. Up to 10 pages run in parallel (`--workers`).
+Re-run until exit code `0`. Finished pages are skipped; failures stay in `output/progress.json` for retry. `IMAGE_SAFETY` skips are recorded and not retried. Up to 20 pages run in parallel (`--workers`).
 
 **2. Pack TTI1** — default one command: flatten each series under `output/` into `prepare/` (`0001`…, no gaps), then pack to `publish/` (10 workers). Skips `.i1` files that are already up to date vs `prepare/` (mtime).
 
