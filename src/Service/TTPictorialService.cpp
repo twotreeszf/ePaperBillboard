@@ -11,6 +11,7 @@
 #include <ArduinoJson.h>
 #include <LittleFS.h>
 #include <esp_system.h>
+#include <ctime>
 #include <cstdio>
 #include <cstring>
 
@@ -26,6 +27,25 @@ void copyText(char* dst, size_t dstLen, const char* src) {
     }
     strncpy(dst, src, dstLen - 1);
     dst[dstLen - 1] = '\0';
+}
+
+bool savedPinyinIs(const char* id) {
+    String pinyin;
+    TTInstanceOf<TTPreference>().get(PREF_PIC_PINYIN, pinyin, String(""));
+    return id != nullptr && pinyin == id;
+}
+
+bool headerTokenOk(const String& token) {
+    if (token.isEmpty() || token.length() >= TT_PIC_CUSTOM_TOKEN_MAX) {
+        return false;
+    }
+    for (unsigned i = 0; i < token.length(); i++) {
+        const char c = token[i];
+        if (c == '\r' || c == '\n') {
+            return false;
+        }
+    }
+    return true;
 }
 
 bool pinyinOk(const char* text) {
@@ -142,6 +162,12 @@ int TTPictorialService::todayKey() const {
     return (local.tm_year + 1900) * 1000 + local.tm_yday;
 }
 
+bool TTPictorialService::customOn() const {
+    bool on = false;
+    TTInstanceOf<TTPreference>().get(PREF_PIC_CUSTOM, on, false);
+    return on;
+}
+
 bool TTPictorialService::hasStored() const {
     String path;
     TTInstanceOf<TTPreference>().get(PREF_PIC_PATH, path, String(""));
@@ -159,17 +185,13 @@ void TTPictorialService::publish(TTPicState state, const char* message, const ch
     TTInstanceOf<TTUITask>().postNotification(TT_NOTIFICATION_PICTORIAL, payload);
 }
 
-void TTPictorialService::remember(const char* pinyin, uint16_t index, int dayKey, const char* path) {
-    const char* name = "";
-    if (_selected < _seriesCount) {
-        name = _series[_selected].name;
-    }
+void TTPictorialService::remember(const char* pinyin, uint16_t index, int dayKey, const char* path, const char* name) {
     auto& pref = TTInstanceOf<TTPreference>();
     pref.set(PREF_PIC_PINYIN, String(pinyin != nullptr ? pinyin : ""));
     pref.set(PREF_PIC_INDEX, (int)index);
     pref.set(PREF_PIC_DAY, dayKey);
     pref.set(PREF_PIC_PATH, String(path != nullptr ? path : ""));
-    pref.set(PREF_PIC_NAME, String(name));
+    pref.set(PREF_PIC_NAME, String(name != nullptr ? name : ""));
     if (!pref.sync()) {
         LOG_E("Pictorial: preference sync failed");
     }
@@ -408,7 +430,7 @@ bool TTPictorialService::downloadIndex(const TTPicSeries& series, uint16_t index
     const int dayKey = updateDay ? todayKey() : 0;
     int savedDay = 0;
     TTInstanceOf<TTPreference>().get(PREF_PIC_DAY, savedDay, 0);
-    remember(series.pinyin, index, dayKey > 0 ? dayKey : savedDay, nextPath);
+    remember(series.pinyin, index, dayKey > 0 ? dayKey : savedDay, nextPath, series.name);
     publish(TT_PIC_OK, "", nextPath, series.name);
     if (previous.length() > 0 && previous != nextPath) {
         LOG_I("Pictorial: replace %s -> %s", previous.c_str(), nextPath);
@@ -417,7 +439,106 @@ bool TTPictorialService::downloadIndex(const TTPicSeries& series, uint16_t index
     return true;
 }
 
+bool TTPictorialService::showStored() {
+    if (!hasStored()) {
+        return false;
+    }
+    const bool customStored = savedPinyinIs(TT_PIC_CUSTOM_ID);
+    if (customOn() != customStored) {
+        return false;
+    }
+    if (!customOn() && _seriesCount == 0) {
+        return false;
+    }
+    String path;
+    String name;
+    TTInstanceOf<TTPreference>().get(PREF_PIC_PATH, path, String(""));
+    TTInstanceOf<TTPreference>().get(PREF_PIC_NAME, name, String(""));
+    publish(TT_PIC_OK, "", path.c_str(), name.c_str());
+    return true;
+}
+
+bool TTPictorialService::downloadCustom() {
+    String url;
+    String token;
+    auto& pref = TTInstanceOf<TTPreference>();
+    pref.get(PREF_PIC_CUSTOM_URL, url, String(""));
+    pref.get(PREF_PIC_CUSTOM_TOKEN, token, String(""));
+    url.trim();
+    token.trim();
+    if (!headerTokenOk(token) || !url.startsWith("https://") || url.length() >= TT_PIC_CUSTOM_URL_MAX) {
+        LOG_W("Pictorial: custom config missing url_len=%u token_len=%u",
+              (unsigned)url.length(), (unsigned)token.length());
+        publish(TT_PIC_FAILED, "未配置自定义画报", "", "");
+        return false;
+    }
+    if (!TTInstanceOf<TTRtc>().isTimeValid()) {
+        LOG_W("Pictorial: custom clock invalid");
+        publish(TT_PIC_FAILED, "时间未同步", "", "");
+        return false;
+    }
+    const time_t now = time(nullptr);
+    char headers[TT_PIC_CUSTOM_HEADER_MAX];
+    snprintf(headers, sizeof(headers), "Token: %s\r\nTimestamp: %ld\r\n", token.c_str(), (long)now);
+    LOG_I("Pictorial: custom GET %s token_len=%u ts=%ld", url.c_str(), (unsigned)token.length(), (long)now);
+
+    TTHttpsRequest request = {};
+    request.url = url.c_str();
+    request.extraHeaders = headers;
+    request.bodyMax = TT_PIC_IMAGE_MAX;
+    TTHttpsResult res = {};
+    if (!tt_https_exchange_file(&request, TT_PIC_HTTP_PATH, &res) || res.status != 200 || res.bodyLen == 0) {
+        LOG_E("Pictorial: custom HTTP %d body=%u", res.status, (unsigned)res.bodyLen);
+        tt_file_remove(TT_PIC_HTTP_PATH);
+        publish(TT_PIC_FAILED, "画报下载失败", "", TT_PIC_CUSTOM_NAME);
+        return false;
+    }
+
+    char nextPath[TT_STREAM_IMAGE_PATH_MAX];
+    snprintf(nextPath, sizeof(nextPath), "%s/p%08lx.i1", TT_FS_TMP_DIR, (unsigned long)esp_random());
+    String previous;
+    pref.get(PREF_PIC_PATH, previous, String(""));
+    if (previous == nextPath) {
+        snprintf(nextPath, sizeof(nextPath), "%s/p%08lx.i1", TT_FS_TMP_DIR, (unsigned long)esp_random());
+    }
+    const bool copied = copyBody(TT_PIC_HTTP_PATH, res.bodyOffset, res.bodyLen, nextPath);
+    tt_file_remove(TT_PIC_HTTP_PATH);
+    if (!copied || !i1Ok(nextPath)) {
+        LOG_E("Pictorial: custom bad image %s", nextPath);
+        tt_file_remove(nextPath);
+        publish(TT_PIC_FAILED, "画报下载失败", "", TT_PIC_CUSTOM_NAME);
+        return false;
+    }
+
+    const int dayKey = todayKey();
+    remember(TT_PIC_CUSTOM_ID, 0, dayKey, nextPath, TT_PIC_CUSTOM_NAME);
+    publish(TT_PIC_OK, "", nextPath, TT_PIC_CUSTOM_NAME);
+    if (previous.length() > 0 && previous != nextPath) {
+        LOG_I("Pictorial: replace %s -> %s", previous.c_str(), nextPath);
+    }
+    removeStale(nextPath, previous.c_str());
+    return true;
+}
+
+void TTPictorialService::runCustomJob(TTPicJob job) {
+    if (job == TT_PIC_JOB_MANIFEST || job == TT_PIC_JOB_SERIES) {
+        _busy = false;
+        LOG_I("Pictorial: custom mode skips series job %d", (int)job);
+        publish(TT_PIC_FAILED, "自定义画报不能切换系列", "", TT_PIC_CUSTOM_NAME);
+        return;
+    }
+    if (!downloadCustom()) {
+        _busy = false;
+        return;
+    }
+    _busy = false;
+}
+
 void TTPictorialService::runJob(TTPicJob job, uint8_t seriesIndex) {
+    if (customOn()) {
+        runCustomJob(job);
+        return;
+    }
     if (job == TT_PIC_JOB_MANIFEST) {
         if (!loadManifest()) {
             _busy = false;
@@ -446,7 +567,7 @@ void TTPictorialService::runJob(TTPicJob job, uint8_t seriesIndex) {
         _selected = seriesIndex;
     }
     if (job == TT_PIC_JOB_TODAY) {
-        if (hasStored()) {
+        if (hasStored() && !savedPinyinIs(TT_PIC_CUSTOM_ID)) {
             _busy = false;
             String path;
             String name;
@@ -510,12 +631,7 @@ void TTPictorialService::enqueue(TTPicJob job, uint8_t seriesIndex) {
 }
 
 void TTPictorialService::requestToday() {
-    if (hasStored() && _seriesCount > 0) {
-        String path;
-        String name;
-        TTInstanceOf<TTPreference>().get(PREF_PIC_PATH, path, String(""));
-        TTInstanceOf<TTPreference>().get(PREF_PIC_NAME, name, String(""));
-        publish(TT_PIC_OK, "", path.c_str(), name.c_str());
+    if (showStored()) {
         return;
     }
     enqueue(TT_PIC_JOB_TODAY, 0);

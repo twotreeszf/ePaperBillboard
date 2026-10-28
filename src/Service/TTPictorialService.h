@@ -22,6 +22,7 @@ public:
     uint8_t seriesCount() const { return _seriesCount; }
     uint8_t selectedIndex() const { return _selected; }
     bool busy() const { return _busy; }
+    bool customOn() const;
     bool hasStored() const;
     bool seriesAt(uint8_t index, TTPicSeries* out) const;
 
@@ -31,15 +32,17 @@ private:
     bool ensureManifest();
     bool loadManifest();
     int resolveSelected() const;
-    bool showStoredToday();
+    bool showStored();
     bool downloadIndex(const TTPicSeries& series, uint16_t index, bool updateDay);
+    bool downloadCustom();
+    void runCustomJob(TTPicJob job);
     void beginSeen(const char* pinyin, uint16_t count, int dayKey);
     void noteShown(const TTPicSeries& series, int dayKey);
     void markSeen(uint16_t index);
     bool seenHas(uint16_t index) const;
     uint16_t pickUnseen(uint16_t count, uint16_t avoid) const;
     void publish(TTPicState state, const char* message, const char* path, const char* name);
-    void remember(const char* pinyin, uint16_t index, int dayKey, const char* path);
+    void remember(const char* pinyin, uint16_t index, int dayKey, const char* path, const char* name);
     void removeStale(const char* keep, const char* alsoKeep);
     int todayKey() const;
 

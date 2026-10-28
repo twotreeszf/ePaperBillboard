@@ -6,6 +6,8 @@
 #include "ErrorCheck.h"
 #include "TTInstance.h"
 #include "../Models/TTCalendarTypes.h"
+#include "../Models/TTPictorialTypes.h"
+#include "TTHttpsClient.h"
 #include "TTPreference.h"
 #include "TTRtc.h"
 #include "../Tasks/TTSensorTask.h"
@@ -22,6 +24,52 @@ namespace {
 bool networkKeys(std::vector<String>& keys) {
     auto& pref = TTInstanceOf<TTPreference>();
     ERR_CHECK_RET(pref.kvKeys(PREF_WIFI_NETWORKS, keys));
+    return true;
+}
+
+bool textHasCtrl(const String& text) {
+    for (unsigned i = 0; i < text.length(); i++) {
+        const char c = text[i];
+        if (c <= ' ' || c == 0x7f) {
+            return true;
+        }
+    }
+    return false;
+}
+
+bool customPicUrlOk(const String& url) {
+    if (url.isEmpty() || url.length() >= TT_PIC_CUSTOM_URL_MAX || !url.startsWith("https://")) {
+        return false;
+    }
+    if (textHasCtrl(url)) {
+        return false;
+    }
+    const int hostStart = 8;
+    int hostEnd = url.indexOf('/', hostStart);
+    if (hostEnd < 0) {
+        hostEnd = url.length();
+    }
+    int hostLen = hostEnd - hostStart;
+    const int colon = url.indexOf(':', hostStart);
+    if (colon >= hostStart && colon < hostEnd) {
+        hostLen = colon - hostStart;
+    }
+    if (hostLen <= 0 || hostLen >= TT_HTTPS_HOST_MAX) {
+        return false;
+    }
+    return url.length() - (unsigned)hostEnd < TT_HTTPS_PATH_MAX;
+}
+
+bool customPicTokenOk(const String& token) {
+    if (token.isEmpty() || token.length() >= TT_PIC_CUSTOM_TOKEN_MAX) {
+        return false;
+    }
+    for (unsigned i = 0; i < token.length(); i++) {
+        const char c = token[i];
+        if (c == '\r' || c == '\n') {
+            return false;
+        }
+    }
     return true;
 }
 
@@ -274,6 +322,27 @@ void TTConfigServer::_handleLanSave(const String& weatherCity, const String& wea
         _sendSaveResult(400, "保存失败", "开发者密码不正确");
         return;
     }
+    const bool picOn = _server.arg("pic_custom") == "1";
+    String picUrl = _server.arg("pic_url");
+    String picToken = _server.arg("pic_token");
+    picUrl.trim();
+    picToken.trim();
+    if (picOn && !customPicUrlOk(picUrl)) {
+        _sendSaveResult(400, "保存失败", "请填写 https 开头的画报地址");
+        return;
+    }
+    if (picOn && !customPicTokenOk(picToken)) {
+        _sendSaveResult(400, "保存失败", "请填写画报 Token");
+        return;
+    }
+    if (!picOn && !picUrl.isEmpty() && !customPicUrlOk(picUrl)) {
+        _sendSaveResult(400, "保存失败", "画报地址无效");
+        return;
+    }
+    if (!picToken.isEmpty() && !customPicTokenOk(picToken)) {
+        _sendSaveResult(400, "保存失败", "画报 Token 无效");
+        return;
+    }
     float weatherLatVal = 0;
     float weatherLonVal = 0;
     const bool weatherHasCoord = !weatherLat.isEmpty() || !weatherLon.isEmpty();
@@ -334,6 +403,12 @@ void TTConfigServer::_handleLanSave(const String& weatherCity, const String& wea
     String oldEpdPanel;
     pref.get(PREF_EPD_PANEL, oldEpdPanel, String(TT_EPD_PANEL_DEFAULT));
     oldEpdPanel = normalizeEpdPanel(oldEpdPanel);
+    pref.set(PREF_PIC_CUSTOM, picOn);
+    pref.set(PREF_PIC_CUSTOM_URL, picUrl);
+    pref.set(PREF_PIC_CUSTOM_TOKEN, picToken);
+    LOG_I("Pictorial: save custom=%d url_len=%u token_len=%u",
+          picOn ? 1 : 0, (unsigned)picUrl.length(), (unsigned)picToken.length());
+
     pref.set(PREF_EPD_PANEL, epdPanel);
     _restartOnApply = epdPanel != oldEpdPanel;
     LOG_I("Hardware: save epd_panel=%s old=%s restart=%d",
@@ -430,6 +505,18 @@ void TTConfigServer::_handleStatus() {
     doc["caldav_host"] = calHost;
     doc["caldav_user"] = calUser;
     doc["caldav_pass"] = calPass;
+
+    bool picOn = false;
+    String picUrl;
+    String picToken;
+    pref.get(PREF_PIC_CUSTOM, picOn, false);
+    pref.get(PREF_PIC_CUSTOM_URL, picUrl, String(""));
+    pref.get(PREF_PIC_CUSTOM_TOKEN, picToken, String(""));
+    doc["pic_custom"] = picOn;
+    doc["pic_url"] = picUrl;
+    doc["pic_token"] = picToken;
+    LOG_I("Pictorial: status custom=%d url_len=%u token_len=%u",
+          picOn ? 1 : 0, (unsigned)picUrl.length(), (unsigned)picToken.length());
 
     String epdPanel;
     pref.get(PREF_EPD_PANEL, epdPanel, String(TT_EPD_PANEL_DEFAULT));
@@ -750,8 +837,8 @@ String TTConfigServer::_getHTMLContent(bool devOpen, bool devDenied, const Strin
         .panel.on { display: block; }
         button.save { width: 100%; margin-top: 20px; padding: 12px; font-size: 16px; background: #111; color: #fff; border: 0; border-radius: 6px; }
         a.shots { display: block; margin-top: 12px; text-align: center; color: #111; }
-        #panel-dev input[type=checkbox] { width: auto; margin-right: 8px; }
-        #panel-dev label.row { display: flex; align-items: center; }
+        #panel-dev input[type=checkbox], #panel-pic input[type=checkbox] { width: auto; margin-right: 8px; }
+        #panel-dev label.row, #panel-pic label.row { display: flex; align-items: center; }
         button.devbtn { width: 100%; margin-top: 8px; padding: 10px; font-size: 15px; background: #eee; color: #111; border: 0; border-radius: 6px; }
         .err { color: #b00020; }
         button.save:disabled { background: #999; }
@@ -767,6 +854,7 @@ String TTConfigServer::_getHTMLContent(bool devOpen, bool devDenied, const Strin
             <button type="button" class="tab" data-tab="tz">时区</button>
             <button type="button" class="tab" data-tab="weather">天气</button>
             <button type="button" class="tab" data-tab="cal">日历</button>
+            <button type="button" class="tab" data-tab="pic">画报</button>
             <button type="button" class="tab" data-tab="hw">硬件</button>
             <button type="button" class="tab" data-tab="dev">开发者</button>
         </div>
@@ -811,6 +899,14 @@ String TTConfigServer::_getHTMLContent(bool devOpen, bool devDenied, const Strin
                 <input type="text" id="caldav_user" name="caldav_user" placeholder="CalDAV 用户名" maxlength="31" autocomplete="off">
                 <label>密码</label>
                 <input type="text" id="caldav_pass" name="caldav_pass" placeholder="CalDAV 密码" maxlength="31" autocomplete="off">
+            </div>
+            <div class="panel" id="panel-pic">
+                <p class="tip">打开后，画报改为请求这个地址。请求会带上 Token 和当前时间戳，返回内容须是 i1 图片。地址须以 https:// 开头。</p>
+                <label class="row"><input type="checkbox" id="pic_custom" name="pic_custom" value="1">打开自定义画报</label>
+                <label>请求 URL</label>
+                <input type="text" id="pic_url" name="pic_url" placeholder="https://example.com/pictorial" maxlength="239" autocomplete="off">
+                <label>Token</label>
+                <input type="text" id="pic_token" name="pic_token" placeholder="Token" maxlength="63" autocomplete="off">
             </div>
             <div class="panel" id="panel-hw">
                 <p class="tip">同一排线有三种波形。A0-2 是当前默认。A0-3 是最初的 A0 驱动。A0-1 是另一款膜。选错会出现残影或噪点。更改后设备会自动重启。</p>
@@ -931,6 +1027,10 @@ String TTConfigServer::_getHTMLContent(bool devOpen, bool devDenied, const Strin
             setValue('caldav_host', status.caldav_host);
             setValue('caldav_user', status.caldav_user);
             setValue('caldav_pass', status.caldav_pass);
+            const picOn = document.getElementById('pic_custom');
+            if (picOn) picOn.checked = !!status.pic_custom;
+            setValue('pic_url', status.pic_url);
+            setValue('pic_token', status.pic_token);
             setValue('epd_panel', status.epd_panel);
         }
         function showTab(name) {
@@ -955,7 +1055,7 @@ String TTConfigServer::_getHTMLContent(bool devOpen, bool devDenied, const Strin
         function applyPortal() {
             const drop = portalKind === "device"
                 ? ["wifi", "tz"]
-                : ["weather", "cal", "hw", "dev"];
+                : ["weather", "cal", "pic", "hw", "dev"];
             drop.forEach(name => {
                 const tab = document.querySelector('.tab[data-tab="' + name + '"]');
                 if (tab) tab.remove();

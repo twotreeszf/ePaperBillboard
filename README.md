@@ -2,7 +2,7 @@
 
 ESP32-WROOM-32E weather and calendar billboard: LVGL 9, custom binary fonts, LittleFS icons, indoor sensors, Open-Meteo, and CalDAV over a small TLS 1.2 client. UI is a page stack with an always-on status bar and E-Paper three-level refresh (partial / full-screen partial / deep full).
 
-**Contents:** [Hardware](#hardware) · [Build & Flash](#build--flash) · [Fonts](#fonts) · [Icons](#icons) · [Comics (pictorial)](#comics-pictorial) · [Quote pictorials](#quote-pictorials) · [Firmware OTA publish](#firmware-ota-publish) · [E-Ink / LVGL](#e-ink-refresh-strategy) · [Software Architecture](#software-architecture) · [Keypad & focus](#keypad--focus) · [Debug & manual shots](docs/debug-and-manual.md)
+**Contents:** [Hardware](#hardware) · [Build & Flash](#build--flash) · [Fonts](#fonts) · [Icons](#icons) · [Comics (pictorial)](#comics-pictorial) · [Quote pictorials](#quote-pictorials) · [Custom pictorial](docs/custom-pictorial.md) · [Firmware OTA publish](#firmware-ota-publish) · [E-Ink / LVGL](#e-ink-refresh-strategy) · [Software Architecture](#software-architecture) · [Keypad & focus](#keypad--focus) · [Debug & manual shots](docs/debug-and-manual.md)
 
 ## Hardware
 
@@ -471,6 +471,10 @@ TTHomePage          天气 / 日历 / 设置
 | Center | 34 | Enter; long-press is per-page |
 
 To add focus on a page: `createGroup()` then `addToFocusGroup(obj)` in `buildContent()`. `TTNavigationController::loadScreen()` binds the indev group to the current page. No group means the dial has no LVGL focus target on that page.
+
+## Custom pictorial
+
+Third parties that serve their own pictorial image implement the HTTPS GET, `Token` and `Timestamp` headers, and TTI1 body described in [docs/custom-pictorial.md](docs/custom-pictorial.md). The device owner turns it on from LAN Web settings. That document stays out of the user manual.
 
 ## Debug server and manual screenshots
 

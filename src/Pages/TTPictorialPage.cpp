@@ -204,6 +204,10 @@ void TTPictorialPage::setup() {
         onSleepWake(wake);
     });
     registerKeyAction(TT_KEY_CENTER, TT_KEY_LONG_PRESS, [this]() {
+        if (TTInstanceOf<TTPictorialService>().customOn()) {
+            LOG_I("Pictorial page: custom mode ignores series picker");
+            return;
+        }
         if (_picking) {
             closePicker(false);
         } else {

@@ -19,6 +19,14 @@
 #define PREF_PIC_DAY             "pic_day"
 #define PREF_PIC_PATH            "pic_path"
 #define PREF_PIC_NAME            "pic_name"
+#define PREF_PIC_CUSTOM          "pic_custom"
+#define PREF_PIC_CUSTOM_URL      "pic_url"
+#define PREF_PIC_CUSTOM_TOKEN    "pic_token"
+#define TT_PIC_CUSTOM_ID         "custom"
+#define TT_PIC_CUSTOM_NAME       "自定义"
+#define TT_PIC_CUSTOM_URL_MAX    240
+#define TT_PIC_CUSTOM_TOKEN_MAX  64
+#define TT_PIC_CUSTOM_HEADER_MAX 128
 
 enum TTPicState {
     TT_PIC_FETCHING = 0,
