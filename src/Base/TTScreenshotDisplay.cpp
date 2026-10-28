@@ -12,6 +12,9 @@
 #include <cstdio>
 #include <cstring>
 
+static_assert(TT_SHOT_WRITE_BLOCKS <= 32, "capture block mask");
+static_assert((TT_SHOT_WRITE_BYTES & (TT_SHOT_WRITE_BYTES - 1)) == 0, "write size power of two");
+
 struct TTShotZipItem {
     char name[TT_SHOT_NAME_MAX];
     uint32_t size;
@@ -108,6 +111,41 @@ static void putU32(uint8_t* dst, uint32_t value) {
     dst[1] = (uint8_t)((value >> 8) & 0xFF);
     dst[2] = (uint8_t)((value >> 16) & 0xFF);
     dst[3] = (uint8_t)((value >> 24) & 0xFF);
+}
+
+static void fillBmpHeader(uint8_t header[62]) {
+    memset(header, 0, 62);
+    header[0] = 'B';
+    header[1] = 'M';
+    putU32(header + 2, TT_SHOT_FILE_BYTES);
+    putU32(header + 10, 62);
+    putU32(header + 14, 40);
+    putU32(header + 18, EPD_WIDTH);
+    putU32(header + 22, EPD_HEIGHT);
+    putU16(header + 26, 1);
+    putU16(header + 28, 1);
+    putU32(header + 34, TT_SHOT_ROW_STRIDE * EPD_HEIGHT);
+    header[58] = 255;
+    header[59] = 255;
+    header[60] = 255;
+}
+
+static uint32_t bmpRowOffset(int32_t y) {
+    return 62u + (uint32_t)(EPD_HEIGHT - 1 - y) * TT_SHOT_ROW_STRIDE;
+}
+
+static void fillDebugFileSlice(uint8_t* dst, uint32_t pos, size_t len) {
+    uint8_t header[62];
+    fillBmpHeader(header);
+    for (size_t i = 0; i < len; i++) {
+        const uint32_t at = pos + (uint32_t)i;
+        if (at < 62u) {
+            dst[i] = header[at];
+            continue;
+        }
+        const uint32_t col = (at - 62u) % TT_SHOT_ROW_STRIDE;
+        dst[i] = col < (uint32_t)TT_SHOT_FRAME_STRIDE ? 0xFF : 0x00;
+    }
 }
 
 static uint32_t crc32Update(uint32_t crc, const uint8_t* data, size_t len) {
@@ -211,7 +249,208 @@ bool TTScreenshotDisplay::hasRoom() const {
     return freeBytes >= need;
 }
 
+bool TTScreenshotDisplay::openDebugFile() {
+    discardDebugFile();
+    if (!LittleFS.exists(TT_FS_TMP_DIR) && !LittleFS.mkdir(TT_FS_TMP_DIR)) {
+        LOG_E("Shot: mkdir %s failed", TT_FS_TMP_DIR);
+        return false;
+    }
+    const size_t total = LittleFS.totalBytes();
+    const size_t used = LittleFS.usedBytes();
+    const size_t freeBytes = total > used ? total - used : 0;
+    if (freeBytes < TT_SHOT_FILE_BYTES) {
+        LOG_E("Shot: debug file needs %u, free %u", (unsigned)TT_SHOT_FILE_BYTES, (unsigned)freeBytes);
+        return false;
+    }
+    _captureFile = tt_file_create(TT_SHOT_DEBUG_PATH);
+    if (!_captureFile) {
+        return false;
+    }
+    if (!_captureFile.setBufferSize(TT_SHOT_WRITE_BYTES)) {
+        LOG_W("Shot: debug setBufferSize(%u) failed", (unsigned)TT_SHOT_WRITE_BYTES);
+    }
+    strncpy(_capturePath, TT_SHOT_DEBUG_PATH, sizeof(_capturePath) - 1);
+    _capturePath[sizeof(_capturePath) - 1] = '\0';
+    _captureIoOk = true;
+    LOG_I("Shot: debug file %s %u bytes block=%u heap=%u largest=%u",
+          _capturePath, (unsigned)TT_SHOT_FILE_BYTES, (unsigned)TT_SHOT_WRITE_BYTES,
+          (unsigned)heap_caps_get_free_size(MALLOC_CAP_8BIT),
+          (unsigned)heap_caps_get_largest_free_block(MALLOC_CAP_8BIT));
+    return true;
+}
+
+bool TTScreenshotDisplay::loadCaptureBlock(uint32_t filePos) {
+    if (!_captureIoOk || !_captureFile || filePos >= TT_SHOT_FILE_BYTES) {
+        return false;
+    }
+    const uint32_t start = filePos & ~((uint32_t)TT_SHOT_WRITE_BYTES - 1u);
+    if (_captureBlockValid && _captureBlockPos == start) {
+        return true;
+    }
+    if (!storeCaptureBlock()) {
+        return false;
+    }
+    const uint32_t remain = TT_SHOT_FILE_BYTES - start;
+    const uint32_t len = remain > TT_SHOT_WRITE_BYTES ? (uint32_t)TT_SHOT_WRITE_BYTES : remain;
+    const uint32_t index = start / TT_SHOT_WRITE_BYTES;
+    if ((_captureBlockMask & (1u << index)) != 0) {
+        if (!_captureFile.seek(start) || _captureFile.read(_captureBlock, len) != (int)len) {
+            LOG_E("Shot: debug read %u at %u failed", (unsigned)len, (unsigned)start);
+            _captureIoOk = false;
+            return false;
+        }
+    } else {
+        fillDebugFileSlice(_captureBlock, start, len);
+    }
+    _captureBlockPos = start;
+    _captureBlockLen = (uint16_t)len;
+    _captureBlockValid = true;
+    _captureBlockDirty = false;
+    return true;
+}
+
+bool TTScreenshotDisplay::storeCaptureBlock() {
+    if (!_captureBlockValid || !_captureBlockDirty) {
+        return _captureIoOk;
+    }
+    if (!_captureFile.seek(_captureBlockPos) ||
+        _captureFile.write(_captureBlock, _captureBlockLen) != _captureBlockLen) {
+        LOG_E("Shot: debug store %u at %u failed",
+              (unsigned)_captureBlockLen, (unsigned)_captureBlockPos);
+        _captureIoOk = false;
+        return false;
+    }
+    _captureBlockDirty = false;
+    _captureBlockMask |= 1u << (_captureBlockPos / TT_SHOT_WRITE_BYTES);
+    _captureWriteCount++;
+    return true;
+}
+
+bool TTScreenshotDisplay::flushDebugFile() {
+    if (!storeCaptureBlock()) {
+        return false;
+    }
+    for (uint32_t index = 0; index < TT_SHOT_WRITE_BLOCKS; index++) {
+        if ((_captureBlockMask & (1u << index)) != 0) {
+            continue;
+        }
+        const uint32_t start = index * TT_SHOT_WRITE_BYTES;
+        const uint32_t remain = TT_SHOT_FILE_BYTES - start;
+        const uint32_t len = remain > TT_SHOT_WRITE_BYTES ? (uint32_t)TT_SHOT_WRITE_BYTES : remain;
+        fillDebugFileSlice(_captureBlock, start, len);
+        _captureBlockPos = start;
+        _captureBlockLen = (uint16_t)len;
+        _captureBlockValid = true;
+        _captureBlockDirty = true;
+        if (!storeCaptureBlock()) {
+            return false;
+        }
+    }
+    if (_captureFile) {
+        _captureFile.flush();
+    }
+    LOG_I("Shot: debug stored %u writes", (unsigned)_captureWriteCount);
+    return _captureIoOk;
+}
+
+void TTScreenshotDisplay::closeDebugFile() {
+    if (_captureFile) {
+        _captureFile.flush();
+        _captureFile.close();
+    }
+    _captureBlockValid = false;
+    _captureBlockDirty = false;
+    _captureBlockPos = 0;
+    _captureBlockLen = 0;
+    _captureBlockMask = 0;
+    _captureWriteCount = 0;
+}
+
+void TTScreenshotDisplay::discardDebugFile() {
+    closeDebugFile();
+    if (_capturePath[0] != '\0') {
+        tt_file_remove(_capturePath);
+        LOG_I("Shot: debug file removed %s", _capturePath);
+    }
+    _capturePath[0] = '\0';
+    _captureIoOk = true;
+}
+
+bool TTScreenshotDisplay::streamDebugFile(TTShotWriter write, void* ctx) {
+    if (write == nullptr || _capturePath[0] == '\0') {
+        return false;
+    }
+    File file = tt_file_open(_capturePath, "r");
+    if (!file) {
+        return false;
+    }
+    uint8_t chunk[TT_SHOT_STREAM_CHUNK];
+    size_t sent = 0;
+    bool ok = true;
+    while (sent < TT_SHOT_FILE_BYTES) {
+        const int n = file.read(chunk, sizeof(chunk));
+        if (n <= 0) {
+            ok = false;
+            break;
+        }
+        if (!write(ctx, chunk, (size_t)n)) {
+            ok = false;
+            break;
+        }
+        sent += (size_t)n;
+    }
+    file.close();
+    if (!ok || sent != TT_SHOT_FILE_BYTES) {
+        LOG_E("Shot: debug stream %u/%u", (unsigned)sent, (unsigned)TT_SHOT_FILE_BYTES);
+        return false;
+    }
+    LOG_I("Shot: debug stream %u bytes", (unsigned)sent);
+    return true;
+}
+
+void TTScreenshotDisplay::blitToFile(const lv_area_t* area, const uint8_t* px) {
+    if (!_captureIoOk || area == nullptr || px == nullptr) {
+        return;
+    }
+    const int32_t srcW = area->x2 - area->x1 + 1;
+    if (srcW <= 0) {
+        return;
+    }
+    const int32_t srcStride = (srcW + 7) / 8;
+    for (int32_t y = area->y1; y <= area->y2; y++) {
+        if (y < 0 || y >= EPD_HEIGHT) {
+            continue;
+        }
+        for (int32_t x = area->x1; x <= area->x2; x++) {
+            if (x < 0 || x >= EPD_WIDTH) {
+                continue;
+            }
+            const int32_t relX = x - area->x1;
+            const int32_t relY = y - area->y1;
+            const int32_t srcByte = relY * srcStride + (relX / 8);
+            const int srcBit = 7 - (relX % 8);
+            const bool white = ((px[srcByte] >> srcBit) & 0x01) != 0;
+            const uint32_t off = bmpRowOffset(y) + (uint32_t)(x / 8);
+            if (!loadCaptureBlock(off)) {
+                return;
+            }
+            const uint32_t index = off - _captureBlockPos;
+            const uint8_t dstMask = (uint8_t)(1u << (7 - (x % 8)));
+            if (white) {
+                _captureBlock[index] |= dstMask;
+            } else {
+                _captureBlock[index] &= (uint8_t)~dstMask;
+            }
+            _captureBlockDirty = true;
+        }
+    }
+}
+
 void TTScreenshotDisplay::blit(const lv_area_t* area, const uint8_t* px) {
+    if (_captureFile) {
+        blitToFile(area, px);
+        return;
+    }
     if (_frame == nullptr || area == nullptr || px == nullptr) {
         return;
     }
@@ -286,20 +525,7 @@ bool TTScreenshotDisplay::save(const char* pageName) {
     }
 
     uint8_t header[62];
-    memset(header, 0, sizeof(header));
-    header[0] = 'B';
-    header[1] = 'M';
-    putU32(header + 2, TT_SHOT_FILE_BYTES);
-    putU32(header + 10, 62);
-    putU32(header + 14, 40);
-    putU32(header + 18, EPD_WIDTH);
-    putU32(header + 22, EPD_HEIGHT);
-    putU16(header + 26, 1);
-    putU16(header + 28, 1);
-    putU32(header + 34, TT_SHOT_ROW_STRIDE * EPD_HEIGHT);
-    header[58] = 255;
-    header[59] = 255;
-    header[60] = 255;
+    fillBmpHeader(header);
     if (file.write(header, sizeof(header)) != sizeof(header)) {
         file.close();
         tt_file_remove(path);
@@ -361,6 +587,41 @@ TTShotResult TTScreenshotDisplay::capture(const char* pageName) {
     _busy = false;
     LOG_I("Shot: render restored, saved=%d", ok ? 1 : 0);
     return ok ? TT_SHOT_OK : TT_SHOT_FAILED;
+}
+
+TTShotResult TTScreenshotDisplay::renderFrame(const char* pageName) {
+    if (_busy) {
+        LOG_W("Shot: capture already running");
+        return TT_SHOT_FAILED;
+    }
+    if (!openDebugFile()) {
+        return TT_SHOT_FAILED;
+    }
+
+    _busy = true;
+    auto& driver = TTInstanceOf<TTLvglEpdDriver>();
+    LOG_I("Shot: remote render page=%s", pageName != nullptr ? pageName : "");
+    driver.setCapture(this);
+    driver.requestRefresh(TT_REFRESH_FULL);
+    driver.setCapture(nullptr);
+    if (!_captureIoOk || !flushDebugFile()) {
+        LOG_E("Shot: remote render file failed");
+        discardDebugFile();
+        _busy = false;
+        return TT_SHOT_FAILED;
+    }
+    closeDebugFile();
+    LOG_I("Shot: remote render done");
+    return TT_SHOT_OK;
+}
+
+bool TTScreenshotDisplay::writeFrameBmp(TTShotWriter write, void* ctx) {
+    return streamDebugFile(write, ctx);
+}
+
+void TTScreenshotDisplay::releaseFrame() {
+    discardDebugFile();
+    _busy = false;
 }
 
 int TTScreenshotDisplay::list(char names[][TT_SHOT_NAME_MAX], int max) {

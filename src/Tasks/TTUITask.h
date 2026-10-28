@@ -2,6 +2,7 @@
 
 #include <Arduino.h>
 #include <EPDConfig.h>
+#include <freertos/semphr.h>
 #include <lvgl.h>
 #include "../Base/TTVTask.h"
 #include "../Base/TTNavigationController.h"
@@ -25,6 +26,7 @@ public:
     void requestDeepRefreshAsync();
     void requestRestartAsync();
     void requestKeyGestureAsync(uint8_t key, uint8_t gesture);
+    void requestRenderShot(SemaphoreHandle_t done, int* result);
     TTKeypadInput& keypadInput() { return _keypad.input(); }
 
 protected:

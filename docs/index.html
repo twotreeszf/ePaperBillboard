@@ -234,7 +234,7 @@
 <body>
 <main>
   <h1>墨鱼桌搭 使用说明书</h1>
-  <p class="lead">墨鱼桌搭是一款低功耗的电子墨水屏桌面摆件，可显示天气、日程和画报，并实时展示室内温湿度。</p>
+  <p class="lead">墨鱼桌搭是一款低功耗的电子墨水屏桌面摆件，可显示天气、日程和画报，阅读 SD 卡里的电子书，并实时展示室内温湿度。</p>
   <figure class="hero">
     <img src="shots/hero.jpg" alt="墨鱼桌搭">
   </figure>
@@ -274,7 +274,7 @@
     <li><strong>没有电源键，也没有关机</strong>：只要有电，设备就一直在运行。空闲时它会自动休眠，拨动按键就能直接使用，不需要手动开机。</li>
     <li><strong>什么时候会开机</strong>：电池耗尽后接上 USB 线充电，或者在设置中选择"重启"，设备都会重新开机。</li>
     <li><strong>开机后会做什么</strong>：先进入主菜单；如果已经配置过 Wi-Fi，还会自动联网校准时间。</li>
-    <li><strong>开机后请进入一个应用</strong>：主菜单不会自动休眠，开机后请进入天气、日历或画报页面，以免白白耗电。</li>
+    <li><strong>开机后请进入一个应用</strong>：主菜单不会自动休眠。开机后请进入天气、日历、画报，或正在阅读的页面，以免白白耗电。</li>
     <li><strong>屏幕有画面，不代表设备在运行</strong>：墨水屏断电后画面仍会保留。判断设备是否在运行，可以拨动按键看有没有反应，或者看状态栏的时间是否在走。</li>
   </ul>
 
@@ -299,15 +299,15 @@
 
   <h3>4. 省电与自动刷新</h3>
   <ul>
-    <li><strong>自动休眠</strong>：在天气、日历、画报页面，停止操作约 5 秒后，设备会进入休眠。屏幕内容保持不变，时钟照常每分钟走动。休眠时按键会直接生效，不用先唤醒；插拔充电线也能唤醒设备。</li>
+    <li><strong>自动休眠</strong>：在天气、日历、画报和正在阅读的页面，停止操作约 5 秒后，设备会进入休眠。屏幕内容保持不变，时钟照常每分钟走动。休眠时按键会直接生效，不用先唤醒；插拔充电线也能唤醒设备。书架不会自动休眠。</li>
     <li><strong>按需联网</strong>：设备只在获取数据时才打开 Wi-Fi，取完立即关闭。</li>
     <li><strong>整点更新</strong>：每天 6:00–21:00 的每个整点，设备会自动更新天气、日程和画报；22:00 到次日 6:00 不联网，以免夜间打扰并节省电量。</li>
     <li><strong>数据缓存</strong>：30 分钟内重复进入页面会直接使用缓存，不会重新联网。</li>
   </ul>
-  <blockquote><p>日常使用建议把设备停在<strong>天气、日历或画报</strong>页面。主菜单和设置页面不会自动休眠，耗电较多。</p></blockquote>
+  <blockquote><p>日常使用建议把设备停在<strong>天气、日历、画报或正在阅读</strong>的页面。主菜单、书架和设置页面不会自动休眠，耗电较多。</p></blockquote>
 
   <h2 id="menu">二、主菜单</h2>
-  <p>主菜单有四个应用：<strong>天气、日历、画报、设置</strong>。用"上/下"选择，按"中键"进入；在任意页面长按"下"可逐级返回。</p>
+  <p>主菜单有五项：<strong>天气、日历、画报、阅读、设置</strong>。一屏显示四项，右侧箭头表示后面还有。用"上/下"选择，按"中键"进入；在任意页面长按"下"可逐级返回。</p>
   <figure class="device">
     <div class="canvas">
       <div class="hole">
@@ -318,13 +318,80 @@
   </figure>
 
   <h2 id="setup">三、首次配置</h2>
-  <p>首次使用只需三步：<strong>进入设置 → 用手机配置 → 校准时间</strong>。</p>
+  <p>首次使用分两步：先在 <strong>联网设置</strong> 里连上 Wi-Fi 并选择时区，再在同一网络里打开 <strong>Web 设置</strong>，填写天气和日历。</p>
 
-  <h3>第 1 步：进入设置</h3>
+  <h3>第 1 步：进入联网设置</h3>
+  <p>进入主菜单，用"上/下"选中 <strong>设置</strong>，按"中键"进入。一屏只显示四项，选中设置时左侧会出现箭头。</p>
+  <figure class="device">
+    <div class="canvas">
+      <div class="hole">
+        <img class="screen" src="shots/menu-settings.png" alt="选中设置">
+      </div>
+      <img class="bezel" src="DeviceFrame.svg" alt="">
+    </div>
+  </figure>
+  <p>进入设置后，选中 <strong>联网设置</strong>，按"中键"进入。</p>
+  <figure class="device">
+    <div class="canvas">
+      <div class="hole">
+        <img class="screen" src="shots/settings.png" alt="选中联网设置">
+      </div>
+      <img class="bezel" src="DeviceFrame.svg" alt="">
+    </div>
+  </figure>
+  <p>设备会打开自己的热点。按屏幕上的三步操作：</p>
   <ol>
-    <li>进入主菜单，用"上/下"选中 <strong>设置</strong>，按"中键"进入。</li>
-    <li>选中 <strong>Web 设置</strong>，按"中键"进入。</li>
-    <li>屏幕上会显示热点名称（格式为 <code>Billboard-XXXX</code>）和一个二维码。</li>
+    <li>在手机 Wi-Fi 列表里连接热点 <code>Billboard-XXXX</code>。<strong>无需密码。</strong>二维码不是用来加入热点的。</li>
+    <li>连上热点后，扫描屏幕右侧的二维码，或用浏览器打开屏幕上的地址（一般是 <code>http://192.168.4.1</code>）。二维码打开的是设置页面。</li>
+    <li>页面只有 <strong>Wi-Fi</strong> 和 <strong>时区</strong> 两个标签，都要填写。填完后点击 <strong>完成配置</strong>。</li>
+  </ol>
+  <figure class="device">
+    <div class="canvas">
+      <div class="hole">
+        <img class="screen" src="shots/wifi-setup.png" alt="联网设置">
+      </div>
+      <img class="bezel" src="DeviceFrame.svg" alt="">
+    </div>
+  </figure>
+  <div class="table-wrap">
+  <table>
+    <thead>
+      <tr><th>标签</th><th>填写内容</th></tr>
+    </thead>
+    <tbody>
+      <tr><td><strong>Wi-Fi</strong></td><td>从下拉列表选择网络，或手动输入名称；再填写密码</td></tr>
+      <tr><td><strong>时区</strong></td><td>先选地区，再选城市。默认是"亚洲 / 上海"</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <p>保存后，设备会关闭热点并连接刚填写的 Wi-Fi。连上后，这一页不会自动退出，而是显示：</p>
+  <ul>
+    <li><strong>已连接</strong>，前面带 Wi-Fi 图标</li>
+    <li><strong>WiFi名称</strong></li>
+    <li><strong>IP地址</strong></li>
+    <li><strong>时区</strong>（显示已保存的城市；没有城市名时显示时区字符串；都没有则显示"未设置"）</li>
+  </ul>
+  <p>看完信息后，长按"下"返回。离开这一页后，Wi-Fi 会关闭。连上的同时，设备会自动校时一次。</p>
+  <ul>
+    <li>还在热点页面时，按"中键"点击 <strong>取消配置</strong>，或长按"下"退出，都会关闭热点，放弃这次配置。</li>
+    <li>如果屏幕显示"连接失败"，请检查 Wi-Fi 名称和密码，然后按"中键"点击 <strong>重新配置</strong>。</li>
+  </ul>
+  <blockquote><p>设备可以保存多个 Wi-Fi。每次在联网设置里保存一个新网络，就会加入列表。换了环境后，设备会自动连接附近已保存的网络。</p></blockquote>
+
+  <h3>第 2 步：在同一网络里打开 Web 设置</h3>
+  <p>天气和日历不在热点页面里改。先让手机或电脑连上设备刚才保存的那个 Wi-Fi，再进入 <strong>设置 → Web 设置</strong>。在设置页用"上/下"选中 <strong>Web 设置</strong>，按"中键"进入。</p>
+  <figure class="device">
+    <div class="canvas">
+      <div class="hole">
+        <img class="screen" src="shots/web-entry.png" alt="选中 Web 设置">
+      </div>
+      <img class="bezel" src="DeviceFrame.svg" alt="">
+    </div>
+  </figure>
+  <p>进入后按屏幕提示操作。完成后按"中键"点击 <strong>关闭</strong>，或长按"下"返回。</p>
+  <ol>
+    <li>手机或电脑连接屏幕上显示的同一个 Wi-Fi。</li>
+    <li>扫描右侧二维码，或用浏览器打开屏幕上的地址。这个地址是设备在局域网里的地址，例如 <code>http://192.168.66.128</code>，不是热点地址。</li>
   </ol>
   <figure class="device">
     <div class="canvas">
@@ -334,38 +401,12 @@
       <img class="bezel" src="DeviceFrame.svg" alt="">
     </div>
   </figure>
-
-  <h3>第 2 步：用手机完成配置</h3>
-  <ol>
-    <li>用手机扫描屏幕右侧的二维码，或者在手机 Wi-Fi 列表里找到 <code>Billboard-XXXX</code> 直接连接。<strong>无需密码。</strong></li>
-    <li>连接后通常会自动弹出设置页面。如果没有弹出，用手机浏览器打开屏幕上显示的地址（一般是 <code>http://192.168.4.1</code>）。</li>
-    <li>设置页面分为六个标签。标签较多时可以左右滑动。<strong>只有 Wi-Fi 和时区是必填项</strong>：</li>
-  </ol>
+  <p>打开的页面用来填写天气和日历。填完后点击 <strong>完成配置</strong>。看到"配置已保存"后，即可关闭手机页面。设备仍保持当前局域网连接，不会为此再开热点。再次打开时，已保存的内容会自动带出，只需修改要改的项。</p>
+  <blockquote><p>还没连过 Wi-Fi 时，Web 设置会提示先去联网设置，按钮是 <strong>去联网设置</strong>。传书或联网设置正在使用网络时，也会提示先退出再打开。</p></blockquote>
+  <p><strong>天气。</strong>数据源选"大陆"时使用彩云天气，选"海外"时使用现有预报。城市名只显示在屏幕上，<strong>纬度、经度</strong>才决定查询位置。纬度为负表示南纬，经度为负表示西经。</p>
   <figure>
-    <img class="webshot" src="shots/web-config.png" alt="设备设置">
+    <img class="webshot" src="shots/web-weather.png" alt="Web 设置的天气">
   </figure>
-  <div class="table-wrap">
-  <table>
-    <thead>
-      <tr><th>标签</th><th>填写内容</th></tr>
-    </thead>
-    <tbody>
-      <tr><td><strong>Wi-Fi</strong>（必填）</td><td>从下拉列表选择网络，或手动输入名称；再填写密码</td></tr>
-      <tr><td><strong>时区</strong>（必填）</td><td>先选地区，再选城市。默认是"亚洲 / 上海"</td></tr>
-      <tr><td><strong>天气</strong></td><td>数据源：国内选"大陆"，国外选"海外"；城市名只用于在屏幕上显示；<strong>纬度、经度</strong>决定天气查询的实际位置（获取方法见下方"如何获取经纬度"）</td></tr>
-      <tr><td><strong>日历</strong></td><td>填写 CalDAV 服务器、账号、密码（例如飞书日历的服务器是 <code>caldav.feishu.cn</code>）。不用日历可以不填</td></tr>
-      <tr><td><strong>硬件</strong></td><td>屏幕型号，默认 A0-2。<strong>一般无需修改</strong>，只有屏幕出现残影或噪点时才需要调整</td></tr>
-      <tr><td><strong>开发者</strong></td><td>需要密码后才能查看。日常配置不用打开</td></tr>
-    </tbody>
-  </table>
-  </div>
-  <p>4. 点击 <strong>完成配置</strong>。看到"配置已保存"后，即可关闭手机页面。</p>
-  <p><strong>填写提示：</strong></p>
-  <ul>
-    <li>再次配置时，页面会自动带出已保存的内容，只需修改需要变动的项。</li>
-    <li>日历密码留空表示保留原密码；服务器、账号、密码<strong>三项全部清空</strong>则删除日历配置。</li>
-    <li>修改屏幕型号后，设备会自动重启。</li>
-  </ul>
   <p><strong>如何获取经纬度：</strong></p>
   <p>任选一种方式，查到想看天气的地点（如家或公司）的坐标：</p>
   <ul>
@@ -381,14 +422,14 @@
     <li>坐标是"度分秒"格式（如 <code>39°59'50"</code>）时，需要换算成小数：度 + 分 ÷ 60 + 秒 ÷ 3600。例如 39°59'50" ≈ 39.9972。</li>
     <li>纬度和经度都不填时，默认显示"北京·望京"的天气。</li>
   </ul>
+  <p><strong>日历。</strong>填写 CalDAV 服务器、账号和密码。飞书日历的服务器是 <code>caldav.feishu.cn</code>。不用日历可以不填。密码留空表示保留原密码；服务器、账号、密码<strong>三项全部清空</strong>则删除日历配置。</p>
+  <figure>
+    <img class="webshot" src="shots/web-calendar.png" alt="Web 设置的日历">
+  </figure>
 
-  <h3>第 3 步：等待联网，并校准时间</h3>
-  <ol>
-    <li>保存后，设备会关闭热点并自动连接 Wi-Fi。连接成功后自动返回设置页面，状态栏的 Wi-Fi 图标变为"已连接"。</li>
-    <li>如果屏幕显示"连接失败"，请检查 Wi-Fi 名称和密码，然后按"中键"点击 <strong>重新配置</strong>。</li>
-    <li>连上 Wi-Fi 后，设备会自动校时一次。如果时间仍不准，进入 <strong>NTP 校时</strong>，等待提示"校时完成"。</li>
-  </ol>
-  <blockquote><p>配置保存并连上 Wi-Fi 后，设备会自动校时。如果校时失败，请再进入 NTP 校时手动校准，否则时钟可能不准，画报也会提示"时间未同步"。以后设备重新启动时也会自动校时。</p></blockquote>
+  <h3>校准时间</h3>
+  <p>联网设置连上 Wi-Fi 后，设备会自动校时一次。如果时间仍不准，进入 <strong>设置 → NTP 校时</strong>，等待提示"校时完成"。</p>
+  <blockquote><p>校时失败时，时钟可能不准，画报也会提示"时间未同步"。以后设备重新启动、并且已经保存过 Wi-Fi 时，也会自动校时一次。</p></blockquote>
 
   <h4>NTP 校时</h4>
   <p>进入后自动联网校准时间，并显示当前 <strong>时间</strong> 和 <strong>时区</strong>。</p>
@@ -402,7 +443,7 @@
   </figure>
   <ul>
     <li>成功后显示"校时完成"，可以点击 <strong>重新校时</strong> 或 <strong>返回</strong>。</li>
-    <li>未联网时，会提示前往 Web 设置。</li>
+    <li>还没有可用的 Wi-Fi 时，会提示先完成联网设置，按钮是 <strong>去联网设置</strong>。</li>
   </ul>
 
   <h2 id="apps">四、应用功能</h2>
@@ -451,7 +492,7 @@
   <p><strong>操作：</strong></p>
   <ul>
     <li>长按"中键"：强制刷新，忽略缓存，立即重新获取天气。</li>
-    <li>获取失败时，页面会显示原因（如"未连接 Wi-Fi""获取天气失败"）以及 <strong>重试 / Web 设置 / 返回</strong> 按钮。用"上/下"选择，按"中键"确认。</li>
+    <li>获取失败时，页面会显示原因（如"未连接 Wi-Fi""未配置地点""获取天气失败"）以及按钮。没有连上 Wi-Fi 时，中间按钮是 <strong>联网设置</strong>；地点还没填时，中间按钮是 <strong>Web 设置</strong>。旁边还有 <strong>重试</strong> 和 <strong>返回</strong>。用"上/下"选择，按"中键"确认。</li>
   </ul>
   <blockquote><p>每次进入天气页面都会回到详情模式。</p></blockquote>
 
@@ -516,6 +557,7 @@
       <img class="bezel" src="DeviceFrame.svg" alt="">
     </div>
   </figure>
+  <p>按"中键"确认后，会立即换上该系列的一张图。选好的系列会被记住，之后每次整点都从该系列中换图。</p>
   <figure class="device">
     <div class="canvas">
       <div class="hole">
@@ -524,13 +566,81 @@
       <img class="bezel" src="DeviceFrame.svg" alt="">
     </div>
   </figure>
-  <ul>
-    <li>选好的系列会被记住，之后每次整点都从该系列中换图。</li>
-  </ul>
   <blockquote><p>如果提示"今天都看过了"，说明当前系列今天的图已经全部看完，可以换一个系列，或者等到明天。</p></blockquote>
 
-  <h3>4. 设置</h3>
-  <p>设置共有 6 项，超过一屏时，左右两侧会出现箭头，提示还有更多选项。</p>
+  <h3>4. 阅读</h3>
+  <p>在主菜单用"上/下"选中 <strong>阅读</strong>，按"中键"进入。</p>
+  <figure class="device">
+    <div class="canvas">
+      <div class="hole">
+        <img class="screen" src="shots/menu-reader.png" alt="选中阅读">
+      </div>
+      <img class="bezel" src="DeviceFrame.svg" alt="">
+    </div>
+  </figure>
+  <p>阅读放在 SD 卡里。卡需要是 <strong>FAT32</strong>。没有插卡时，会提示"阅读功能需要 SD 卡"；卡读不出来时，会提示改用 FAT32。</p>
+  <p>书架标题是 <strong>书架</strong>。还没有书时，中间是 <strong>WiFi传书</strong> 按钮，右上角计数为 <code>0/0</code>。按"中键"即可开始传书。</p>
+  <figure class="device">
+    <div class="canvas">
+      <div class="hole">
+        <img class="screen" src="shots/reader.png" alt="书架">
+      </div>
+      <img class="bezel" src="DeviceFrame.svg" alt="">
+    </div>
+  </figure>
+  <p><strong>书架上有书时：</strong>标题仍是书架，右上角是当前序号。每本书显示类型、大小和阅读进度，顶部保留 <strong>WiFi传书</strong>。</p>
+  <figure class="device">
+    <div class="canvas">
+      <div class="hole">
+        <img class="screen" src="shots/bookshelf.png" alt="有书的书架">
+      </div>
+      <img class="bezel" src="DeviceFrame.svg" alt="">
+    </div>
+  </figure>
+  <ul>
+    <li>向上、向下拨动，在书和 <strong>WiFi传书</strong> 之间移动。停在第一本书时再向上拨，会选中传书按钮。</li>
+    <li>按"中键"打开当前这本书，或进入传书。</li>
+    <li>长按"中键"，会询问是否删除这本书。选"是"删除，选"否"取消。</li>
+  </ul>
+  <p><strong>WiFi传书：</strong></p>
+  <ol>
+    <li>手机或电脑连接屏幕上显示的同一个 Wi-Fi。还没保存过网络时，会提示先去 <strong>设置 → 联网设置</strong>。</li>
+  </ol>
+  <figure class="device">
+    <div class="canvas">
+      <div class="hole">
+        <img class="screen" src="shots/book-transfer-device.png" alt="WiFi 传书">
+      </div>
+      <img class="bezel" src="DeviceFrame.svg" alt="">
+    </div>
+  </figure>
+  <ol start="2">
+    <li>扫描右侧二维码，或用浏览器打开屏幕上的地址。</li>
+    <li>选择 TXT、MD 或 EPUB 上传。EPUB 会在网页里转成 Markdown 再发给设备。</li>
+  </ol>
+  <p>网页上可以拖入或点选文件，也能看到已有的书，并可以删除。</p>
+  <figure>
+    <img class="webshot" src="shots/book-transfer.png" alt="WiFi 传书网页">
+  </figure>
+  <p>传完后长按"下"返回书架。离开传书页面后，这次用来传书的网络连接会关闭。传书和 Web 设置、联网设置不能同时占用网络，屏幕会提示先退出再试。</p>
+  <p><strong>看书时：</strong>正文占满屏幕，底部状态栏显示书名、页码和进度。</p>
+  <figure class="device">
+    <div class="canvas">
+      <div class="hole">
+        <img class="screen" src="shots/reader-page.png" alt="阅读页面">
+      </div>
+      <img class="bezel" src="DeviceFrame.svg" alt="">
+    </div>
+  </figure>
+  <ul>
+    <li>向上拨：下一页。向下拨：上一页。</li>
+    <li>快速连拨两次：一次跳过约 10 页。向上是往后跳，向下是往前跳。已经是最后一页或第一页时，会提示到头了。</li>
+    <li>停止操作约 5 秒后自动休眠，屏幕停在当前页。拨动按键会直接翻页。</li>
+    <li>长按"下"返回书架。</li>
+  </ul>
+
+  <h3>5. 设置</h3>
+  <p>设置共有 6 项：<strong>联网设置、Web 设置、NTP 校时、系统更新、重启、关于</strong>。一屏显示四项，右侧箭头表示后面还有。</p>
   <figure class="device">
     <div class="canvas">
       <div class="hole">
@@ -540,28 +650,11 @@
     </div>
   </figure>
 
-  <h4>Web 设置</h4>
-  <p>用手机修改 Wi-Fi、时区、天气位置、日历账号和屏幕型号，操作方法见第三章。</p>
-  <ul>
-    <li>按"中键"点击 <strong>取消配置</strong>，或长按"下"退出页面，都会关闭热点，放弃本次配置。</li>
-  </ul>
+  <h4>联网设置</h4>
+  <p>用来加入或更换 Wi-Fi，并设置时区。进入后设备会打开热点。连上后，页面显示 WiFi名称、IP地址和时区。看完后长按"下"返回，Wi-Fi 随即关闭。详细步骤见第三章。</p>
 
-  <h4>Wi-Fi</h4>
-  <p>查看网络 <strong>状态、名称、IP 地址</strong>。页面会根据当前状态显示不同按钮：</p>
-  <figure class="device">
-    <div class="canvas">
-      <div class="hole">
-        <img class="screen" src="shots/wifi.png" alt="Wi-Fi">
-      </div>
-      <img class="bezel" src="DeviceFrame.svg" alt="">
-    </div>
-  </figure>
-  <ul>
-    <li><strong>重连</strong>：已经保存了网络但没有连上时，点击它重新连接。</li>
-    <li><strong>去 Web 设置</strong>：还没有配置网络，或者需要修改网络时使用。</li>
-    <li><strong>返回</strong></li>
-  </ul>
-  <blockquote><p>设备可以保存多个 Wi-Fi。每在 Web 设置里保存一个新网络，就会加入列表。换了环境后，设备会自动连接附近已保存的网络。</p></blockquote>
+  <h4>Web 设置</h4>
+  <p>手机和设备连着同一个 Wi-Fi 时，用来修改天气位置和日历账号。这里不会再开热点。详细步骤见第三章。</p>
 
   <h4>系统更新</h4>
   <p>页面显示 <strong>当前版本</strong> 和 <strong>更新说明</strong>。</p>
@@ -590,25 +683,25 @@
   <h2 id="faq">五、常见问题</h2>
   <dl class="faq">
     <dt>Q1：状态栏的 Wi-Fi 图标经常显示"未连接"，是不是坏了？</dt>
-    <dd>A：不是。为了省电，设备只在获取数据时才打开 Wi-Fi，平时会关闭。只要天气和日程能正常更新，就说明网络没问题。</dd>
+    <dd>A：不是。为了省电，设备只在获取数据、校时或传书时才打开 Wi-Fi，用完就关闭。离开联网设置后也会关闭。只要天气和日程能正常更新，就说明网络没问题。</dd>
     <dt>Q2：充满一次电能用多久？</dt>
-    <dd>A：充满电后，停在天气、日历或画报页面静态放置，一般可以使用 <strong>5–7 天</strong>。以下情况会缩短续航：
+    <dd>A：充满电后，停在天气、日历、画报或正在阅读的页面静态放置，一般可以使用 <strong>5–7 天</strong>。以下情况会缩短续航：
       <ul>
         <li>频繁操作按键、切换页面，或者频繁长按"中键"强制刷新；</li>
-        <li>长时间停在主菜单或设置页面，这些页面不会自动休眠；</li>
+        <li>长时间停在主菜单、书架或设置页面，这些页面不会自动休眠；</li>
         <li>Wi-Fi 信号较弱，每次联网耗时更长；</li>
         <li>环境温度较低。</li>
       </ul>
       电量不足时，状态栏的电池图标会变空，接上 USB 线充电即可，充电时可以正常使用。
     </dd>
     <dt>Q3：手机连上 <code>Billboard-XXXX</code> 后，没有弹出设置页面怎么办？</dt>
-    <dd>A：用手机浏览器手动打开屏幕上显示的地址（一般是 <code>http://192.168.4.1</code>）。如果手机提示"此网络无法上网"，选择"保持连接"即可。如果仍然打不开，请在设置中选择"重启"，重启后重新进入 <strong>Web 设置</strong> 再试一次。</dd>
+    <dd>A：热点只在 <strong>联网设置</strong> 里出现。先在手机 Wi-Fi 列表里连上这个热点，再用浏览器打开屏幕上显示的地址（一般是 <code>http://192.168.4.1</code>），或扫描屏幕上的二维码。二维码打开的是设置页，不是加入热点。如果手机提示"此网络无法上网"，选择"保持连接"即可。如果仍然打不开，请在设置中选择"重启"，重启后重新进入 <strong>联网设置</strong> 再试一次。</dd>
     <dt>Q4：在 Wi-Fi 下拉列表里找不到我家的网络？</dt>
     <dd>A：设备只支持 <strong>2.4GHz</strong> 网络，不支持 5GHz。也可以在下拉框下方手动输入网络名称。</dd>
     <dt>Q5：配置完成后，屏幕显示"连接失败"？</dt>
     <dd>A：通常是密码填错，或者设备离路由器太远。请检查后点击"重新配置"。注意 Wi-Fi 名称和密码都区分大小写。</dd>
     <dt>Q6：时间不准，或者画报提示"时间未同步"？</dt>
-    <dd>A：完成 Wi-Fi 配置后，设备会自动校时一次。如果时间仍不准，进入"设置 → NTP 校时"手动校准。重启设备也会自动校时。另外，请确认 Web 设置中的时区是否正确。</dd>
+    <dd>A：完成联网设置后，设备会自动校时一次。如果时间仍不准，进入"设置 → NTP 校时"手动校准。已经保存过 Wi-Fi 时，重启也会自动校时。时区在联网设置里修改。</dd>
     <dt>Q7：天气显示的地点不对？</dt>
     <dd>A：天气位置<strong>只由纬度和经度决定</strong>，城市名仅用于显示。请按第三章"如何获取经纬度"重新查询并填写，重点检查经度和纬度是否填反。</dd>
     <dt>Q8：天气或日程长时间没有更新？</dt>
@@ -617,9 +710,7 @@
     <dd>A：请在 Web 设置的"日历"标签中检查服务器地址、账号和密码。有些服务（如飞书）需要使用专门生成的 CalDAV 账号和密码，而不是登录密码。</dd>
     <dt>Q10：屏幕偶尔整屏闪烁一下，正常吗？</dt>
     <dd>A：正常。墨水屏每隔一段时间、切换页面或模式时，会全屏刷新一次来清除残影。</dd>
-    <dt>Q11：屏幕出现明显残影、噪点或显示异常？</dt>
-    <dd>A：可能是屏幕型号设置不匹配。请在 Web 设置的"硬件"标签中尝试其他型号，保存后设备会自动重启。</dd>
-    <dt>Q12：按键后屏幕反应慢，感觉有延迟？</dt>
+    <dt>Q11：按键后屏幕反应慢，感觉有延迟？</dt>
     <dd>A：这是墨水屏的特性，属于正常现象：
       <ul>
         <li>墨水屏刷新本身就比手机屏幕慢。普通刷新约需不到 1 秒；切换页面、切换天气模式、换画报时会整屏刷新，需要 2–3 秒，期间屏幕会闪烁。</li>
@@ -628,16 +719,18 @@
       </ul>
       建议每次操作后，等屏幕刷新完成再进行下一步。
     </dd>
-    <dt>Q13：状态栏没有显示室内温湿度？</dt>
+    <dt>Q12：状态栏没有显示室内温湿度？</dt>
     <dd>A：说明没有检测到温湿度传感器，其他功能不受影响。</dd>
-    <dt>Q14：画报提示"未连接 Wi-Fi"或"画报下载失败"？</dt>
+    <dt>Q13：画报提示"未连接 Wi-Fi"或"画报下载失败"？</dt>
     <dd>A：请先确认网络正常，然后向上或向下拨动重试。下载失败时，屏幕会继续显示上一张图。</dd>
-    <dt>Q15：系统更新中途失败了怎么办？</dt>
+    <dt>Q14：系统更新中途失败了怎么办？</dt>
     <dd>A：按提示点击"确定"重启后，再次进入"系统更新"重新检查即可。更新过程中请保持供电，不要退出页面。</dd>
-    <dt>Q16：怎样更换 Wi-Fi，或者修改其他设置？</dt>
-    <dd>A：随时可以进入"设置 → Web 设置"重新配置，已保存的内容会自动带出，只需修改需要变动的项。</dd>
-    <dt>Q17：想看新的画报系列，怎么申请？</dt>
+    <dt>Q15：怎样更换 Wi-Fi，或者修改其他设置？</dt>
+    <dd>A：更换 Wi-Fi 或时区，进入"设置 → 联网设置"。修改天气或日历，进入"设置 → Web 设置"，手机需先连上设备所在的同一个 Wi-Fi。已保存的内容会自动带出，只需修改需要变动的项。</dd>
+    <dt>Q16：想看新的画报系列，怎么申请？</dt>
     <dd>A：欢迎加入 QQ 群提出想看的系列（见第六章）。如果呼声较高，群主会考虑加入新的画报系列。</dd>
+    <dt>Q17：阅读打不开，或书架是空的？</dt>
+    <dd>A：阅读需要一张 FAT32 格式的 SD 卡。没有书时，在书架按"中键"进入 WiFi传书。手机或电脑先连上屏幕显示的那个 Wi-Fi，再打开页面上传 TXT、MD 或 EPUB。还没保存过网络时，先去联网设置。</dd>
   </dl>
 
   <h2 id="community">六、交流与反馈</h2>

@@ -188,6 +188,10 @@ bool TTWiFiManager::startProvisioning() {
     }
 
     LOG_I("WiFi: start phone provisioning");
+    if (_lanPortal) {
+        stopLanPortal();
+    }
+    _portal.setKind(TT_PORTAL_NETWORK);
     if (_state == TT_WIFI_LINK_CONNECTED || _state == TT_WIFI_LINK_CONNECTING) {
         WiFi.disconnect(false, false);
         delay(100);
@@ -225,6 +229,44 @@ bool TTWiFiManager::stopProvisioning() {
     return true;
 }
 
+void TTWiFiManager::shutdownRadio() {
+    _portal.cancelApply();
+    _ntpAfterConnect = false;
+    if (_state == TT_WIFI_LINK_PROVISIONING) {
+        LOG_I("WiFi: shutdown hotspot");
+        _stopAP();
+        return;
+    }
+    LOG_I("WiFi: shutdown radio state=%d", (int)_state);
+    sleepRadio();
+}
+
+bool TTWiFiManager::startLanPortal() {
+    if (_lanPortal) {
+        return true;
+    }
+    if (_state != TT_WIFI_LINK_CONNECTED) {
+        LOG_W("WiFi: lan portal needs STA state=%d", (int)_state);
+        return false;
+    }
+    _portal.setKind(TT_PORTAL_LAN);
+    _portal.begin();
+    _lanPortal = true;
+    LOG_I("WiFi: lan portal http://%s/", WiFi.localIP().toString().c_str());
+    return true;
+}
+
+void TTWiFiManager::stopLanPortal() {
+    if (!_lanPortal) {
+        return;
+    }
+    _portal.cancelApply();
+    _portal.stop();
+    _lanPortal = false;
+    _portal.setKind(TT_PORTAL_NETWORK);
+    LOG_I("WiFi: lan portal stopped");
+}
+
 void TTWiFiManager::process() {
     if (_state == TT_WIFI_LINK_PROVISIONING) {
         _dnsServer.processNextRequest();
@@ -245,12 +287,26 @@ void TTWiFiManager::process() {
         }
         return;
     }
+    if (_lanPortal && _state == TT_WIFI_LINK_CONNECTED) {
+        _portal.handleClient();
+        bool restart = false;
+        if (_portal.takeApply(restart)) {
+            LOG_I("WiFi: lan portal apply restart=%d", restart ? 1 : 0);
+            if (restart) {
+                TTInstanceOf<TTUITask>().requestRestartAsync();
+                return;
+            }
+        }
+    }
     if (_state == TT_WIFI_LINK_CONNECTING) {
         _pollConnect();
         return;
     }
     if (_state == TT_WIFI_LINK_CONNECTED && WiFi.status() != WL_CONNECTED) {
         LOG_W("WiFi: STA lost");
+        if (_lanPortal) {
+            stopLanPortal();
+        }
         sleepRadio();
     }
 }
@@ -270,6 +326,9 @@ void TTWiFiManager::fillStatus(TTWiFiStatusPayload& out) const {
         out.ssid[TT_WIFI_SSID_MAX] = '\0';
         strncpy(out.ip, WiFi.localIP().toString().c_str(), TT_WIFI_IP_MAX);
         out.ip[TT_WIFI_IP_MAX] = '\0';
+        if (_lanPortal) {
+            snprintf(out.portalUrl, sizeof(out.portalUrl), "http://%s", out.ip);
+        }
     } else {
         strncpy(out.ssid, _savedSsid, TT_WIFI_SSID_MAX);
         out.ssid[TT_WIFI_SSID_MAX] = '\0';

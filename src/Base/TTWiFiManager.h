@@ -30,6 +30,10 @@ public:
     void setReleaseDriverOnSleep(bool release) { _releaseDriverOnSleep = release; }
     bool startProvisioning();
     bool stopProvisioning();
+    void shutdownRadio();
+    bool startLanPortal();
+    void stopLanPortal();
+    bool lanPortalRunning() const { return _lanPortal; }
     void process();
     void fillStatus(TTWiFiStatusPayload& out) const;
 
@@ -64,6 +68,7 @@ private:
 
     TTConfigServer _portal;
     DNSServer _dnsServer;
+    bool _lanPortal = false;
     TTWiFiLinkState _state = TT_WIFI_LINK_IDLE;
     std::vector<String> _ssidList;
     char _apSsid[TT_WIFI_SSID_MAX + 1] = {0};

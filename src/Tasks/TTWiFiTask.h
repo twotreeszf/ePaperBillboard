@@ -3,6 +3,7 @@
 #include "../Base/TTVTask.h"
 #include "../Base/TTWiFiManager.h"
 #include "../Service/TTBookTransferServer.h"
+#include "../Service/TTDebugServer.h"
 #include <functional>
 #include <vector>
 
@@ -23,6 +24,7 @@ public:
 
     void requestStartProvisioningAsync();
     void requestStopProvisioningAsync();
+    void requestRadioOffAsync();
     void requestStatusAsync();
     void requestKeepRadio(bool keep);
     void requestReleaseDriverWhenIdle(bool release);
@@ -30,6 +32,10 @@ public:
     void requestNtpSyncAsync();
     void requestStartBookTransferAsync();
     void requestStopBookTransferAsync();
+    void requestStartLanPortalAsync();
+    void requestStopLanPortalAsync();
+    void requestDebugServer(bool enabled);
+    bool isBookTransferActive() const { return _bookTransferWanted; }
     void runWithRadio(const char* tag, std::function<void()> work,
                       std::function<void()> onFailed = {});
     bool isRadioActive() const;
@@ -55,12 +61,20 @@ private:
     void startBookTransfer();
     void processBookTransfer();
     void stopBookTransfer(TTBookTransferState state, TTBookTransferError error);
+    void processDebugServer();
+    void stopDebugListen();
+    void processLanPortal();
+    void stopLanListen();
     void publishBookTransfer(TTBookTransferState state, TTBookTransferError error,
                              const char* name = nullptr, uint32_t size = 0, const char* message = nullptr);
 
     TTWiFiManager _wifiManager;
     TTBookTransferServer _bookTransfer;
+    TTDebugServer _debug;
     bool _bookTransferWanted = false;
+    bool _lanPortalWanted = false;
+    bool _debugWanted = false;
+    uint32_t _debugRetryAt = 0;
     TTWiFiLinkState _publishedState = TT_WIFI_LINK_IDLE;
     bool _wakeFailed = false;
     bool _keepRadio = false;

@@ -1,7 +1,6 @@
 #include "TTSettingsPage.h"
 #include "TTAboutPage.h"
 #include "TTWiFiConfigPage.h"
-#include "TTWiFiStatusPage.h"
 #include "TTNtpSyncPage.h"
 #include "TTUpdatePage.h"
 #include "../Base/TTFile.h"
@@ -22,11 +21,13 @@ void TTSettingsPage::buildContent(lv_obj_t* screen) {
     _row.create(screen);
     lv_obj_t* container = _row.container;
 
-    MenuItem::create(&_items[0], container, this, TT_FS_RES_DIR "/icons/globe.i1", "Web 设置", fontBtn,
-        [this]() { getNavigationController()->pushPage(std::unique_ptr<TTScreenPage>(new TTWiFiConfigPage())); });
+    MenuItem::create(&_items[0], container, this, TT_FS_RES_DIR "/icons/network.i1", "联网设置", fontBtn,
+        [this]() { getNavigationController()->pushPage(
+            std::unique_ptr<TTScreenPage>(new TTWiFiConfigPage(TT_PORTAL_PAGE_NETWORK))); });
 
-    MenuItem::create(&_items[1], container, this, TT_FS_RES_DIR "/icons/wifi.i1", "Wi-Fi", fontBtn,
-        [this]() { getNavigationController()->pushPage(std::unique_ptr<TTScreenPage>(new TTWiFiStatusPage())); });
+    MenuItem::create(&_items[1], container, this, TT_FS_RES_DIR "/icons/globe.i1", "Web 设置", fontBtn,
+        [this]() { getNavigationController()->pushPage(
+            std::unique_ptr<TTScreenPage>(new TTWiFiConfigPage(TT_PORTAL_PAGE_WEB))); });
 
     MenuItem::create(&_items[2], container, this, TT_FS_RES_DIR "/icons/ntp.i1", "NTP 校时", fontBtn,
         [this]() { getNavigationController()->pushPage(std::unique_ptr<TTScreenPage>(new TTNtpSyncPage())); });

@@ -5,6 +5,7 @@
 #include "../Base/TTInstance.h"
 #include "../Models/TTNotificationPayloads.h"
 #include "../Base/TTRtc.h"
+#include "../Base/TTPreference.h"
 #include <ctime>
 #include <cstring>
 #include <string>
@@ -23,6 +24,10 @@ static void tt_wifi_copy_tag(char* out, size_t outMax, const char* tag) {
 
 void TTWiFiTask::setup() {
     LOG_I("WiFi task starting");
+    bool debug = false;
+    TTInstanceOf<TTPreference>().get(PREF_DEV_DEBUG, debug, false);
+    _debugWanted = debug;
+    LOG_I("Debug: option %s", debug ? "on" : "off");
     _wifiManager.seedDefaultNetwork();
     _wifiManager.refreshSavedNetwork();
     if (!_wifiManager.hasConfiguredNetwork()) {
@@ -40,6 +45,8 @@ void TTWiFiTask::loop() {
     _wifiManager.process();
     handleLinkChange();
     processBookTransfer();
+    processLanPortal();
+    processDebugServer();
     processRadioJobs();
 }
 
@@ -72,6 +79,10 @@ void TTWiFiTask::handleLinkChange() {
             stopBookTransfer(TT_BOOK_TRANSFER_FAILED, connectFailed
                 ? TT_BOOK_TRANSFER_ERROR_CONNECT_FAILED : TT_BOOK_TRANSFER_ERROR_LINK_LOST);
         }
+        if (_lanPortalWanted) {
+            _lanPortalWanted = false;
+            stopLanListen();
+        }
         _wakeFailed = true;
         endWake();
         return;
@@ -83,6 +94,8 @@ void TTWiFiTask::handleLinkChange() {
 
 void TTWiFiTask::requestStartProvisioningAsync() {
     auto* f = new std::function<void()>([this]() {
+        _keepRadio = true;
+        LOG_I("WiFi: provisioning holds radio");
         _wifiManager.startProvisioning();
         publishStatus();
     });
@@ -100,6 +113,30 @@ void TTWiFiTask::requestStopProvisioningAsync() {
             return;
         }
         _wifiManager.sleepRadio();
+        publishStatus();
+    });
+    enqueue(f);
+}
+
+void TTWiFiTask::requestRadioOffAsync() {
+    auto* f = new std::function<void()>([this]() {
+        const bool provisioning = _wifiManager.isProvisioning();
+        LOG_I("WiFi: page leave provisioning=%d state=%d",
+              provisioning ? 1 : 0, (int)_wifiManager.linkState());
+        _keepRadio = false;
+        if (provisioning) {
+            _wifiManager.shutdownRadio();
+        }
+        if (_bookTransferWanted || _lanPortalWanted || _debugWanted || !_jobs.empty()) {
+            LOG_I("WiFi: page leave, radio kept transfer=%d lan=%d debug=%d jobs=%u",
+                  _bookTransferWanted ? 1 : 0, _lanPortalWanted ? 1 : 0, _debugWanted ? 1 : 0,
+                  (unsigned)_jobs.size());
+            publishStatus();
+            return;
+        }
+        if (!provisioning) {
+            _wifiManager.shutdownRadio();
+        }
         publishStatus();
     });
     enqueue(f);
@@ -141,6 +178,11 @@ void TTWiFiTask::requestKeepRadio(bool keep) {
 
 void TTWiFiTask::requestReleaseDriverWhenIdle(bool release) {
     auto* f = new std::function<void()>([this, release]() {
+        if (release && _debugWanted) {
+            _wifiManager.setReleaseDriverOnSleep(false);
+            LOG_I("WiFi: keep driver, debug server is on");
+            return;
+        }
         _wifiManager.setReleaseDriverOnSleep(release);
         const bool active = isRadioActive();
         LOG_I("WiFi: release driver when idle=%d active=%d", release ? 1 : 0, active ? 1 : 0);
@@ -201,8 +243,9 @@ void TTWiFiTask::startBookTransfer() {
                             TT_BOOK_TRANSFER_ERROR_NONE);
         return;
     }
-    if (_wifiManager.isProvisioning()) {
-        LOG_W("Transfer: refused, provisioning");
+    if (_wifiManager.isProvisioning() || _lanPortalWanted) {
+        LOG_W("Transfer: refused, settings portal provisioning=%d lan=%d",
+              _wifiManager.isProvisioning() ? 1 : 0, _lanPortalWanted ? 1 : 0);
         publishBookTransfer(TT_BOOK_TRANSFER_FAILED, TT_BOOK_TRANSFER_ERROR_BUSY);
         return;
     }
@@ -249,12 +292,136 @@ void TTWiFiTask::processBookTransfer() {
 void TTWiFiTask::stopBookTransfer(TTBookTransferState state, TTBookTransferError error) {
     const bool wasRunning = _bookTransfer.isRunning();
     _bookTransfer.stop();
-    if (wasRunning) {
+    if (wasRunning && !_debug.isRunning() && !_wifiManager.lanPortalRunning()) {
         WiFi.setSleep(true);
     }
     _bookTransferWanted = false;
     LOG_I("Transfer: stop state=%d error=%d running=%d", (int)state, (int)error, wasRunning ? 1 : 0);
     publishBookTransfer(state, error);
+}
+
+void TTWiFiTask::requestDebugServer(bool enabled) {
+    auto* f = new std::function<void()>([this, enabled]() {
+        LOG_I("Debug: option %s", enabled ? "on" : "off");
+        _debugWanted = enabled;
+        if (!enabled) {
+            stopDebugListen();
+            return;
+        }
+        _wakeFailed = false;
+        _debugRetryAt = 0;
+    });
+    enqueue(f);
+}
+
+void TTWiFiTask::stopDebugListen() {
+    if (!_debug.isRunning()) {
+        return;
+    }
+    _debug.stop();
+    if (!_bookTransfer.isRunning() && !_wifiManager.lanPortalRunning()) {
+        WiFi.setSleep(true);
+    }
+}
+
+void TTWiFiTask::requestStartLanPortalAsync() {
+    auto* f = new std::function<void()>([this]() {
+        if (_bookTransferWanted || _wifiManager.isProvisioning()) {
+            LOG_W("WiFi: lan portal refused transfer=%d provisioning=%d",
+                  _bookTransferWanted ? 1 : 0, _wifiManager.isProvisioning() ? 1 : 0);
+            _lanPortalWanted = false;
+            publishStatus();
+            return;
+        }
+        _lanPortalWanted = true;
+        _wakeFailed = false;
+        LOG_I("WiFi: lan portal requested state=%d", (int)_wifiManager.linkState());
+        if (!_wifiManager.isConnected() && !_wifiManager.isConnecting()) {
+            beginWake();
+        }
+        publishStatus();
+    });
+    enqueue(f);
+}
+
+void TTWiFiTask::requestStopLanPortalAsync() {
+    auto* f = new std::function<void()>([this]() {
+        LOG_I("WiFi: lan portal stop requested");
+        _lanPortalWanted = false;
+        stopLanListen();
+        publishStatus();
+    });
+    enqueue(f);
+}
+
+void TTWiFiTask::stopLanListen() {
+    const bool wasRunning = _wifiManager.lanPortalRunning();
+    _wifiManager.stopLanPortal();
+    if (wasRunning && !_bookTransfer.isRunning() && !_debug.isRunning()) {
+        WiFi.setSleep(true);
+    }
+}
+
+void TTWiFiTask::processLanPortal() {
+    if (!_lanPortalWanted) {
+        if (_wifiManager.lanPortalRunning()) {
+            stopLanListen();
+        }
+        return;
+    }
+    if (_wifiManager.isProvisioning() || _bookTransferWanted) {
+        LOG_W("WiFi: lan portal stopped, network busy");
+        _lanPortalWanted = false;
+        stopLanListen();
+        publishStatus();
+        return;
+    }
+    if (!_wifiManager.isConnected()) {
+        return;
+    }
+    if (_wifiManager.lanPortalRunning()) {
+        return;
+    }
+    if (!_wifiManager.startLanPortal()) {
+        LOG_E("WiFi: lan portal start failed");
+        _lanPortalWanted = false;
+        publishStatus();
+        return;
+    }
+    WiFi.setSleep(false);
+    publishStatus();
+}
+
+void TTWiFiTask::processDebugServer() {
+    if (!_debugWanted) {
+        stopDebugListen();
+        return;
+    }
+    const bool up = _wifiManager.isProvisioning() || _wifiManager.isConnected();
+    if (!up) {
+        stopDebugListen();
+        if (_wifiManager.isConnecting()) {
+            return;
+        }
+        if (_wakeFailed && (int32_t)(millis() - _debugRetryAt) < 0) {
+            return;
+        }
+        beginWake();
+        if (_wakeFailed) {
+            _debugRetryAt = millis() + TT_DEBUG_RETRY_MS;
+            LOG_W("Debug: connect failed, retry in %u ms", (unsigned)TT_DEBUG_RETRY_MS);
+        }
+        return;
+    }
+    if (!_debug.isRunning()) {
+        _debug.begin();
+        WiFi.setSleep(false);
+        const String ip = _wifiManager.isProvisioning()
+            ? WiFi.softAPIP().toString()
+            : WiFi.localIP().toString();
+        LOG_I("Debug: listening http://%s:%u", ip.c_str(), (unsigned)TT_DEBUG_HTTP_PORT);
+    }
+    _debug.handleClient();
 }
 
 void TTWiFiTask::publishBookTransfer(TTBookTransferState state, TTBookTransferError error,
@@ -341,7 +508,8 @@ void TTWiFiTask::processRadioJobs() {
         ranWork = true;
     }
 
-    if (connected && !ranWork && _jobs.empty() && !connecting && !_keepRadio && !_bookTransferWanted) {
+    if (connected && !ranWork && _jobs.empty() && !connecting && !_keepRadio
+        && !_bookTransferWanted && !_lanPortalWanted && !_debugWanted) {
         LOG_I("WiFi: idle, radio off");
         endWake();
     }
@@ -427,6 +595,8 @@ void TTWiFiTask::endWake() {
 bool TTWiFiTask::isRadioActive() const {
     return _keepRadio
         || _bookTransferWanted
+        || _lanPortalWanted
+        || _debugWanted
         || !_jobs.empty()
         || _wifiManager.isProvisioning()
         || _wifiManager.isConnecting()

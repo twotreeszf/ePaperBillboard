@@ -1,31 +1,14 @@
 #include "TTQrCode.h"
 #include "Logger.h"
 #include <cstring>
-#include <cstdio>
 #include <qrcode.h>
 #include <esp_heap_caps.h>
-
-#define TT_QR_WIFI_PREFIX  "WIFI:T:nopass;S:"
-#define TT_QR_WIFI_SUFFIX  ";P:;;"
 
 struct TTQrCodeData {
     QRCode qr;
     uint8_t* modules;
     uint8_t version;
 };
-
-static void appendEscaped(char* out, size_t outMax, size_t* pos, const char* s) {
-    for (; s != nullptr && *s != '\0' && *pos + 2 < outMax; s++) {
-        const char c = *s;
-        if (c == '\\' || c == ';' || c == ',' || c == ':' || c == '"') {
-            out[(*pos)++] = '\\';
-        }
-        out[(*pos)++] = c;
-    }
-    if (*pos < outMax) {
-        out[*pos] = '\0';
-    }
-}
 
 int32_t TTQrCode::pixelSize(uint8_t version) {
     const int32_t modules = 4 * (int32_t)version + 17 + TT_QR_QUIET * 2;
@@ -90,27 +73,6 @@ bool TTQrCode::setText(lv_obj_t* qr, const char* text) {
           (unsigned)data->version, encoded.size, (unsigned)strlen(text));
     lv_obj_invalidate(qr);
     return true;
-}
-
-bool TTQrCode::setWifiOpen(lv_obj_t* qr, const char* ssid) {
-    if (ssid == nullptr || ssid[0] == '\0') {
-        LOG_E("QR: empty AP SSID");
-        return false;
-    }
-    char payload[TT_QR_PAYLOAD_MAX];
-    size_t pos = 0;
-    const char* prefix = TT_QR_WIFI_PREFIX;
-    while (*prefix != '\0' && pos + 1 < sizeof(payload)) {
-        payload[pos++] = *prefix++;
-    }
-    appendEscaped(payload, sizeof(payload), &pos, ssid);
-    const char* suffix = TT_QR_WIFI_SUFFIX;
-    while (*suffix != '\0' && pos + 1 < sizeof(payload)) {
-        payload[pos++] = *suffix++;
-    }
-    payload[pos] = '\0';
-    LOG_I("QR: wifi payload=%s", payload);
-    return setText(qr, payload);
 }
 
 void TTQrCode::onDraw(lv_event_t* e) {

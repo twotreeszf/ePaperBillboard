@@ -251,6 +251,7 @@ private:
     TTWeatherForecastCol _forecast[TT_WEATHER_FORECAST_N];
     TTWeatherDetailCell _details[TT_WEATHER_DETAIL_N];
     bool _visible = false;
+    bool _webGoesNetwork = false;
     bool _forceRefreshing = false;
     bool _fetching = false;
     bool _sleepAfterTimeTick = false;

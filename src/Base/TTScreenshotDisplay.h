@@ -1,6 +1,7 @@
 #pragma once
 
 #include <EPDConfig.h>
+#include <FS.h>
 #include <stddef.h>
 #include <stdint.h>
 #include <lvgl.h>
@@ -25,12 +26,19 @@ enum TTShotResult {
 #define TT_SHOT_FRAME_BYTES      (TT_SHOT_FRAME_STRIDE * (EPD_HEIGHT))
 #define TT_SHOT_ROW_STRIDE       ((((EPD_WIDTH) + 31) / 32) * 4)
 #define TT_SHOT_FILE_BYTES       (62 + (TT_SHOT_ROW_STRIDE * (EPD_HEIGHT)))
+#define TT_SHOT_DEBUG_PATH       "/tmp/debug-shot.bmp"
+#define TT_SHOT_STREAM_CHUNK     256
+#define TT_SHOT_WRITE_BYTES      1024
+#define TT_SHOT_WRITE_BLOCKS     (((TT_SHOT_FILE_BYTES) + (TT_SHOT_WRITE_BYTES) - 1) / (TT_SHOT_WRITE_BYTES))
 
 typedef bool (*TTShotWriter)(void* ctx, const uint8_t* data, size_t len);
 
 class TTScreenshotDisplay {
 public:
     TTShotResult capture(const char* pageName);
+    TTShotResult renderFrame(const char* pageName);
+    bool writeFrameBmp(TTShotWriter write, void* ctx);
+    void releaseFrame();
     bool shotsEnabled() const;
     bool isBusy() const { return _busy; }
 
@@ -47,7 +55,25 @@ private:
     bool ensureFrame();
     bool hasRoom() const;
     bool save(const char* pageName);
+    bool openDebugFile();
+    bool loadCaptureBlock(uint32_t filePos);
+    bool storeCaptureBlock();
+    bool flushDebugFile();
+    void closeDebugFile();
+    void discardDebugFile();
+    bool streamDebugFile(TTShotWriter write, void* ctx);
+    void blitToFile(const lv_area_t* area, const uint8_t* px);
 
     uint8_t* _frame = nullptr;
+    fs::File _captureFile;
+    char _capturePath[TT_SHOT_PATH_MAX] = {};
+    uint8_t _captureBlock[TT_SHOT_WRITE_BYTES] = {};
+    uint32_t _captureBlockPos = 0;
+    uint32_t _captureBlockMask = 0;
+    uint16_t _captureBlockLen = 0;
+    uint16_t _captureWriteCount = 0;
+    bool _captureBlockValid = false;
+    bool _captureBlockDirty = false;
+    bool _captureIoOk = true;
     bool _busy = false;
 };

@@ -696,8 +696,9 @@ void TTWeatherPage::showEmptyActions(bool showWeb, bool showRetry) {
 
 void TTWeatherPage::goWebSettings() {
     if (getNavigationController() != nullptr) {
-        LOG_I("Weather page: open Web settings");
-        getNavigationController()->pushPage(std::unique_ptr<TTScreenPage>(new TTWiFiConfigPage()));
+        LOG_I("Weather page: open %s", _webGoesNetwork ? "network settings" : "web settings");
+        const TTPortalPageKind kind = _webGoesNetwork ? TT_PORTAL_PAGE_NETWORK : TT_PORTAL_PAGE_WEB;
+        getNavigationController()->pushPage(std::unique_ptr<TTScreenPage>(new TTWiFiConfigPage(kind)));
     }
 }
 
@@ -1658,6 +1659,10 @@ bool TTWeatherPage::applyWeather(const TTWeatherPayload& payload) {
         || payload.state == TT_WEATHER_NEED_LOCATION;
     const bool needRetry = payload.state == TT_WEATHER_FAILED
         || payload.state == TT_WEATHER_NEED_WIFI;
+    _webGoesNetwork = payload.state == TT_WEATHER_NEED_WIFI;
+    if (_webBtn != nullptr) {
+        TTTextButton::setText(_webBtn, _webGoesNetwork ? "联网设置" : "Web 设置");
+    }
     showEmptyActions(needSetup, needRetry);
     return true;
 }

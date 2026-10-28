@@ -189,8 +189,8 @@ void TTNtpSyncPage::applyStatus(const TTTimeSyncPayload& status) {
 
     if (status.state == TT_TIME_SYNC_NEED_WIFI) {
         dismissSyncLoading();
-        lv_label_set_text(_statusLabel, "未连接 Wi-Fi，请先完成 Web 设置。");
-        TTTextButton::setText(_retryBtn, "去 Web 设置");
+        lv_label_set_text(_statusLabel, "未连接 Wi-Fi，请先完成联网设置。");
+        TTTextButton::setText(_retryBtn, "去联网设置");
         showActionOnly();
         return;
     }

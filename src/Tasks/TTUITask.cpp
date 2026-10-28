@@ -88,6 +88,19 @@ void TTUITask::requestKeyGestureAsync(uint8_t key, uint8_t gesture) {
     enqueue(f);
 }
 
+void TTUITask::requestRenderShot(SemaphoreHandle_t done, int* result) {
+    auto* f = new std::function<void()>([done, result]() {
+        const TTShotResult shot = TTInstanceOf<TTScreenshotDisplay>().renderFrame("debug");
+        if (result != nullptr) {
+            *result = (int)shot;
+        }
+        if (done != nullptr) {
+            xSemaphoreGive(done);
+        }
+    });
+    enqueue(f);
+}
+
 void TTUITask::requestRestartAsync() {
     auto* f = new std::function<void()>([]() {
         LOG_I("UI: restart requested, hibernate E-Paper");

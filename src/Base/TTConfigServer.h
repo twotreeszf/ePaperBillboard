@@ -6,6 +6,11 @@
 #define TT_DEV_PASSWORD         "bagemima"
 #define TT_WIFI_APPLY_DELAY_MS  800
 
+enum TTPortalKind {
+    TT_PORTAL_NETWORK = 0,
+    TT_PORTAL_LAN,
+};
+
 class TTWiFiManager;
 
 class TTConfigServer {
@@ -13,6 +18,8 @@ public:
     TTConfigServer();
 
     void bind(TTWiFiManager* wifi);
+    void setKind(TTPortalKind kind) { _kind = kind; }
+    TTPortalKind kind() const { return _kind; }
     void setScanList(const std::vector<String>& ssids);
     void begin();
     void handleClient();
@@ -23,6 +30,10 @@ public:
 private:
     void _handleRoot();
     void _handleSave();
+    void _handleLanSave(const String& weatherCity, const String& weatherLat, const String& weatherLon,
+                        const String& weatherRegion, const String& calHost, const String& calUser,
+                        String calPass, const String& epdPanel);
+    bool _rejectUnlessLan();
     void _handleStatus();
     void _handleScanWiFi();
     void _handleDevOpen();
@@ -41,6 +52,7 @@ private:
 
     WebServer _server;
     TTWiFiManager* _wifi = nullptr;
+    TTPortalKind _kind = TT_PORTAL_NETWORK;
     std::vector<String> _ssidList;
     bool _serverStarted = false;
     bool _applyPending = false;

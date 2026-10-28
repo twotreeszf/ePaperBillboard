@@ -9,6 +9,8 @@
 #include "TTPreference.h"
 #include "TTRtc.h"
 #include "../Tasks/TTSensorTask.h"
+#include "../Tasks/TTWiFiTask.h"
+#include "../Service/TTDebugServer.h"
 #include <EPDConfig.h>
 #include <ArduinoJson.h>
 #include <WiFi.h>
@@ -168,7 +170,7 @@ void TTConfigServer::begin() {
         _serverStarted = true;
     }
     _server.begin();
-    LOG_I("WiFi: portal listening on :80");
+    LOG_I("WiFi: portal listening on :80 kind=%s", _kind == TT_PORTAL_LAN ? "lan" : "network");
 }
 
 void TTConfigServer::_handleRoot() {
@@ -222,6 +224,10 @@ void TTConfigServer::_handleSave() {
     calPass.trim();
     epdPanel.trim();
     epdPanel = normalizeEpdPanel(epdPanel);
+    if (_server.arg("portal") == "device") {
+        _handleLanSave(weatherCity, weatherLat, weatherLon, weatherRegion, calHost, calUser, calPass, epdPanel);
+        return;
+    }
     if (ssid.isEmpty()) {
         _sendSaveResult(400, "保存失败", "Wi-Fi 名称不能为空");
         return;
@@ -231,6 +237,43 @@ void TTConfigServer::_handleSave() {
         return;
     }
 
+    auto& pref = TTInstanceOf<TTPreference>();
+    if (password.isEmpty()) {
+        pref.getKv(PREF_WIFI_NETWORKS, ssid.c_str(), password, String(""));
+        if (!password.isEmpty()) {
+            LOG_I("WiFi: keep existing password ssid=%s", ssid.c_str());
+        }
+    }
+    if (!pref.setKv(PREF_WIFI_NETWORKS, ssid.c_str(), password)
+        || !pref.sync()) {
+        _sendSaveResult(500, "保存失败", "Wi-Fi 保存失败");
+        return;
+    }
+    _wifi->noteSavedNetwork(ssid.c_str());
+    LOG_I("WiFi: save ssid=%s password_len=%u networks=%u tz=%s label=%s",
+          ssid.c_str(), (unsigned)password.length(),
+          (unsigned)pref.kvSize(PREF_WIFI_NETWORKS),
+          timezone.c_str(), label.c_str());
+
+    if (!TTRtc::saveTimezone(timezone.c_str(), label.c_str())) {
+        _sendSaveResult(500, "保存失败", "时区保存失败");
+        return;
+    }
+    LOG_I("WiFi: network portal saved, closing hotspot");
+    _restartOnApply = false;
+    _sendSaveResult(200, "配置已保存", "热点即将关闭，设备正在连接 Wi-Fi。可以关闭此页面。");
+    _applyAt = millis() + TT_WIFI_APPLY_DELAY_MS;
+    _applyPending = true;
+}
+
+void TTConfigServer::_handleLanSave(const String& weatherCity, const String& weatherLat, const String& weatherLon,
+                                     const String& weatherRegion, const String& calHost, const String& calUser,
+                                     String calPass, const String& epdPanel) {
+    const bool devOpen = _server.arg("dev_open") == "1";
+    if (devOpen && _server.arg("dev_password") != TT_DEV_PASSWORD) {
+        _sendSaveResult(400, "保存失败", "开发者密码不正确");
+        return;
+    }
     float weatherLatVal = 0;
     float weatherLonVal = 0;
     const bool weatherHasCoord = !weatherLat.isEmpty() || !weatherLon.isEmpty();
@@ -259,28 +302,6 @@ void TTConfigServer::_handleSave() {
     }
     if (calAny && calPass.isEmpty()) {
         _sendSaveResult(400, "保存失败", "请填写日历密码");
-        return;
-    }
-
-    if (password.isEmpty()) {
-        pref.getKv(PREF_WIFI_NETWORKS, ssid.c_str(), password, String(""));
-        if (!password.isEmpty()) {
-            LOG_I("WiFi: keep existing password ssid=%s", ssid.c_str());
-        }
-    }
-    if (!pref.setKv(PREF_WIFI_NETWORKS, ssid.c_str(), password)
-        || !pref.sync()) {
-        _sendSaveResult(500, "保存失败", "Wi-Fi 保存失败");
-        return;
-    }
-    _wifi->noteSavedNetwork(ssid.c_str());
-    LOG_I("WiFi: save ssid=%s password_len=%u networks=%u tz=%s label=%s",
-          ssid.c_str(), (unsigned)password.length(),
-          (unsigned)pref.kvSize(PREF_WIFI_NETWORKS),
-          timezone.c_str(), label.c_str());
-
-    if (!TTRtc::saveTimezone(timezone.c_str(), label.c_str())) {
-        _sendSaveResult(500, "保存失败", "时区保存失败");
         return;
     }
 
@@ -317,15 +338,35 @@ void TTConfigServer::_handleSave() {
     _restartOnApply = epdPanel != oldEpdPanel;
     LOG_I("Hardware: save epd_panel=%s old=%s restart=%d",
           epdPanel.c_str(), oldEpdPanel.c_str(), _restartOnApply ? 1 : 0);
-    pref.sync();
 
-    if (_restartOnApply) {
-        _sendSaveResult(200, "配置已保存", "屏幕型号已更改，设备即将重启并连接 Wi-Fi。可以关闭此页面。");
-    } else {
-        _sendSaveResult(200, "配置已保存", "热点即将关闭，设备正在连接 Wi-Fi。可以关闭此页面。");
+    bool debugOn = false;
+    if (devOpen) {
+        const bool shot = _server.arg("shot") == "1";
+        const bool baroOff = _server.arg("baro_off") == "1";
+        debugOn = _server.arg("debug") == "1";
+        if (!pref.set(PREF_DEV_SHOT, shot) || !pref.set(PREF_DEV_BARO_OFF, baroOff)
+            || !pref.set(PREF_DEV_DEBUG, debugOn)) {
+            _sendSaveResult(500, "保存失败", "无法保存开发者选项");
+            return;
+        }
+        LOG_I("Dev: screenshot %s, barometer %s, debug %s",
+              shot ? "on" : "off", baroOff ? "off" : "on", debugOn ? "on" : "off");
     }
-    _applyAt = millis() + TT_WIFI_APPLY_DELAY_MS;
-    _applyPending = true;
+    if (!pref.sync()) {
+        _sendSaveResult(500, "保存失败", "无法保存设置");
+        return;
+    }
+    if (devOpen) {
+        TTInstanceOf<TTSensorTask>().requestSensorUpdateAsync();
+        TTInstanceOf<TTWiFiTask>().requestDebugServer(debugOn);
+    }
+    if (_restartOnApply) {
+        _sendSaveResult(200, "配置已保存", "屏幕型号已更改，设备即将重启。可以关闭此页面。");
+        _applyAt = millis() + TT_WIFI_APPLY_DELAY_MS;
+        _applyPending = true;
+        return;
+    }
+    _sendSaveResult(200, "配置已保存", "已保存。设备保持当前网络连接。可以关闭此页面。");
 }
 
 void TTConfigServer::_handleStatus() {
@@ -423,6 +464,9 @@ bool TTConfigServer::_devPasswordOk() {
 }
 
 void TTConfigServer::_handleDevOpen() {
+    if (_rejectUnlessLan()) {
+        return;
+    }
     if (!_devPasswordOk()) {
         LOG_W("Dev: open rejected");
         _server.send(200, "text/html; charset=utf-8", _getHTMLContent(false, true));
@@ -433,6 +477,9 @@ void TTConfigServer::_handleDevOpen() {
 }
 
 void TTConfigServer::_handleDevSave() {
+    if (_rejectUnlessLan()) {
+        return;
+    }
     if (!_devPasswordOk()) {
         LOG_W("Dev: save rejected");
         _server.send(200, "text/html; charset=utf-8", _getHTMLContent(false, true));
@@ -440,14 +487,18 @@ void TTConfigServer::_handleDevSave() {
     }
     const bool enabled = _server.arg("shot") == "1";
     const bool baroOff = _server.arg("baro_off") == "1";
+    const bool debugOn = _server.arg("debug") == "1";
     auto& pref = TTInstanceOf<TTPreference>();
-    if (!pref.set(PREF_DEV_SHOT, enabled) || !pref.set(PREF_DEV_BARO_OFF, baroOff) || !pref.sync()) {
+    if (!pref.set(PREF_DEV_SHOT, enabled) || !pref.set(PREF_DEV_BARO_OFF, baroOff)
+        || !pref.set(PREF_DEV_DEBUG, debugOn) || !pref.sync()) {
         LOG_E("Dev: save failed");
         _sendSaveResult(500, "保存失败", "无法保存开发者选项");
         return;
     }
-    LOG_I("Dev: screenshot %s, barometer %s", enabled ? "on" : "off", baroOff ? "off" : "on");
+    LOG_I("Dev: screenshot %s, barometer %s, debug %s",
+          enabled ? "on" : "off", baroOff ? "off" : "on", debugOn ? "on" : "off");
     TTInstanceOf<TTSensorTask>().requestSensorUpdateAsync();
+    TTInstanceOf<TTWiFiTask>().requestDebugServer(debugOn);
     _server.send(200, "text/html; charset=utf-8", _getHTMLContent(true, false, _server.arg("password")));
 }
 
@@ -468,8 +519,10 @@ String TTConfigServer::_devPanelHtml(bool devOpen, bool devDenied, const String&
     const bool enabled = TTInstanceOf<TTScreenshotDisplay>().shotsEnabled();
     bool baroOff = false;
     TTInstanceOf<TTPreference>().get(PREF_DEV_BARO_OFF, baroOff, false);
-    html += F("<form method='post' action='/dev/save'>");
-    html += F("<input type='hidden' name='password' value='");
+    bool debugOn = false;
+    TTInstanceOf<TTPreference>().get(PREF_DEV_DEBUG, debugOn, false);
+    html += F("<input type='hidden' name='dev_open' value='1'>");
+    html += F("<input type='hidden' name='dev_password' value='");
     appendHtmlText(html, devPassword.c_str());
     html += F("'>");
     html += F("<label class='row'><input type='checkbox' name='shot' value='1'");
@@ -482,7 +535,14 @@ String TTConfigServer::_devPanelHtml(bool devOpen, bool devDenied, const String&
         html += F(" checked");
     }
     html += F(">关闭气压计</label>");
-    html += F("<button class='devbtn' type='submit'>保存</button></form>");
+    html += F("<label class='row'><input type='checkbox' name='debug' value='1'");
+    if (debugOn) {
+        html += F(" checked");
+    }
+    html += F(">启用调试服务</label>");
+    html += F("<p class='tip'>勾选后在 ");
+    html += String(TT_DEBUG_HTTP_PORT);
+    html += F(" 端口提供按键和截图，可与配置页、传书同时使用。</p>");
     if (enabled) {
         html += F("<a class='shots' href='/shots'>截图下载与删除</a>");
     }
@@ -491,6 +551,9 @@ String TTConfigServer::_devPanelHtml(bool devOpen, bool devDenied, const String&
 }
 
 void TTConfigServer::_handleShots() {
+    if (_rejectUnlessLan()) {
+        return;
+    }
     if (!TTInstanceOf<TTScreenshotDisplay>().shotsEnabled()) {
         _server.send(404, "text/plain", "Not found");
         return;
@@ -536,6 +599,9 @@ void TTConfigServer::_handleShots() {
 }
 
 void TTConfigServer::_handleShotFile() {
+    if (_rejectUnlessLan()) {
+        return;
+    }
     if (!TTInstanceOf<TTScreenshotDisplay>().shotsEnabled()) {
         _server.send(404, "text/plain", "Not found");
         return;
@@ -568,6 +634,9 @@ void TTConfigServer::_handleShotFile() {
 }
 
 void TTConfigServer::_handleShotsZip() {
+    if (_rejectUnlessLan()) {
+        return;
+    }
     if (!TTInstanceOf<TTScreenshotDisplay>().shotsEnabled()) {
         _server.send(404, "text/plain", "Not found");
         return;
@@ -595,6 +664,9 @@ void TTConfigServer::_handleShotsZip() {
 }
 
 void TTConfigServer::_handleShotDelete() {
+    if (_rejectUnlessLan()) {
+        return;
+    }
     if (!TTInstanceOf<TTScreenshotDisplay>().shotsEnabled()) {
         _server.send(404, "text/plain", "Not found");
         return;
@@ -617,6 +689,9 @@ void TTConfigServer::_handleShotDelete() {
 }
 
 void TTConfigServer::_handleShotsClear() {
+    if (_rejectUnlessLan()) {
+        return;
+    }
     if (!TTInstanceOf<TTScreenshotDisplay>().shotsEnabled()) {
         _server.send(404, "text/plain", "Not found");
         return;
@@ -637,7 +712,19 @@ void TTConfigServer::_handleShotsClear() {
     _server.send(303, "text/plain", "");
 }
 
+bool TTConfigServer::_rejectUnlessLan() {
+    if (_kind == TT_PORTAL_LAN) {
+        return false;
+    }
+    _server.send(404, "text/plain", "Not found");
+    return true;
+}
+
 void TTConfigServer::_handleNotFound() {
+    if (_kind == TT_PORTAL_LAN) {
+        _server.send(404, "text/plain", "Not found");
+        return;
+    }
     _server.sendHeader("Location", String("http://") + WiFi.softAPIP().toString(), true);
     _server.send(302, "text/plain", "");
 }
@@ -683,7 +770,8 @@ String TTConfigServer::_getHTMLContent(bool devOpen, bool devDenied, const Strin
             <button type="button" class="tab" data-tab="hw">硬件</button>
             <button type="button" class="tab" data-tab="dev">开发者</button>
         </div>
-        <form method="post" action="/save" onsubmit="return onSubmit()">
+        <form id="setup" method="post" action="/save" onsubmit="return onSubmit()">
+            <input type="hidden" name="portal" value="<!--PORTAL-->">
             <div class="panel on" id="panel-wifi">
                 <label>名称</label>
                 <select id="ssid-select" onchange="document.getElementById('ssid').value=this.value">
@@ -733,9 +821,10 @@ String TTConfigServer::_getHTMLContent(bool devOpen, bool devDenied, const Strin
                     <option value="a0-3">HINK-E042A13 A0-3</option>
                 </select>
             </div>
-            <button class="save" type="submit">完成配置</button>
+            <!--DEV_FIELDS-->
         </form>
-        <!--DEV-->
+        <!--DEV_LOCK-->
+        <button class="save" type="submit" form="setup">完成配置</button>
     </div>
     <script>
         const CITIES = {
@@ -798,6 +887,10 @@ String TTConfigServer::_getHTMLContent(bool devOpen, bool devDenied, const Strin
         }
         function fillSaved(status, scan) {
             const s = document.getElementById('ssid-select');
+            if (!s) {
+                fillDevice(status);
+                return;
+            }
             s.innerHTML = '<option value="">选择网络...</option>';
             const networks = scan.networks || [];
             networks.forEach(n => {
@@ -820,30 +913,25 @@ String TTConfigServer::_getHTMLContent(bool devOpen, bool devDenied, const Strin
             if (status.timezone || status.label) {
                 selectCity(status.timezone || '', status.label || '');
             }
-            if (status.weather_region) {
-                document.getElementById('weather_region').value = status.weather_region;
-            }
-            if (status.weather_city) {
-                document.getElementById('weather_city').value = status.weather_city;
-            }
+            fillDevice(status);
+        }
+        function setValue(id, value) {
+            const el = document.getElementById(id);
+            if (el && value !== undefined && value !== null && value !== '') el.value = value;
+        }
+        function fillDevice(status) {
+            setValue('weather_region', status.weather_region);
+            setValue('weather_city', status.weather_city);
             if (status.weather_lat !== undefined && status.weather_lat !== null) {
-                document.getElementById('weather_lat').value = status.weather_lat;
+                setValue('weather_lat', status.weather_lat);
             }
             if (status.weather_lon !== undefined && status.weather_lon !== null) {
-                document.getElementById('weather_lon').value = status.weather_lon;
+                setValue('weather_lon', status.weather_lon);
             }
-            if (status.caldav_host) {
-                document.getElementById('caldav_host').value = status.caldav_host;
-            }
-            if (status.caldav_user) {
-                document.getElementById('caldav_user').value = status.caldav_user;
-            }
-            if (status.caldav_pass) {
-                document.getElementById('caldav_pass').value = status.caldav_pass;
-            }
-            if (status.epd_panel) {
-                document.getElementById('epd_panel').value = status.epd_panel;
-            }
+            setValue('caldav_host', status.caldav_host);
+            setValue('caldav_user', status.caldav_user);
+            setValue('caldav_pass', status.caldav_pass);
+            setValue('epd_panel', status.epd_panel);
         }
         function showTab(name) {
             document.querySelectorAll('.tab').forEach(el => {
@@ -852,8 +940,6 @@ String TTConfigServer::_getHTMLContent(bool devOpen, bool devDenied, const Strin
             document.querySelectorAll('.panel').forEach(el => {
                 el.classList.toggle('on', el.id === 'panel-' + name);
             });
-            const save = document.querySelector('button.save');
-            if (save) save.style.display = name === 'dev' ? 'none' : '';
             const tab = document.querySelector('.tab[data-tab="' + name + '"]');
             if (tab) tab.scrollIntoView({ inline: 'nearest', block: 'nearest' });
             if (name === 'dev') {
@@ -865,8 +951,36 @@ String TTConfigServer::_getHTMLContent(bool devOpen, bool devDenied, const Strin
             el.addEventListener('click', () => showTab(el.dataset.tab));
         });
         const devState = "<!--DEV_STATE-->";
-        if (devState === "open" || devState === "denied") showTab("dev");
+        const portalKind = "<!--PORTAL-->";
+        function applyPortal() {
+            const drop = portalKind === "device"
+                ? ["wifi", "tz"]
+                : ["weather", "cal", "hw", "dev"];
+            drop.forEach(name => {
+                const tab = document.querySelector('.tab[data-tab="' + name + '"]');
+                if (tab) tab.remove();
+                const panel = document.getElementById('panel-' + name);
+                if (panel) panel.remove();
+            });
+            const title = document.querySelector('h2');
+            const tip = document.querySelector('p.tip');
+            if (portalKind === "device") {
+                if (title) title.textContent = "Web 设置";
+                if (tip) tip.textContent = "按分类填写。设备保持当前局域网连接，保存后可关闭页面。";
+                showTab("weather");
+            } else {
+                if (title) title.textContent = "联网设置";
+                if (tip) tip.textContent = "按分类填写。完成配置后设备将关闭热点并连接 Wi-Fi。";
+                showTab("wifi");
+            }
+        }
         function onSubmit() {
+            if (portalKind === "device") {
+                const btn = document.querySelector('button.save');
+                btn.disabled = true;
+                btn.textContent = '保存中...';
+                return true;
+            }
             applyCity();
             const ssid = document.getElementById('ssid').value.replace(/^\s+|\s+$/g, '');
             document.getElementById('ssid').value = ssid;
@@ -887,6 +1001,8 @@ String TTConfigServer::_getHTMLContent(bool devOpen, bool devDenied, const Strin
         }
         fillRegions();
         fillCities();
+        applyPortal();
+        if (devState === "open" || devState === "denied") showTab("dev");
         Promise.all([
             fetch('/status').then(r => r.json()).catch(() => ({})),
             fetch('/scan').then(r => r.json()).catch(() => ({}))
@@ -896,6 +1012,8 @@ String TTConfigServer::_getHTMLContent(bool devOpen, bool devDenied, const Strin
 </html>
 )html");
     html.replace("<!--DEV_STATE-->", devOpen ? "open" : (devDenied ? "denied" : "idle"));
-    html.replace("<!--DEV-->", _devPanelHtml(devOpen, devDenied, devPassword));
+    html.replace("<!--DEV_FIELDS-->", devOpen ? _devPanelHtml(true, false, devPassword) : String(""));
+    html.replace("<!--DEV_LOCK-->", devOpen ? String("") : _devPanelHtml(false, devDenied, ""));
+    html.replace("<!--PORTAL-->", _kind == TT_PORTAL_LAN ? "device" : "network");
     return html;
 }
