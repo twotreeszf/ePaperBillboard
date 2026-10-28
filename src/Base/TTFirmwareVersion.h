@@ -1,3 +1,3 @@
 #pragma once
 
-#define TT_FW_VERSION "202610280111"
+#define TT_FW_VERSION "202610281351"
