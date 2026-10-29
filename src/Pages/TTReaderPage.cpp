@@ -20,12 +20,20 @@
 
 static_assert(TT_READER_IMAGE_PAGE_W == EPD_WIDTH, "image page width");
 static_assert(TT_READER_IMAGE_PAGE_H == EPD_HEIGHT - TT_NAV_PAGE_INSET, "image page height");
+static_assert(((EPD_HEIGHT - TT_NAV_PAGE_INSET)
+                  - TT_READER_PAGE_LINES * TT_READER_BODY_FONT_SIZE
+                  - (TT_READER_PAGE_LINES - 1) * TT_READER_LINE_GAP) % 2 == 0,
+              "11 body lines must leave an even margin above and below");
 
 static void readerTextFrame(const TTFontLoader* font, int32_t& top, int32_t& height) {
     const int32_t lineH = font != nullptr ? font->getLineHeight() : TT_READER_BODY_FONT_SIZE;
-    top = TT_READER_MARGIN_TOP;
+    const int32_t contentH = EPD_HEIGHT - TT_NAV_PAGE_INSET;
     height = TT_READER_PAGE_LINES * lineH + (TT_READER_PAGE_LINES - 1) * TT_READER_LINE_GAP;
-    const int32_t bottom = (EPD_HEIGHT - TT_NAV_PAGE_INSET) - top - height;
+    if (height > contentH) {
+        height = contentH;
+    }
+    top = (contentH - height) / 2;
+    const int32_t bottom = contentH - top - height;
     LOG_I("Reader frame: lines=%d lineH=%d gap=%d top=%d bottom=%d",
           TT_READER_PAGE_LINES, (int)lineH, TT_READER_LINE_GAP, (int)top, (int)bottom);
 }

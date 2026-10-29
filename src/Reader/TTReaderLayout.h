@@ -7,7 +7,7 @@
 
 #define TT_READER_LAYOUT_VERSION    2
 #define TT_READER_PAGE_LINES        11
-#define TT_READER_LINE_GAP          10
+#define TT_READER_LINE_GAP          12
 #define TT_READER_PARA_GAP          8
 #define TT_READER_JUSTIFY_MAX_GAP   12
 #define TT_READER_INDENT_CHARS      2
