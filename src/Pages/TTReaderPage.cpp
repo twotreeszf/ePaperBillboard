@@ -22,7 +22,7 @@ static_assert(TT_READER_IMAGE_PAGE_W == EPD_WIDTH, "image page width");
 static_assert(TT_READER_IMAGE_PAGE_H == EPD_HEIGHT - TT_NAV_PAGE_INSET, "image page height");
 
 static void readerTextFrame(const TTFontLoader* font, int32_t& top, int32_t& height) {
-    const int32_t lineH = font != nullptr ? font->getLineHeight() : TT_READER_FONT_SIZE;
+    const int32_t lineH = font != nullptr ? font->getLineHeight() : TT_READER_BODY_FONT_SIZE;
     top = TT_READER_MARGIN_TOP;
     height = TT_READER_PAGE_LINES * lineH + (TT_READER_PAGE_LINES - 1) * TT_READER_LINE_GAP;
     const int32_t bottom = (EPD_HEIGHT - TT_NAV_PAGE_INSET) - top - height;
@@ -62,7 +62,7 @@ void TTReaderPage::buildContent(lv_obj_t* screen) {
     lv_obj_set_hidden(_image, true);
 
     _imageNote = lv_label_create(screen);
-    lv_obj_set_style_text_font(_imageNote, fonts.getFont(TT_READER_FONT_SIZE), 0);
+    lv_obj_set_style_text_font(_imageNote, fonts.getFont(TT_READER_BODY_FONT_SIZE), 0);
     lv_obj_set_style_text_color(_imageNote, lv_color_black(), 0);
     lv_obj_set_style_text_align(_imageNote, LV_TEXT_ALIGN_CENTER, 0);
     lv_obj_set_width(_imageNote, TT_READER_IMAGE_PAGE_W);
@@ -225,7 +225,10 @@ const char* TTReaderPage::openBook() {
     if (!checkEncoding()) {
         return TT_READER_TEXT_ENCODING;
     }
-    TTFontLoader* textFont = TTFontManager::instance().getLoader(TT_READER_FONT_SIZE);
+    TTFontLoader* textFont = TTFontManager::instance().getLoader(TT_READER_BODY_FONT_SIZE);
+    if (textFont == nullptr) {
+        textFont = TTFontManager::instance().getLoader(TT_READER_FONT_SIZE);
+    }
     int32_t textTop = 0;
     int32_t textH = 0;
     readerTextFrame(textFont, textTop, textH);
@@ -233,7 +236,8 @@ const char* TTReaderPage::openBook() {
     lv_obj_set_size(_textView, TT_READER_TEXT_W, textH);
     const bool markdown = TTBookStore::isMarkdownName(_book.name.c_str());
     TTFontLoader* codeFont = markdown ? TTFontManager::instance().getLoader(TT_READER_CODE_FONT_SIZE) : nullptr;
-    if (!_layout.begin(textFont, codeFont, TT_READER_TEXT_W, (int16_t)textH, markdown)) {
+    TTFontLoader* titleFont = TTFontManager::instance().getLoader(TT_READER_FONT_SIZE);
+    if (!_layout.begin(textFont, codeFont, TT_READER_TEXT_W, (int16_t)textH, markdown, titleFont)) {
         return TT_READER_TEXT_OPEN_FAILED;
     }
 
@@ -521,27 +525,12 @@ void TTReaderPage::updateFooter() {
     snprintf(percent, sizeof(percent), "%u.%u%%", (unsigned)(permille / 10), (unsigned)(permille % 10));
 
     _pageIndex = currentPageIndex();
-    const bool paging = _index.isOpen() && !_index.isComplete();
     char pages[TT_READER_FOOTER_TEXT_MAX];
     pages[0] = '\0';
-    if (_pageIndex >= 0 && _index.isComplete()) {
+    if (_pageIndex >= 0) {
+        const uint32_t total = _index.isComplete() ? _index.pageCount() : _index.estimatedPages();
         snprintf(pages, sizeof(pages), "%d / %u",
-                 (int)(_pageIndex + 1), (unsigned)_index.pageCount());
-    } else if (_pageIndex >= 0 && paging) {
-        char dots[TT_READER_PAGING_DOTS_MAX + 1];
-        uint8_t count = _pagingDots;
-        if (count < 1 || count > TT_READER_PAGING_DOTS_MAX) {
-            count = 1;
-        }
-        for (uint8_t i = 0; i < count; i++) {
-            dots[i] = '.';
-        }
-        dots[count] = '\0';
-        snprintf(pages, sizeof(pages), "%d / %u%s",
-                 (int)(_pageIndex + 1), (unsigned)_index.estimatedPages(), dots);
-    } else if (_pageIndex >= 0) {
-        snprintf(pages, sizeof(pages), "%d / %u",
-                 (int)(_pageIndex + 1), (unsigned)_index.estimatedPages());
+                 (int)(_pageIndex + 1), (unsigned)total);
     }
     if (_footer != nullptr) {
         lv_label_set_text(_footer, pages);
@@ -590,8 +579,6 @@ void TTReaderPage::startIndexing() {
         return;
     }
     _indexStartMs = millis();
-    _pagingDots = 1;
-    _pagingDotMs = _indexStartMs;
     LOG_I("Reader: index start pages=%u parsed=%u/%u",
           (unsigned)_index.pageCount(), (unsigned)_index.parsedBytes(), (unsigned)_source.size());
     _indexHandle = runRepeat(TT_READER_INDEX_TICK_MS, [this]() { indexStep(); }, false);
@@ -657,17 +644,7 @@ void TTReaderPage::indexStep() {
         stopIndexing();
     }
     const bool pageKnown = !wasKnown && _index.covers(_page->start);
-    if (pageKnown && !complete) {
-        _pagingDots = 1;
-        _pagingDotMs = millis();
-    }
-    bool refreshFooter = complete || pageKnown;
-    if (!complete && wasKnown && millis() - _pagingDotMs >= TT_READER_PAGING_DOT_MS) {
-        _pagingDots = (uint8_t)(_pagingDots % TT_READER_PAGING_DOTS_MAX) + 1;
-        _pagingDotMs = millis();
-        refreshFooter = true;
-    }
-    if (refreshFooter) {
+    if (complete || pageKnown) {
         updateFooter();
         if (_visible) {
             requestRefresh(TT_REFRESH_PARTIAL);

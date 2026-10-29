@@ -21,6 +21,16 @@ void TTBoldLabel::onDraw(lv_event_t* e) {
     lv_draw_label(lv_event_get_layer(e), &dsc, &coords);
 }
 
+void TTBoldLabel::setEnabled(lv_obj_t* label, bool enabled) {
+    if (label == nullptr) {
+        return;
+    }
+    lv_obj_remove_event_cb(label, onDraw);
+    if (enabled) {
+        lv_obj_add_event_cb(label, onDraw, LV_EVENT_DRAW_MAIN, nullptr);
+    }
+}
+
 lv_obj_t* TTBoldLabel::create(lv_obj_t* parent, const char* text, lv_font_t* font) {
     lv_obj_t* label = lv_label_create(parent);
     lv_label_set_text(label, text != nullptr ? text : "");

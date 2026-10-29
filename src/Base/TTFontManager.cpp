@@ -11,6 +11,7 @@ static const struct {
 } TT_FONT_ENTRIES[] = {
     { 10, TT_FS_FONT_DIR "/all_10.bin", nullptr, TT_FONT_GLYPH_CACHE_CJK },
     { 12, TT_FS_FONT_DIR "/all_12.bin", nullptr, TT_FONT_GLYPH_CACHE_CJK },
+    { 14, TT_FS_RES_DIR "/fonts/all_14.bin", nullptr, TT_FONT_GLYPH_CACHE_READER },
     { 16, TT_FS_FONT_DIR "/all_16.bin", nullptr, TT_FONT_GLYPH_CACHE_READER },
     { 32, TT_FS_RES_DIR "/fonts/en_32.bin", nullptr, TT_FONT_GLYPH_CACHE_LATIN },
     { 40, TT_FS_RES_DIR "/fonts/en_40.bin", nullptr, TT_FONT_GLYPH_CACHE_LATIN },

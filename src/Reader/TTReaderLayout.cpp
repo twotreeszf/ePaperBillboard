@@ -3,12 +3,13 @@
 #include "../Base/Logger.h"
 
 bool TTReaderLayout::begin(TTFontLoader* font, TTFontLoader* codeFont, int16_t width, int16_t height,
-                           bool markdown) {
+                           bool markdown, TTFontLoader* titleFont) {
     _font = font;
     if (_font == nullptr || width <= 0 || height <= 0) {
         LOG_E("Reader layout: invalid font or size %dx%d", (int)width, (int)height);
         return false;
     }
+    _titleFont = titleFont != nullptr ? titleFont : _font;
     if (codeFont == nullptr) {
         if (markdown) {
             LOG_W("Reader layout: code font missing, use text font");
@@ -21,6 +22,8 @@ bool TTReaderLayout::begin(TTFontLoader* font, TTFontLoader* codeFont, int16_t w
     _markdown = markdown;
     _lineHeight = (int16_t)_font->getLineHeight();
     _ascent = (int16_t)(_font->getLineHeight() - _font->getBaseLine());
+    _titleLineHeight = (int16_t)_titleFont->getLineHeight();
+    _titleAscent = (int16_t)(_titleFont->getLineHeight() - _titleFont->getBaseLine());
 
     uint32_t shown = 0;
     TTFontLoader::GlyphInfo info = {};
@@ -30,6 +33,9 @@ bool TTReaderLayout::begin(TTFontLoader* font, TTFontLoader* codeFont, int16_t w
     info = {};
     glyph(_font, ' ', shown, info);
     _spaceAdv = info.adv_w;
+    info = {};
+    glyph(_titleFont, ' ', shown, info);
+    _titleSpaceAdv = info.adv_w;
     info = {};
     glyph(_font, TT_READER_BULLET_GLYPH, shown, info);
     _bulletX = info.adv_w < _unit ? (int16_t)((_unit - info.adv_w) / 2) : 0;
@@ -61,7 +67,7 @@ bool TTReaderLayout::begin(TTFontLoader* font, TTFontLoader* codeFont, int16_t w
         const int32_t mdConfig[] = {
             TT_MD_LAYOUT_VERSION, _unit, _bulletX, TT_READER_BOLD_EXTRA, TT_READER_ITALIC_TAIL,
             TT_READER_QUOTE_BAR_X, TT_READER_QUOTE_BAR_W, TT_READER_QUOTE_LINE_GAP, _quoteLineHeight,
-            _quoteInkTop, _quoteInkBottom,
+            _quoteInkTop, _quoteInkBottom, _titleLineHeight, _titleAscent,
             TT_MD_LIST_LEVEL_COLUMNS, TT_MD_CONTEXT_MAX,
             (int32_t)_codeFont->getLineHeight(), (int32_t)_codeFont->getBaseLine(), _codeSpaceAdv,
             TT_READER_CODE_PITCH, TT_READER_CODE_PAD_X, TT_READER_CODE_PAD_Y, TT_READER_CODE_BORDER,
@@ -153,9 +159,10 @@ TTReaderLayout::LineEnd TTReaderLayout::fillLine(TTReaderSource& src, uint32_t& 
 
     const bool code = md != nullptr && md->block.kind == TT_MD_CODE;
     const bool quote = md != nullptr && md->block.kind == TT_MD_QUOTE;
+    const bool heading = md != nullptr && md->block.kind == TT_MD_HEADING;
     const bool inlineMarkdown = md != nullptr && !code;
-    TTFontLoader* font = (code || quote) ? _codeFont : _font;
-    const uint16_t spaceAdv = (code || quote) ? _codeSpaceAdv : _spaceAdv;
+    TTFontLoader* font = (code || quote) ? _codeFont : heading ? _titleFont : _font;
+    const uint16_t spaceAdv = (code || quote) ? _codeSpaceAdv : heading ? _titleSpaceAdv : _spaceAdv;
     const int32_t right = code ? _width - TT_READER_CODE_INSET_X : _width;
     uint8_t style = line.style;
     TTMdInline breakInline;
@@ -459,10 +466,23 @@ bool TTReaderLayout::layoutPage(TTReaderSource& src, uint32_t start, TTReaderPag
         const bool codeLine = md != nullptr && cursor.fence;
         const bool quoteFit = (md != nullptr && cursor.block.kind == TT_MD_QUOTE)
             || (mdBlockStart && !cursor.fence);
+        int16_t textStep = _lineHeight;
+        if (md != nullptr && !codeLine) {
+            if (!mdBlockStart && cursor.block.kind == TT_MD_HEADING) {
+                textStep = _titleLineHeight;
+            } else if (mdBlockStart && !cursor.fence) {
+                uint32_t saved = offset;
+                const TTMdBlock peeked = tt_md_parse_block(src, saved, columns);
+                if (peeked.kind == TT_MD_HEADING) {
+                    textStep = _titleLineHeight;
+                }
+            }
+        }
         const int16_t lineY = (int16_t)(y + ((paragraph && page.lineCount > 0) ? TT_READER_PARA_GAP : 0));
         const int32_t lineBottom = codeLine ? lineY + TT_READER_CODE_PITCH + TT_READER_CODE_INSET_Y
+                                            : textStep > _lineHeight ? lineY + textStep
                                             : quoteFit ? lineY + _quoteLineHeight
-                                                       : lineY + _lineHeight;
+                                                       : lineY + textStep;
         if (page.lineCount >= maxLines || lineBottom > _height) {
             page.end = lineStart;
             break;
@@ -521,7 +541,7 @@ bool TTReaderLayout::layoutPage(TTReaderSource& src, uint32_t start, TTReaderPag
             x0 = contX;
         }
         const bool quoteLine = md != nullptr && cursor.block.kind == TT_MD_QUOTE;
-        if (!codeLine && !quoteLine && lineY + _lineHeight > _height) {
+        if (!codeLine && !quoteLine && lineY + textStep > _height) {
             page.end = lineStart;
             break;
         }
@@ -555,7 +575,7 @@ bool TTReaderLayout::layoutPage(TTReaderSource& src, uint32_t start, TTReaderPag
         if (mdBlockStart && cursor.block.kind == TT_MD_HEADING && cursor.block.level == 1
             && line.textLen > 0
             && (reason == TT_LINE_END_PARAGRAPH || reason == TT_LINE_END_EOF)) {
-            const int32_t w = textWidth(page.text + line.textStart, line.textLen, line.style);
+            const int32_t w = textWidth(page.text + line.textStart, line.textLen, line.style, _titleFont);
             if (w > 0 && w <= _width) {
                 line.x = (int16_t)((_width - w) / 2);
                 LOG_D("Reader markdown: center h1 width=%d x=%d", (int)w, (int)line.x);
@@ -582,6 +602,9 @@ bool TTReaderLayout::layoutPage(TTReaderSource& src, uint32_t start, TTReaderPag
             page.atEnd = true;
             break;
         }
+        if (md != nullptr && cursor.block.kind == TT_MD_HEADING) {
+            line.flags |= TT_READER_LINE_FLAG_HEADING;
+        }
         if (md != nullptr && cursor.block.kind == TT_MD_QUOTE && cursor.block.level > 0) {
             line.flags |= TT_READER_LINE_FLAG_QUOTE;
             line.markX = cursor.block.level;
@@ -594,9 +617,11 @@ bool TTReaderLayout::layoutPage(TTReaderSource& src, uint32_t start, TTReaderPag
             page.lineCount++;
             const bool placedQuote = md != nullptr && cursor.block.kind == TT_MD_QUOTE;
             const int16_t quoteStep = (int16_t)(_quoteLineHeight + TT_READER_QUOTE_LINE_GAP);
+            const int16_t placedStep = (line.flags & TT_READER_LINE_FLAG_HEADING) != 0
+                ? _titleLineHeight : _lineHeight;
             y = (int16_t)(lineY + (codeLine ? TT_READER_CODE_PITCH
                                             : placedQuote ? quoteStep
-                                                          : _lineHeight + TT_READER_LINE_GAP));
+                                                          : placedStep + TT_READER_LINE_GAP));
         }
         paragraph = reason == TT_LINE_END_PARAGRAPH;
         if (reason == TT_LINE_END_BUFFER) {
@@ -729,7 +754,10 @@ bool TTReaderLayout::markdownTailEmpty(TTReaderSource& src, uint32_t offset) {
     }
 }
 
-int32_t TTReaderLayout::textWidth(const char* text, uint16_t len, uint8_t style) {
+int32_t TTReaderLayout::textWidth(const char* text, uint16_t len, uint8_t style, TTFontLoader* font) {
+    if (font == nullptr) {
+        font = _font;
+    }
     int32_t x = 0;
     uint16_t count = 0;
     uint32_t lastCp = 0;
@@ -750,7 +778,7 @@ int32_t TTReaderLayout::textWidth(const char* text, uint16_t len, uint8_t style)
         pos += n > 0 ? n : 1;
         uint32_t shown = 0;
         TTFontLoader::GlyphInfo info = {};
-        if (!glyph(_font, cp, shown, info) && shown == 0) {
+        if (!glyph(font, cp, shown, info) && shown == 0) {
             continue;
         }
         x += info.adv_w;

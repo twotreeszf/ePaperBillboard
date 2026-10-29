@@ -7,6 +7,7 @@
 class TTBoldLabel {
 public:
     static lv_obj_t* create(lv_obj_t* parent, const char* text, lv_font_t* font);
+    static void setEnabled(lv_obj_t* label, bool enabled);
 
 private:
     static void onDraw(lv_event_t* e);

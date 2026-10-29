@@ -6,7 +6,7 @@
 #include "../Base/TTFontLoader.h"
 
 #define TT_READER_LAYOUT_VERSION    2
-#define TT_READER_PAGE_LINES        10
+#define TT_READER_PAGE_LINES        11
 #define TT_READER_LINE_GAP          10
 #define TT_READER_PARA_GAP          8
 #define TT_READER_JUSTIFY_MAX_GAP   12
@@ -34,6 +34,7 @@
 #define TT_READER_LINE_FLAG_EXACT       0x04
 #define TT_READER_LINE_FLAG_TASK_DONE   0x08
 #define TT_READER_LINE_FLAG_QUOTE       0x10
+#define TT_READER_LINE_FLAG_HEADING     0x20
 #define TT_READER_QUOTE_BAR_X           2
 #define TT_READER_QUOTE_BAR_W           2
 #define TT_READER_QUOTE_LINE_GAP        6
@@ -82,14 +83,18 @@ struct TTReaderPageLayout {
 
 class TTReaderLayout {
 public:
-    bool begin(TTFontLoader* font, TTFontLoader* codeFont, int16_t width, int16_t height, bool markdown);
+    bool begin(TTFontLoader* font, TTFontLoader* codeFont, int16_t width, int16_t height, bool markdown,
+               TTFontLoader* titleFont = nullptr);
     bool layoutPage(TTReaderSource& src, uint32_t start, TTReaderPageLayout& page);
 
     TTFontLoader* font() const { return _font; }
+    TTFontLoader* titleFont() const { return _titleFont; }
     TTFontLoader* codeFont() const { return _codeFont; }
     uint32_t configHash() const { return _configHash; }
     int16_t ascent() const { return _ascent; }
     int16_t lineHeight() const { return _lineHeight; }
+    int16_t titleAscent() const { return _titleAscent; }
+    int16_t titleLineHeight() const { return _titleLineHeight; }
     int16_t codeBaseline() const { return _codeBaseline; }
     int16_t quoteAscent() const { return _quoteAscent; }
     int16_t quoteLineHeight() const { return _quoteLineHeight; }
@@ -122,7 +127,7 @@ private:
                        TTMdCursor& cursor, int16_t& contX);
     bool markdownTailEmpty(TTReaderSource& src, uint32_t offset);
     int16_t blockX(const TTMdBlock& block, bool first) const;
-    int32_t textWidth(const char* text, uint16_t len, uint8_t style);
+    int32_t textWidth(const char* text, uint16_t len, uint8_t style, TTFontLoader* font);
     int16_t codeX(uint8_t columns) const;
     uint8_t cellStyle(const TTMdInline& inl, bool header) const;
     int32_t cellWidth(TTReaderSource& src, uint32_t start, uint32_t end, bool header);
@@ -133,15 +138,19 @@ private:
     TableLay layoutTable(TTReaderSource& src, uint32_t offset, TTReaderPageLayout& page, int16_t& y, uint32_t& end);
 
     TTFontLoader* _font = nullptr;
+    TTFontLoader* _titleFont = nullptr;
     TTFontLoader* _codeFont = nullptr;
     int16_t _width = 0;
     int16_t _height = 0;
     int16_t _ascent = 0;
     int16_t _lineHeight = 0;
+    int16_t _titleAscent = 0;
+    int16_t _titleLineHeight = 0;
     int16_t _indent = 0;
     int16_t _unit = 0;
     int16_t _bulletX = 0;
     uint16_t _spaceAdv = 0;
+    uint16_t _titleSpaceAdv = 0;
     uint16_t _codeSpaceAdv = 0;
     uint16_t _codeUnit = 0;
     int16_t _codeBaseline = 0;

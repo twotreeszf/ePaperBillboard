@@ -15,13 +15,16 @@
 #define TT_CAL_AGE_FAIL_SRC    TT_FS_RES_DIR "/icons/weather/cross_8.i1"
 #define TT_CAL_PAGE_SLOTS   10
 #define TT_CAL_ROW_H        26
+#define TT_CAL_DATE_ROW_H   18
 #define TT_CAL_EVENT_LEAD_TRIM 2
+#define TT_CAL_EVENT_LINE_GAP  4
 #define TT_CAL_ROW_MAX      80
 #define TT_CAL_PAGE_MAX     16
 #define TT_CAL_PAD             6
 #define TT_CAL_PAGE_FOOT       12
-#define TT_CAL_DATE_EVENT_GAP  6
-#define TT_CAL_DAY_RULE        16
+#define TT_CAL_DATE_EVENT_GAP  8
+#define TT_CAL_OTHER_DAY_GAP   16
+#define TT_CAL_CURRENT_NEXT_GAP 4
 #define TT_CAL_AXIS_GAP        ((TT_CAL_MARK_LG / 2) + TT_CAL_SIDE_W - ((TT_CAL_SIDE_W + TT_CAL_ICON) / 2))
 #define TT_CAL_AXIS_X          (TT_CAL_MARK_LG / 2)
 #define TT_CAL_TEXT_X          (TT_CAL_AXIS_X + TT_CAL_AXIS_GAP)
@@ -36,6 +39,9 @@
 #define TT_CAL_MARK_BORDER     1
 #define TT_CAL_MARK_DY         1
 #define TT_CAL_CURRENT_LEAD_SEC (15 * 60)
+#define TT_CAL_CURRENT_PAD_X   4
+#define TT_CAL_CURRENT_PAD_Y   5
+#define TT_CAL_CURRENT_LINE    2
 #define TT_CAL_RULE_DASH       3
 #define TT_CAL_RULE_GAP        2
 #define TT_CAL_AXIS_STUB_GAP   2
@@ -60,15 +66,20 @@
 #define TT_CAL_EN40_INK_TOP    7
 #define TT_CAL_TEXT_FONT       16
 #define TT_CAL_COND_FONT       16
-#define TT_CAL_DATE_FONT       16
-#define TT_CAL_EVENT_FONT      12
+#define TT_CAL_DATE_FONT       12
+#define TT_CAL_EVENT_FONT      14
 #define TT_CAL_EVENT_DIGIT_ADV 7
-#define TT_CAL_EVENT_COLON_ADV 5
-#define TT_CAL_EVENT_TIME_W    (TT_CAL_EVENT_DIGIT_ADV * 4 + TT_CAL_EVENT_COLON_ADV)
+#define TT_CAL_EVENT_COLON_ADV 7
+#define TT_CAL_EVENT_CJK_ADV   14
+#define TT_CAL_EVENT_CLOCK_W   (TT_CAL_EVENT_DIGIT_ADV * 4 + TT_CAL_EVENT_COLON_ADV)
+#define TT_CAL_EVENT_ALLDAY_W  (TT_CAL_EVENT_CJK_ADV * 2)
+#define TT_CAL_EVENT_TIME_W    ((TT_CAL_EVENT_CLOCK_W) > (TT_CAL_EVENT_ALLDAY_W) ? \
+    (TT_CAL_EVENT_CLOCK_W) : (TT_CAL_EVENT_ALLDAY_W))
 #define TT_CAL_EVENT_TIME_GAP  6
 #define TT_CAL_PAGE_FONT       10
 #define TT_CAL_CAPSULE_PAD_X   5
-#define TT_CAL_CAPSULE_PAD_Y   1
+#define TT_CAL_CAPSULE_PAD_Y   3
+#define TT_CAL_TODAY_PAD_X     7
 #define TT_CAL_CAPSULE_BORDER  1
 #define TT_CAL_COND_TEXT_W     40
 #define TT_CAL_TEMP_GLYPHS     2
@@ -162,7 +173,6 @@ private:
     uint16_t _pageStart[TT_CAL_PAGE_MAX] = {};
     uint8_t _slotMark[TT_CAL_PAGE_SLOTS] = {};
     uint8_t _slotCapsule[TT_CAL_PAGE_SLOTS] = {};
-    uint8_t _slotRule[TT_CAL_PAGE_SLOTS] = {};
     int16_t _slotY[TT_CAL_PAGE_SLOTS] = {};
     uint8_t _count = 0;
     uint16_t _planCount = 0;

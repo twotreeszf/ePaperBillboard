@@ -9,6 +9,7 @@
 #include <memory>
 
 #define TT_READER_FONT_SIZE              16
+#define TT_READER_BODY_FONT_SIZE         14
 #define TT_READER_MARGIN_X               14
 #define TT_READER_MARGIN_TOP             6
 #define TT_READER_TITLE_MAX              64
@@ -18,8 +19,6 @@
 #define TT_READER_INDEX_BATCH_PAGES      5
 #define TT_READER_INDEX_BUDGET_MS        40
 #define TT_READER_INDEX_LOG_EVERY        100
-#define TT_READER_PAGING_DOT_MS          800
-#define TT_READER_PAGING_DOTS_MAX        3
 #define TT_READER_PROGRESS_SAVE_MS       3000
 #define TT_READER_ENCODING_MAX_INVALID   4
 #define TT_READER_UTF16_BOM_LE0          0xFF
@@ -106,8 +105,6 @@ private:
     uint32_t _saveHandle = 0;
     uint32_t _idleSleepHandle = 0;
     uint32_t _indexStartMs = 0;
-    uint32_t _pagingDotMs = 0;
-    uint8_t _pagingDots = 1;
     int32_t _pageIndex = -1;
     bool _sdAcquired = false;
     bool _visible = false;

@@ -354,7 +354,9 @@ static void draw_main(lv_event_t* e) {
             continue;
         }
         const int32_t top = coords.y1 + line.y;
-        if (top > canvas.clip.y2 || top + lineHeight + TT_READER_LINE_GAP < canvas.clip.y1) {
+        const bool headingLine = (line.flags & TT_READER_LINE_FLAG_HEADING) != 0;
+        const int16_t clipHeight = headingLine ? view->layout->titleLineHeight() : lineHeight;
+        if (top > canvas.clip.y2 || top + clipHeight + TT_READER_LINE_GAP < canvas.clip.y1) {
             continue;
         }
         if (line.kind == TT_READER_LINE_RULE) {
@@ -367,8 +369,14 @@ static void draw_main(lv_event_t* e) {
         }
         const bool quote = (line.flags & TT_READER_LINE_FLAG_QUOTE) != 0;
         const bool small = line.kind == TT_READER_LINE_CODE || line.kind == TT_READER_LINE_TABLE;
-        const int32_t baseline = top + (quote ? view->layout->quoteAscent() : small ? codeBaseline : ascent);
-        TTFontLoader* font = (small || quote) ? codeFont : textFont;
+        const int32_t baseline = top + (quote ? view->layout->quoteAscent()
+                                              : small ? codeBaseline
+                                                      : headingLine ? view->layout->titleAscent() : ascent);
+        TTFontLoader* titleFont = view->layout->titleFont();
+        if (titleFont == nullptr) {
+            titleFont = textFont;
+        }
+        TTFontLoader* font = (small || quote) ? codeFont : headingLine ? titleFont : textFont;
         TTFontLoader::GlyphInfo info = {};
         if (line.kind == TT_READER_LINE_BULLET) {
             draw_glyph(canvas, font, bits, TT_READER_BULLET_GLYPH, coords.x1 + line.markX, baseline, 0, info);

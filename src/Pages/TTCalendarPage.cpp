@@ -1,4 +1,5 @@
 #include "TTCalendarPage.h"
+#include "../Base/TTBoldLabel.h"
 #include "../Base/Logger.h"
 #include "../Service/TTCalendarService.h"
 #include "../Base/TTFontManager.h"
@@ -22,6 +23,11 @@ const char* kWeekdays[] = { "周日", "周一", "周二", "周三", "周四", "�
 const char* kWeekEn[] = { "Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat" };
 
 void sameDay(time_t unixTime, int* year, int* yday, struct tm* out);
+
+bool eventIsCurrent(const TTCalEvent& event, time_t now) {
+    const time_t currentFrom = now + TT_CAL_CURRENT_LEAD_SEC;
+    return (time_t)event.startUnix <= currentFrom && now < (time_t)event.endUnix;
+}
 
 void formatEventTime(const TTCalEvent& event, char* text, size_t textLen) {
     if (event.allDay) {
@@ -49,7 +55,7 @@ int eventRowBody(const char* text, const lv_font_t* font, int textW) {
     int textH = lineH;
     if (font != nullptr && text != nullptr && text[0] != '\0' && textW > 0) {
         lv_point_t size = {};
-        lv_text_get_size(&size, text, font, 0, 0, textW, LV_TEXT_FLAG_NONE);
+        lv_text_get_size(&size, text, font, 0, TT_CAL_EVENT_LINE_GAP, textW, LV_TEXT_FLAG_NONE);
         if (size.y > textH) {
             textH = size.y;
         }
@@ -161,6 +167,140 @@ void fillDiskAt(lv_layer_t* layer, int cx, int cy, int radius, lv_color_t color)
     }
 }
 
+void drawPill(lv_layer_t* layer, int x1, int y1, int x2, int y2) {
+    if (layer == nullptr || x2 < x1 || y2 < y1) {
+        return;
+    }
+    int height = y2 - y1 + 1;
+    if ((height & 1) == 0) {
+        y2++;
+        height++;
+    }
+    const int radius = height / 2;
+    if (radius <= 0) {
+        return;
+    }
+    const int cy = y1 + radius;
+    const int left = x1 + radius;
+    const int right = x2 - radius;
+    if (right < left) {
+        fillDiskAt(layer, (x1 + x2) / 2, cy, radius, lv_color_black());
+        return;
+    }
+    fillDiskAt(layer, left, cy, radius, lv_color_black());
+    fillDiskAt(layer, right, cy, radius, lv_color_black());
+    lv_draw_rect_dsc_t dsc;
+    lv_draw_rect_dsc_init(&dsc);
+    dsc.bg_color = lv_color_black();
+    dsc.bg_opa = LV_OPA_COVER;
+    dsc.border_width = 0;
+    dsc.radius = 0;
+    lv_area_t body;
+    body.x1 = left;
+    body.x2 = right;
+    body.y1 = y1;
+    body.y2 = y2;
+    lv_draw_rect(layer, &dsc, &body);
+}
+
+void drawSlope(lv_layer_t* layer, const lv_draw_rect_dsc_t* ink, int x0, int y0, int x1, int y1,
+               int skipRadius, int thickness) {
+    const int cx = x0;
+    const int cy = y0;
+    int dx = x1 - x0;
+    if (dx < 0) {
+        dx = -dx;
+    }
+    int dy = y1 - y0;
+    if (dy < 0) {
+        dy = -dy;
+    }
+    const int sx = x0 < x1 ? 1 : -1;
+    const int sy = y0 < y1 ? 1 : -1;
+    int err = dx - dy;
+    const int limit = skipRadius * skipRadius;
+    const bool flat = dx >= dy;
+    if (thickness < 1) {
+        thickness = 1;
+    }
+    auto plot = [&](int x, int y) {
+        const int px = x - cx;
+        const int py = y - cy;
+        if (skipRadius > 0 && px * px + py * py <= limit) {
+            return;
+        }
+        lv_area_t dot;
+        dot.x1 = x;
+        dot.x2 = x;
+        dot.y1 = y;
+        dot.y2 = y;
+        lv_draw_rect(layer, ink, &dot);
+    };
+    for (;;) {
+        for (int extra = 0; extra < thickness; extra++) {
+            if (flat) {
+                plot(x0, y0 + extra);
+            } else {
+                plot(x0 + extra, y0);
+            }
+        }
+        if (x0 == x1 && y0 == y1) {
+            break;
+        }
+        const int e2 = err * 2;
+        if (e2 > -dy) {
+            err -= dy;
+            x0 += sx;
+        }
+        if (e2 < dx) {
+            err += dx;
+            y0 += sy;
+        }
+    }
+}
+
+void drawCurrentUnderline(lv_layer_t* layer, int cx, int cy, lv_obj_t* timeLabel, lv_obj_t* title) {
+    if (layer == nullptr || timeLabel == nullptr || title == nullptr) {
+        return;
+    }
+    const char* text = lv_label_get_text(title);
+    const lv_font_t* font = lv_obj_get_style_text_font(title, LV_PART_MAIN);
+    if (text == nullptr || text[0] == '\0' || font == nullptr) {
+        return;
+    }
+    const int maxW = lv_obj_get_content_width(title);
+    lv_point_t size = {};
+    lv_text_get_size(&size, text, font, 0, TT_CAL_EVENT_LINE_GAP, maxW > 0 ? maxW : 1, LV_TEXT_FLAG_NONE);
+    if (size.x < 1) {
+        size.x = 1;
+    }
+    if (size.y < 1) {
+        size.y = lv_font_get_line_height(font);
+    }
+    lv_area_t timeArea;
+    lv_area_t titleArea;
+    lv_obj_get_coords(timeLabel, &timeArea);
+    lv_obj_get_coords(title, &titleArea);
+    const int bottom = titleArea.y1 + size.y - 1 + TT_CAL_CURRENT_PAD_Y;
+    lv_draw_rect_dsc_t dsc;
+    lv_draw_rect_dsc_init(&dsc);
+    dsc.bg_color = lv_color_black();
+    dsc.bg_opa = LV_OPA_COVER;
+    dsc.border_width = 0;
+    dsc.radius = 0;
+    lv_area_t line;
+    line.x1 = timeArea.x1 - TT_CAL_CURRENT_PAD_X;
+    line.x2 = titleArea.x1 + size.x - 1 + TT_CAL_CURRENT_PAD_X;
+    line.y2 = bottom;
+    line.y1 = bottom - (TT_CAL_CURRENT_LINE - 1);
+    if (line.x2 < line.x1 || line.y2 < line.y1) {
+        return;
+    }
+    lv_draw_rect(layer, &dsc, &line);
+    drawSlope(layer, &dsc, cx, cy, line.x1, (line.y1 + line.y2) / 2, TT_CAL_MARK_LG / 2,
+              TT_CAL_CURRENT_LINE);
+}
+
 lv_obj_t* createLabel(lv_obj_t* parent, lv_font_t* font, lv_color_t color, const char* text) {
     lv_obj_t* label = lv_label_create(parent);
     lv_label_set_text(label, text);
@@ -270,25 +410,29 @@ void TTCalendarPage::buildContent(lv_obj_t* screen) {
     lv_obj_add_event_cb(_list, onListDraw, LV_EVENT_DRAW_MAIN, this);
 
     const int textW = listW - TT_CAL_TEXT_X - TT_CAL_PAD;
-    lv_font_t* fontEvent = fonts.getFont(TT_CAL_EVENT_FONT);
-    if (fontEvent == nullptr) {
-        fontEvent = font16;
+    lv_font_t* fontList = fonts.getFont(TT_CAL_DATE_FONT);
+    if (fontList == nullptr) {
+        fontList = font16;
+    }
+    lv_font_t* fontStatus = fonts.getFont(TT_CAL_EVENT_FONT);
+    if (fontStatus == nullptr) {
+        fontStatus = fontList;
     }
     for (int i = 0; i < TT_CAL_PAGE_SLOTS; i++) {
-        _eventTimes[i] = createLabel(_list, fontEvent, lv_color_black(), "");
+        _eventTimes[i] = createLabel(_list, fontList, lv_color_black(), "");
         lv_obj_set_width(_eventTimes[i], TT_CAL_EVENT_TIME_W);
         lv_obj_set_style_text_align(_eventTimes[i], LV_TEXT_ALIGN_CENTER, 0);
         lv_label_set_long_mode(_eventTimes[i], LV_LABEL_LONG_CLIP);
         lv_obj_set_hidden(_eventTimes[i], true);
 
-        _rows[i] = createLabel(_list, font16, lv_color_black(), "");
+        _rows[i] = createLabel(_list, fontList, lv_color_black(), "");
         lv_obj_set_width(_rows[i], textW);
         lv_label_set_long_mode(_rows[i], LV_LABEL_LONG_CLIP);
         lv_obj_set_pos(_rows[i], TT_CAL_TEXT_X, TT_CAL_PAD + i * TT_CAL_ROW_H);
         lv_obj_set_hidden(_rows[i], true);
     }
 
-    _status = createLabel(_list, font16, lv_color_black(), "正在同步日历");
+    _status = createLabel(_list, fontStatus, lv_color_black(), "正在同步日历");
     lv_obj_set_width(_status, listW - 16);
     lv_obj_set_style_text_align(_status, LV_TEXT_ALIGN_CENTER, 0);
     lv_obj_align(_status, LV_ALIGN_CENTER, 0, 0);
@@ -817,6 +961,9 @@ void TTCalendarPage::rebuildRows() {
         textW = 1;
     }
 
+    const time_t now = time(nullptr);
+    struct tm today = {};
+    localtime_r(&now, &today);
     uint8_t index = 0;
     while (index < _count) {
         int year = 0;
@@ -835,17 +982,28 @@ void TTCalendarPage::rebuildRows() {
         if (!open && !newPage()) {
             break;
         }
-        int rule = slot > 0 ? TT_CAL_DAY_RULE : 0;
         const int titleW = eventTitleWidth(textW);
         const int firstH = eventRowBody(_events[begin].title, fontEvent, titleW);
-        const int dayBlock = rule + TT_CAL_ROW_H + TT_CAL_DATE_EVENT_GAP + firstH;
-        if (slot + 2 > TT_CAL_PAGE_SLOTS || used + dayBlock > pageLimit) {
+        auto dayAbove = [&]() -> int {
+            if (slot == 0) {
+                return 0;
+            }
+            struct tm local = {};
+            sameDay(_events[begin].startUnix, nullptr, nullptr, &local);
+            if (local.tm_year == today.tm_year && local.tm_yday == today.tm_yday) {
+                return 0;
+            }
+            return TT_CAL_OTHER_DAY_GAP;
+        };
+        int above = dayAbove();
+        if (slot + 2 > TT_CAL_PAGE_SLOTS
+            || used + above + TT_CAL_DATE_ROW_H + TT_CAL_DATE_EVENT_GAP + firstH > pageLimit) {
             if (!newPage()) {
                 break;
             }
-            rule = 0;
+            above = 0;
         }
-        if (!push(TT_CAL_ROW_DAY, begin, TT_CAL_ROW_H, rule)) {
+        if (!push(TT_CAL_ROW_DAY, begin, TT_CAL_DATE_ROW_H, above)) {
             break;
         }
         for (uint8_t event = begin; event < index; event++) {
@@ -854,9 +1012,13 @@ void TTCalendarPage::rebuildRows() {
             if (rowH > TT_CAL_ROW_H) {
                 LOG_I("Calendar page: wrap event=%u height=%d", (unsigned)event, rowH);
             }
-            const int gap = afterDay ? TT_CAL_DATE_EVENT_GAP : 0;
+            int gap = afterDay ? TT_CAL_DATE_EVENT_GAP : 0;
+            if (!afterDay && _planCount > 0 && _plan[_planCount - 1].kind == TT_CAL_ROW_EVENT
+                && eventIsCurrent(_events[_plan[_planCount - 1].eventIndex], now)) {
+                gap += TT_CAL_CURRENT_NEXT_GAP;
+            }
             if (!push(TT_CAL_ROW_EVENT, event, rowH, gap)) {
-                if (!newPage() || !push(TT_CAL_ROW_DAY, begin, TT_CAL_ROW_H, 0)
+                if (!newPage() || !push(TT_CAL_ROW_DAY, begin, TT_CAL_DATE_ROW_H, 0)
                     || !push(TT_CAL_ROW_EVENT, event, rowH, TT_CAL_DATE_EVENT_GAP)) {
                     index = _count;
                     break;
@@ -873,9 +1035,10 @@ void TTCalendarPage::showPage() {
         for (int i = 0; i < TT_CAL_PAGE_SLOTS; i++) {
             lv_obj_set_hidden(_rows[i], true);
             lv_obj_set_hidden(_eventTimes[i], true);
+            TTBoldLabel::setEnabled(_rows[i], false);
+            TTBoldLabel::setEnabled(_eventTimes[i], false);
             _slotMark[i] = TT_CAL_MARK_NONE;
             _slotCapsule[i] = 0;
-            _slotRule[i] = 0;
         }
         lv_obj_set_hidden(_status, false);
         lv_obj_set_hidden(_pageLabel, true);
@@ -954,44 +1117,46 @@ void TTCalendarPage::showPage() {
         } else {
             _slotCapsule[slot] = TT_CAL_CAPSULE_NONE;
         }
-        if (slot > 0 && dayRow) {
-            cursor += TT_CAL_DAY_RULE;
+        bool prevCurrent = false;
+        if (!dayRow && row > begin && _plan[row - 1].kind == TT_CAL_ROW_EVENT) {
+            prevCurrent = eventIsCurrent(_events[_plan[row - 1].eventIndex], now);
+        }
+        if (slot > 0 && dayRow && !isToday) {
+            cursor += TT_CAL_OTHER_DAY_GAP;
         } else if (slot > 0 && prevDay) {
             cursor += TT_CAL_DATE_EVENT_GAP;
+        } else if (slot > 0 && prevCurrent) {
+            cursor += TT_CAL_CURRENT_NEXT_GAP;
         }
-        _slotRule[slot] = (slot > 0 && dayRow) ? 1 : 0;
         _slotY[slot] = (int16_t)cursor;
         lv_obj_set_style_text_font(_rows[slot], font, 0);
-        lv_obj_set_style_bg_color(_rows[slot], lv_color_black(), 0);
-        lv_obj_set_style_border_color(_rows[slot], lv_color_black(), 0);
-        lv_obj_set_style_border_opa(_rows[slot], LV_OPA_COVER, 0);
-        if (isToday) {
-            lv_obj_set_style_text_color(_rows[slot], lv_color_white(), 0);
-            lv_obj_set_style_bg_opa(_rows[slot], LV_OPA_COVER, 0);
-            lv_obj_set_style_border_width(_rows[slot], 0, 0);
-            lv_obj_set_style_radius(_rows[slot], LV_RADIUS_CIRCLE, 0);
-        } else {
-            lv_obj_set_style_text_color(_rows[slot], lv_color_black(), 0);
-            lv_obj_set_style_bg_opa(_rows[slot], LV_OPA_TRANSP, 0);
-            lv_obj_set_style_border_width(_rows[slot], 0, 0);
-            lv_obj_set_style_radius(_rows[slot], 0, 0);
-        }
+        lv_obj_set_style_text_line_space(_rows[slot], dayRow ? 0 : TT_CAL_EVENT_LINE_GAP, 0);
+        TTBoldLabel::setEnabled(_rows[slot], dayRow);
+        lv_obj_set_style_bg_opa(_rows[slot], LV_OPA_TRANSP, 0);
+        lv_obj_set_style_border_width(_rows[slot], 0, 0);
+        lv_obj_set_style_radius(_rows[slot], 0, 0);
+        lv_obj_set_style_text_color(_rows[slot], isToday ? lv_color_white() : lv_color_black(), 0);
         const int padY = isToday ? TT_CAL_CAPSULE_PAD_Y : 0;
-        const int padX = isToday ? TT_CAL_CAPSULE_PAD_X : 0;
+        const int padX = isToday ? TT_CAL_TODAY_PAD_X : 0;
+        const int boldPad = dayRow ? TT_BOLD_LABEL_EXTRA : 0;
         lv_obj_set_style_pad_left(_rows[slot], padX, 0);
-        lv_obj_set_style_pad_right(_rows[slot], padX, 0);
-        lv_obj_set_style_pad_top(_rows[slot], padY, 0);
-        lv_obj_set_style_pad_bottom(_rows[slot], padY, 0);
+        lv_obj_set_style_pad_right(_rows[slot], padX + boldPad, 0);
+        lv_obj_set_style_pad_top(_rows[slot], 0, 0);
+        lv_obj_set_style_pad_bottom(_rows[slot], 0, 0);
         lv_label_set_long_mode(_rows[slot], dayRow ? LV_LABEL_LONG_CLIP : LV_LABEL_LONG_WRAP);
         lv_obj_set_height(_rows[slot], LV_SIZE_CONTENT);
-        lv_obj_set_width(_rows[slot], dayRow ? LV_SIZE_CONTENT : eventTitleWidth(textW));
+        lv_obj_set_width(_rows[slot], dayRow ? LV_SIZE_CONTENT : eventTitleWidth(textW) + boldPad);
         lv_label_set_text(_rows[slot], text);
         const int lineH = font != nullptr ? lv_font_get_line_height(font) : TT_CAL_ROW_H;
-        const int boxH = lineH + padY * 2;
         const int rowH = item.height > 0 ? item.height : TT_CAL_ROW_H;
         int y = cursor;
-        if (dayRow) {
-            y = cursor + (TT_CAL_ROW_H - boxH) / 2;
+        if (dayRow && isToday) {
+            const int inkTop = glyphInkOffset(font, 0x4ECA, false);
+            const int inkBot = glyphInkOffset(font, 0x4ECA, true);
+            const int pillH = inkBot - inkTop + 1 + padY * 2;
+            y = cursor + (TT_CAL_DATE_ROW_H - pillH) / 2 - inkTop + padY;
+        } else if (dayRow) {
+            y = cursor + (TT_CAL_DATE_ROW_H - lineH) / 2;
         } else {
             const int lead = TT_CAL_ROW_H - lineH;
             if (lead > 0) {
@@ -1002,23 +1167,28 @@ void TTCalendarPage::showPage() {
         lv_obj_set_pos(_rows[slot], x, y);
         if (!dayRow) {
             lv_obj_set_style_text_font(_eventTimes[slot], font, 0);
+            TTBoldLabel::setEnabled(_eventTimes[slot], false);
+            lv_obj_set_style_pad_right(_eventTimes[slot], 0, 0);
+            lv_obj_set_width(_eventTimes[slot], TT_CAL_EVENT_TIME_W);
             lv_label_set_text(_eventTimes[slot], timeText);
             lv_obj_set_pos(_eventTimes[slot], TT_CAL_TEXT_X, y);
             lv_obj_set_hidden(_eventTimes[slot], false);
         } else {
+            TTBoldLabel::setEnabled(_eventTimes[slot], false);
             lv_obj_set_hidden(_eventTimes[slot], true);
         }
         lv_obj_set_hidden(_rows[slot], false);
-        cursor += dayRow ? TT_CAL_ROW_H : rowH;
+        cursor += dayRow ? TT_CAL_DATE_ROW_H : rowH;
         prevDay = dayRow;
         _visibleSlots++;
     }
     for (uint8_t slot = _visibleSlots; slot < TT_CAL_PAGE_SLOTS; slot++) {
         lv_obj_set_hidden(_rows[slot], true);
         lv_obj_set_hidden(_eventTimes[slot], true);
+        TTBoldLabel::setEnabled(_rows[slot], false);
+        TTBoldLabel::setEnabled(_eventTimes[slot], false);
         _slotMark[slot] = TT_CAL_MARK_NONE;
         _slotCapsule[slot] = 0;
-        _slotRule[slot] = 0;
     }
     if (_pageCount > 1) {
         char pageText[12];
@@ -1125,11 +1295,11 @@ void TTCalendarPage::onListDraw(lv_event_t* e) {
     ink.border_width = 0;
     ink.radius = 0;
     const int rulePeriod = TT_CAL_RULE_DASH + TT_CAL_RULE_GAP;
-    for (uint8_t i = 0; i < self->_visibleSlots; i++) {
-        if (self->_slotRule[i] == 0) {
+    for (uint8_t i = 1; i < self->_visibleSlots; i++) {
+        if (self->_slotMark[i] == TT_CAL_MARK_NONE || self->_slotMark[i - 1] != TT_CAL_MARK_NONE) {
             continue;
         }
-        if (i == 0) {
+        if (self->_rows[i] == nullptr || self->_rows[i - 1] == nullptr) {
             continue;
         }
         lv_area_t above;
@@ -1144,13 +1314,26 @@ void TTCalendarPage::onListDraw(lv_event_t* e) {
             if (segEnd > xEnd) {
                 segEnd = xEnd;
             }
-            lv_area_t seg;
-            seg.x1 = x;
-            seg.x2 = segEnd;
-            seg.y1 = y;
-            seg.y2 = y;
-            lv_draw_rect(layer, &ink, &seg);
+            drawHSpan(layer, &ink, x, segEnd, y);
         }
+    }
+    int todayTop = -1;
+    for (uint8_t i = 0; i < self->_visibleSlots; i++) {
+        if (self->_slotCapsule[i] != TT_CAL_CAPSULE_FILL || self->_rows[i] == nullptr) {
+            continue;
+        }
+        lv_obj_t* row = self->_rows[i];
+        lv_area_t area;
+        lv_obj_get_coords(row, &area);
+        const lv_font_t* font = lv_obj_get_style_text_font(row, LV_PART_MAIN);
+        const int padTop = lv_obj_get_style_pad_top(row, LV_PART_MAIN);
+        const int inkTop = glyphInkOffset(font, 0x4ECA, false);
+        const int inkBot = glyphInkOffset(font, 0x4ECA, true);
+        const int y1 = area.y1 + padTop + inkTop - TT_CAL_CAPSULE_PAD_Y;
+        const int y2 = area.y1 + padTop + inkBot + TT_CAL_CAPSULE_PAD_Y;
+        drawPill(layer, area.x1, y1, area.x2, y2);
+        todayTop = y1;
+        break;
     }
 
     int first = -1;
@@ -1200,18 +1383,6 @@ void TTCalendarPage::onListDraw(lv_event_t* e) {
         }
         return TT_CAL_MARK_LG / 2;
     };
-    int todayTop = -1;
-    for (uint8_t i = 0; i < self->_visibleSlots; i++) {
-        if (self->_slotCapsule[i] != TT_CAL_CAPSULE_FILL || self->_rows[i] == nullptr) {
-            continue;
-        }
-        lv_area_t area;
-        lv_obj_get_coords(self->_rows[i], &area);
-        const lv_font_t* font = lv_obj_get_style_text_font(self->_rows[i], LV_PART_MAIN);
-        const int padTop = lv_obj_get_style_pad_top(self->_rows[i], LV_PART_MAIN);
-        todayTop = area.y1 + padTop + glyphInkOffset(font, 0x4ECA, false);
-        break;
-    }
     int clockBottom = -1;
     if (self->_clockLabel != nullptr) {
         lv_area_t area;
@@ -1237,6 +1408,9 @@ void TTCalendarPage::onListDraw(lv_event_t* e) {
             continue;
         }
         const int cy = centerY((int)i);
+        if (self->_slotMark[i] == TT_CAL_MARK_FILLED) {
+            drawCurrentUnderline(layer, axisX, cy, self->_eventTimes[i], self->_rows[i]);
+        }
         if (self->_slotMark[i] == TT_CAL_MARK_SMALL) {
             const int radius = TT_CAL_MARK_SM / 2;
             fillDiskAt(layer, axisX, cy, radius, lv_color_black());
