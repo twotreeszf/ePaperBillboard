@@ -296,7 +296,7 @@ void TTWeatherPage::buildContent(lv_obj_t* screen) {
     _feelsLabel = createPlainLabel(_content, font12, "");
     lv_obj_align_to(_feelsLabel, _tempLabel, LV_ALIGN_OUT_BOTTOM_LEFT, 0, TT_WEATHER_FEELS_GAP);
 
-    _condLabel = createPlainLabel(_content, font16, "");
+    _condLabel = TTBoldLabel::create(_content, "", font16);
     lv_obj_set_style_text_color(_condLabel, lv_color_white(), 0);
     lv_obj_set_style_bg_color(_condLabel, lv_color_black(), 0);
     lv_obj_set_style_bg_opa(_condLabel, LV_OPA_COVER, 0);
