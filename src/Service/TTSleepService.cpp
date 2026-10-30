@@ -55,6 +55,12 @@ void TTSleepService::begin() {
         [this](const TTRtcLoadPayload& rtc) {
             finishWake(rtc);
         });
+    TTInstanceOf<TTNotificationCenter>().subscribe<TTSensorDataPayload>(
+        TT_NOTIFICATION_SENSOR_DATA_UPDATE,
+        this,
+        [this](const TTSensorDataPayload& data) {
+            onSensor(data);
+        });
 }
 
 void TTSleepService::requestLightSleep(void* owner) {
@@ -97,7 +103,7 @@ void TTSleepService::tryEnter() {
     }
     if (!canEnter()) {
         if (!_loggedWait) {
-            LOG_I("Sleep: wait, not idle");
+            LOG_I("Sleep: wait, %s", _externalPower ? "external power" : "not idle");
             _loggedWait = true;
         }
         return;
@@ -132,7 +138,22 @@ void TTSleepService::tryEnter() {
     afterWake();
 }
 
+void TTSleepService::onSensor(const TTSensorDataPayload& data) {
+    const bool powered = data.charging || data.usbPlugged;
+    if (_powerKnown && powered == _externalPower) {
+        return;
+    }
+    _powerKnown = true;
+    _externalPower = powered;
+    _loggedWait = false;
+    LOG_I("Sleep: external power=%d charging=%d usb=%d",
+          powered ? 1 : 0, data.charging ? 1 : 0, data.usbPlugged ? 1 : 0);
+}
+
 bool TTSleepService::canEnter() const {
+    if (_externalPower) {
+        return false;
+    }
     if (TTInstanceOf<TTPopupLayer>().isBusy()) {
         return false;
     }

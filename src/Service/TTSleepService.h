@@ -34,6 +34,7 @@ private:
     TTSleepWakeReason classifyWake() const;
     void publishWake(TTSleepWakeReason reason);
     void publishSleepState(TTSleepState state);
+    void onSensor(const TTSensorDataPayload& data);
 
     void* _owner = nullptr;
     bool _requested = false;
@@ -41,4 +42,6 @@ private:
     bool _loggedWait = false;
     bool _rtcPending = false;
     bool _timerWake = false;
+    bool _externalPower = false;
+    bool _powerKnown = false;
 };
