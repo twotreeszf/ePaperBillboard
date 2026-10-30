@@ -1,8 +1,10 @@
 #include "TTPictorialService.h"
+#include "TTScheduleService.h"
 #include "../Base/Logger.h"
 #include "../Base/TTFile.h"
 #include "../Base/TTHttpsClient.h"
 #include "../Base/TTInstance.h"
+#include "../Base/TTNotificationCenter.h"
 #include "../Models/TTNotificationPayloads.h"
 #include "../Base/TTPreference.h"
 #include "../Base/TTRtc.h"
@@ -630,6 +632,38 @@ void TTPictorialService::enqueue(TTPicJob job, uint8_t seriesIndex) {
         });
 }
 
+void TTPictorialService::begin() {
+    TTInstanceOf<TTNotificationCenter>().subscribe<TTSensorDataPayload>(
+        TT_NOTIFICATION_SENSOR_DATA_UPDATE,
+        this,
+        [this](const TTSensorDataPayload& data) {
+            onSensor(data);
+        });
+    LOG_I("Pictorial: fetch interval follows custom and power");
+}
+
+void TTPictorialService::onSensor(const TTSensorDataPayload& data) {
+    const bool custom = customOn();
+    const bool powered = data.charging || data.usbPlugged;
+    const bool fast = custom && powered;
+    if (_fetchFastKnown && fast == _fetchFast) {
+        return;
+    }
+    _fetchFastKnown = true;
+    _fetchFast = fast;
+    LOG_I("Pictorial: custom=%d charging=%d usb=%d fast=%d",
+          custom ? 1 : 0, data.charging ? 1 : 0, data.usbPlugged ? 1 : 0, fast ? 1 : 0);
+    applyFetchInterval(fast);
+}
+
+void TTPictorialService::applyFetchInterval(bool fast) {
+    if (fast) {
+        TTInstanceOf<TTScheduleService>().setFetchIntervalMin(TT_PIC_FETCH_EXTEND_MIN);
+        return;
+    }
+    TTInstanceOf<TTScheduleService>().restoreFetchInterval();
+}
+
 void TTPictorialService::requestToday() {
     if (showStored()) {
         return;
@@ -643,6 +677,15 @@ void TTPictorialService::requestAnother() {
 
 void TTPictorialService::requestHourly() {
     LOG_I("Pictorial: hourly update");
+    enqueue(TT_PIC_JOB_HOURLY, 0);
+}
+
+void TTPictorialService::requestExtend() {
+    if (!customOn()) {
+        requestHourly();
+        return;
+    }
+    LOG_I("Pictorial: extend update");
     enqueue(TT_PIC_JOB_HOURLY, 0);
 }
 

@@ -70,6 +70,28 @@ void TTScheduleService::ensureDeadlines() {
     }
 }
 
+void TTScheduleService::setFetchIntervalMin(uint16_t minutes) {
+    if (minutes == 0) {
+        restoreFetchInterval();
+        return;
+    }
+    if (_fetchIntervalMin == minutes) {
+        return;
+    }
+    _fetchIntervalMin = minutes;
+    LOG_I("Schedule: fetch interval %u min", (unsigned)minutes);
+    refreshFetchDeadline();
+}
+
+void TTScheduleService::restoreFetchInterval() {
+    if (_fetchIntervalMin == 0) {
+        return;
+    }
+    _fetchIntervalMin = 0;
+    LOG_I("Schedule: fetch interval hourly");
+    refreshFetchDeadline();
+}
+
 void TTScheduleService::refreshFetchDeadline() {
     if (!TTInstanceOf<TTRtc>().isTimeValid()) {
         _nextFetchUnix = 0;
@@ -78,6 +100,23 @@ void TTScheduleService::refreshFetchDeadline() {
     const time_t now = time(nullptr);
     if (now <= 0) {
         _nextFetchUnix = 0;
+        return;
+    }
+    if (_fetchIntervalMin > 0) {
+        struct tm slot;
+        memset(&slot, 0, sizeof(slot));
+        localtime_r(&now, &slot);
+        slot.tm_min = ((slot.tm_min / _fetchIntervalMin) + 1) * _fetchIntervalMin;
+        slot.tm_sec = TT_RTC_MINUTE_TICK_SEC;
+        time_t next = mktime(&slot);
+        if (next <= now) {
+            next += (time_t)_fetchIntervalMin * 60;
+        }
+        _nextFetchUnix = next;
+        char untilText[TT_SCHEDULE_WALL_TEXT_MAX];
+        tt_schedule_format_wall(next, untilText, sizeof(untilText));
+        LOG_I("Schedule: next fetch at %s every %u min",
+              untilText[0] != '\0' ? untilText : "?", (unsigned)_fetchIntervalMin);
         return;
     }
     struct tm t;

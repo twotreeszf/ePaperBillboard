@@ -12,6 +12,7 @@
 #include "../Service/TTPictorialService.h"
 #include "../Service/TTSleepService.h"
 #include "../Service/TTWeatherService.h"
+#include "../Tasks/TTSensorTask.h"
 #include <EPDConfig.h>
 #include <cstdio>
 #include <cstring>
@@ -234,6 +235,8 @@ void TTPictorialPage::willAppear() {
     }
     requestWeather();
     TTInstanceOf<TTPictorialService>().requestToday();
+    LOG_I("Pictorial page: request sensor update");
+    TTInstanceOf<TTSensorTask>().requestSensorUpdateAsync();
 }
 
 void TTPictorialPage::willDisappear() {
@@ -440,7 +443,7 @@ void TTPictorialPage::onSchedule(const TTSchedulePayload& event) {
     switch (event.event) {
         case TT_SCHEDULE_FETCH:
             requestWeather();
-            TTInstanceOf<TTPictorialService>().requestHourly();
+            TTInstanceOf<TTPictorialService>().requestExtend();
             break;
         case TT_SCHEDULE_TIME:
             if (_weatherFetching || _artFetching || _picking) {

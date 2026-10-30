@@ -12,6 +12,8 @@ public:
     void begin();
     void tick();
     time_t nextDeadline() const;
+    void setFetchIntervalMin(uint16_t minutes);
+    void restoreFetchInterval();
 
 private:
     void ensureDeadlines();
@@ -21,4 +23,5 @@ private:
 
     time_t _nextTimeUnix = 0;
     time_t _nextFetchUnix = 0;
+    uint16_t _fetchIntervalMin = 0;
 };

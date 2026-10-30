@@ -1,7 +1,10 @@
 #pragma once
 
+#include "../Models/TTNotificationPayloads.h"
 #include "../Models/TTPictorialTypes.h"
 #include <set>
+
+#define TT_PIC_FETCH_EXTEND_MIN  10
 
 enum TTPicJob {
     TT_PIC_JOB_TODAY = 0,
@@ -13,9 +16,11 @@ enum TTPicJob {
 
 class TTPictorialService {
 public:
+    void begin();
     void requestToday();
     void requestAnother();
     void requestHourly();
+    void requestExtend();
     void requestSeries(uint8_t index);
     void requestManifest();
 
@@ -45,6 +50,8 @@ private:
     void remember(const char* pinyin, uint16_t index, int dayKey, const char* path, const char* name);
     void removeStale(const char* keep, const char* alsoKeep);
     int todayKey() const;
+    void onSensor(const TTSensorDataPayload& data);
+    void applyFetchInterval(bool fast);
 
     TTPicSeries _series[TT_PIC_SERIES_MAX];
     uint8_t _seriesCount = 0;
@@ -56,4 +63,6 @@ private:
     uint16_t _seenCount = 0;
     char _seenPinyin[TT_PIC_PINYIN_MAX] = {};
     std::set<uint16_t> _seen;
+    bool _fetchFast = false;
+    bool _fetchFastKnown = false;
 };

@@ -13,6 +13,7 @@
 #include "../Base/TTFontManager.h"
 #include "../Base/TTPreference.h"
 #include "../Base/Util.h"
+#include "../Service/TTPictorialService.h"
 #include "../Service/TTScheduleService.h"
 #include "../Service/TTSleepService.h"
 #include "../Service/TTTimeService.h"
@@ -67,6 +68,7 @@ void TTUITask::setup() {
     TTInstanceOf<TTTimeService>().begin();
     TTInstanceOf<TTSleepService>().begin();
     TTInstanceOf<TTScheduleService>().begin();
+    TTInstanceOf<TTPictorialService>().begin();
 
     LOG_I("UI task started, heap=%u largest=%u",
           (unsigned)Util::heapFree(), (unsigned)Util::heapLargest());
