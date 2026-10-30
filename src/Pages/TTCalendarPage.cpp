@@ -465,6 +465,9 @@ void TTCalendarPage::setup() {
     subscribe<TTSleepWakePayload>(TT_NOTIFICATION_SLEEP_WAKE, [this](const TTSleepWakePayload& wake) {
         onSleepWake(wake);
     });
+    subscribe<TTSchedulePayload>(TT_NOTIFICATION_SCHEDULE, [this](const TTSchedulePayload& event) {
+        onSchedule(event);
+    });
     registerKeyAction(TT_KEY_CENTER, TT_KEY_LONG_PRESS, [this]() {
         forceRefresh();
     });
@@ -560,11 +563,6 @@ void TTCalendarPage::onSleepWake(const TTSleepWakePayload& wake) {
     }
     LOG_I("Calendar page: sleep wake reason=%d", (int)wake.reason);
     switch (wake.reason) {
-        case TT_SLEEP_WAKE_FETCH:
-            LOG_I("Calendar page: fetch period");
-            requestCalendar(false);
-            requestWeather();
-            break;
         case TT_SLEEP_WAKE_POWER:
         case TT_SLEEP_WAKE_INPUT:
             _sleepAfterTimeTick = false;
@@ -575,12 +573,40 @@ void TTCalendarPage::onSleepWake(const TTSleepWakePayload& wake) {
             armInputIdleSleep();
             break;
         case TT_SLEEP_WAKE_TIME:
+        case TT_SLEEP_WAKE_FETCH:
+            break;
+    }
+}
+
+void TTCalendarPage::onSchedule(const TTSchedulePayload& event) {
+    if (!_visible) {
+        return;
+    }
+    LOG_I("Calendar page: schedule event=%d resume=%d", (int)event.event, event.resumeSleep ? 1 : 0);
+    switch (event.event) {
+        case TT_SCHEDULE_FETCH:
+            LOG_I("Calendar page: fetch period");
+            requestCalendar(false);
+            requestWeather();
+            break;
+        case TT_SCHEDULE_TIME: {
             if (_calendarFetching || _weatherFetching || _forceRefreshing) {
                 break;
             }
-            _sleepAfterTimeTick = true;
-            LOG_I("Calendar page: wait time tick then sleep");
+            const int previous = _lastMinute;
+            updateClock(false);
+            if (_lastMinute != previous && _count > 0) {
+                showPage();
+            }
+            if (_lastMinute != previous) {
+                requestRefresh(TT_REFRESH_PARTIAL);
+            }
+            if (event.resumeSleep) {
+                _sleepAfterTimeTick = true;
+                LOG_I("Calendar page: wait time tick then sleep");
+            }
             break;
+        }
     }
 }
 

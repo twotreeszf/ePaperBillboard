@@ -134,6 +134,7 @@ private:
     void applyWeather(const TTWeatherPayload& payload);
     void forceRefresh();
     void onSleepWake(const TTSleepWakePayload& wake);
+    void onSchedule(const TTSchedulePayload& event);
     void onTimeTick();
     void finishFetch();
     void tryRequestLightSleep(uint32_t delayMs = TT_SLEEP_AFTER_REFRESH_MS);

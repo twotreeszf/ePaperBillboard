@@ -30,6 +30,7 @@ private:
     void applyWeather(const TTWeatherPayload& payload);
     void applyPictorial(const TTPicPayload& payload);
     void onSleepWake(const TTSleepWakePayload& wake);
+    void onSchedule(const TTSchedulePayload& event);
     void onTimeTick();
     void layoutSide();
     void setStatusTimeVisible(bool visible);

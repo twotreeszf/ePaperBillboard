@@ -13,6 +13,7 @@
 #include "../Base/TTFontManager.h"
 #include "../Base/TTPreference.h"
 #include "../Base/Util.h"
+#include "../Service/TTScheduleService.h"
 #include "../Service/TTSleepService.h"
 #include "../Service/TTTimeService.h"
 #include "../Service/TTOtaService.h"
@@ -65,6 +66,7 @@ void TTUITask::setup() {
     _nav.setRootPage(std::unique_ptr<TTScreenPage>(new TTHomePage()));
     TTInstanceOf<TTTimeService>().begin();
     TTInstanceOf<TTSleepService>().begin();
+    TTInstanceOf<TTScheduleService>().begin();
 
     LOG_I("UI task started, heap=%u largest=%u",
           (unsigned)Util::heapFree(), (unsigned)Util::heapLargest());
@@ -132,5 +134,6 @@ void TTUITask::_selectPanel() {
 
 void TTUITask::loop() {
     lv_timer_handler();
+    TTInstanceOf<TTScheduleService>().tick();
     TTInstanceOf<TTSleepService>().tryEnter();
 }

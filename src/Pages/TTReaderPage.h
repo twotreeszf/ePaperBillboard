@@ -80,6 +80,7 @@ private:
     void cancelIdleSleep();
     void enterIdleSleep();
     void onSleepWake(const TTSleepWakePayload& wake);
+    void onSchedule(const TTSchedulePayload& event);
     void onTimeTick();
 
     TTBookEntry _book;

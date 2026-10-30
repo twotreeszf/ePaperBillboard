@@ -1,4 +1,5 @@
 #include "TTSleepService.h"
+#include "TTScheduleService.h"
 #include "../Base/Logger.h"
 #include "../Base/TTInstance.h"
 #include "../Base/TTLvglEpdDriver.h"
@@ -60,9 +61,6 @@ void TTSleepService::requestLightSleep(void* owner) {
     _owner = owner;
     _requested = true;
     _loggedWait = false;
-    if (_nextFetchUnix <= 0) {
-        refreshFetchDeadline();
-    }
     LOG_I("Sleep: requested owner=%p", owner);
 }
 
@@ -83,19 +81,18 @@ void TTSleepService::consumeRequest() {
     _loggedWait = false;
 }
 
+bool TTSleepService::takeTimerWake() {
+    const bool wake = _timerWake;
+    _timerWake = false;
+    return wake;
+}
+
 void TTSleepService::tryEnter() {
     if (_holdoffAfterInput) {
         _holdoffAfterInput = false;
         return;
     }
     if (!_requested || _rtcPending) {
-        return;
-    }
-    auto& wifi = TTInstanceOf<TTWiFiTask>();
-    if (isFetchPeriodDue() && !wifi.isRadioActive()) {
-        LOG_I("Sleep: fetch period due");
-        consumeRequest();
-        publishWake(TT_SLEEP_WAKE_FETCH);
         return;
     }
     if (!canEnter()) {
@@ -106,10 +103,9 @@ void TTSleepService::tryEnter() {
         return;
     }
 
-    time_t deadline = TTInstanceOf<TTRtc>().nextMinuteTick();
-    const time_t now = time(nullptr);
-    if (_nextFetchUnix > now && (deadline <= now || _nextFetchUnix < deadline)) {
-        deadline = _nextFetchUnix;
+    time_t deadline = TTInstanceOf<TTScheduleService>().nextDeadline();
+    if (deadline <= 0) {
+        deadline = TTInstanceOf<TTRtc>().nextMinuteTick();
     }
     const uint64_t sleepUs = sleepUsUntil(deadline);
     if (sleepUs < TT_SLEEP_MIN_US) {
@@ -140,7 +136,7 @@ bool TTSleepService::canEnter() const {
     if (TTInstanceOf<TTPopupLayer>().isBusy()) {
         return false;
     }
-    if (TTInstanceOf<TTWiFiTask>().isRadioActive() || isFetchPeriodDue()) {
+    if (TTInstanceOf<TTWiFiTask>().isRadioActive()) {
         return false;
     }
     if (!TTInstanceOf<TTWiFiTask>().isRadioParked()) {
@@ -256,11 +252,16 @@ void TTSleepService::finishWake(const TTRtcLoadPayload& rtc) {
           rtc.loaded ? 1 : 0);
     if (reason == TT_SLEEP_WAKE_INPUT) {
         _holdoffAfterInput = true;
+        publishWake(reason);
+        return;
     }
     if (reason == TT_SLEEP_WAKE_POWER) {
         TTInstanceOf<TTSensorTask>().requestSensorUpdateAsync();
+        publishWake(reason);
+        return;
     }
-    publishWake(reason);
+    _timerWake = true;
+    LOG_I("Sleep: timer wake, schedule resumes");
 }
 
 TTSleepWakeReason TTSleepService::classifyWake() const {
@@ -271,64 +272,10 @@ TTSleepWakeReason TTSleepService::classifyWake() const {
     if (cause == ESP_SLEEP_WAKEUP_EXT0) {
         return TT_SLEEP_WAKE_POWER;
     }
-    if (isFetchPeriodDue()) {
-        return TT_SLEEP_WAKE_FETCH;
-    }
     return TT_SLEEP_WAKE_TIME;
 }
 
-bool TTSleepService::isFetchPeriodDue() const {
-    if (_nextFetchUnix <= 0 || !TTInstanceOf<TTRtc>().isTimeValid()) {
-        return false;
-    }
-    const time_t now = time(nullptr);
-    return now > 0 && now >= _nextFetchUnix;
-}
-
-void TTSleepService::refreshFetchDeadline() {
-    if (!TTInstanceOf<TTRtc>().isTimeValid()) {
-        _nextFetchUnix = 0;
-        return;
-    }
-    const time_t now = time(nullptr);
-    if (now <= 0) {
-        _nextFetchUnix = 0;
-        return;
-    }
-    struct tm t;
-    memset(&t, 0, sizeof(t));
-    localtime_r(&now, &t);
-    t.tm_min = 0;
-    t.tm_sec = TT_RTC_MINUTE_TICK_SEC;
-    t.tm_hour += 1;
-    time_t next = mktime(&t);
-    if (next <= now) {
-        next += 3600;
-    }
-    for (int step = 0; step < 24; step++) {
-        struct tm slot;
-        memset(&slot, 0, sizeof(slot));
-        if (localtime_r(&next, &slot) == nullptr) {
-            break;
-        }
-        const int hour = slot.tm_hour;
-        const bool quiet = hour >= TT_SLEEP_FETCH_QUIET_START_HOUR
-            || hour < TT_SLEEP_FETCH_QUIET_END_HOUR;
-        if (!quiet) {
-            break;
-        }
-        next += 3600;
-    }
-    _nextFetchUnix = next;
-    char untilText[TT_SLEEP_WALL_TEXT_MAX];
-    tt_sleep_format_wall(next, untilText, sizeof(untilText));
-    LOG_I("Sleep: next fetch at %s", untilText[0] != '\0' ? untilText : "?");
-}
-
 void TTSleepService::publishWake(TTSleepWakeReason reason) {
-    if (reason == TT_SLEEP_WAKE_FETCH) {
-        refreshFetchDeadline();
-    }
     TTSleepWakePayload payload;
     payload.reason = reason;
     TTInstanceOf<TTNotificationCenter>().sendNotification(TT_NOTIFICATION_SLEEP_WAKE, payload);

@@ -589,6 +589,11 @@ void TTWeatherPage::setup() {
         [this](const TTSleepWakePayload& wake) {
             onSleepWake(wake);
         });
+    subscribe<TTSchedulePayload>(
+        TT_NOTIFICATION_SCHEDULE,
+        [this](const TTSchedulePayload& event) {
+            onSchedule(event);
+        });
     subscribe<TTTimeTickPayload>(
         TT_NOTIFICATION_TIME_TICK,
         [this](const TTTimeTickPayload&) {
@@ -1483,10 +1488,6 @@ void TTWeatherPage::onSleepWake(const TTSleepWakePayload& wake) {
     }
     LOG_I("Weather page: sleep wake reason=%d", (int)wake.reason);
     switch (wake.reason) {
-        case TT_SLEEP_WAKE_FETCH:
-            LOG_I("Weather page: fetch period");
-            requestFetch();
-            break;
         case TT_SLEEP_WAKE_POWER:
         case TT_SLEEP_WAKE_INPUT:
             _sleepAfterTimeTick = false;
@@ -1497,11 +1498,31 @@ void TTWeatherPage::onSleepWake(const TTSleepWakePayload& wake) {
             armInputIdleSleep();
             break;
         case TT_SLEEP_WAKE_TIME:
+        case TT_SLEEP_WAKE_FETCH:
+            break;
+    }
+}
+
+void TTWeatherPage::onSchedule(const TTSchedulePayload& event) {
+    if (!_visible) {
+        return;
+    }
+    LOG_I("Weather page: schedule event=%d resume=%d", (int)event.event, event.resumeSleep ? 1 : 0);
+    switch (event.event) {
+        case TT_SCHEDULE_FETCH:
+            LOG_I("Weather page: fetch period");
+            requestFetch();
+            break;
+        case TT_SCHEDULE_TIME:
             if (_fetching || _forceRefreshing) {
                 break;
             }
-            _sleepAfterTimeTick = true;
-            LOG_I("Weather page: wait time tick then sleep");
+            updateClock(true);
+            updateAge(true);
+            if (event.resumeSleep) {
+                _sleepAfterTimeTick = true;
+                LOG_I("Weather page: wait time tick then sleep");
+            }
             break;
     }
 }

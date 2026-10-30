@@ -175,6 +175,7 @@ private:
     void forceRefresh();
     void requestFetch(bool force = false);
     void onSleepWake(const TTSleepWakePayload& wake);
+    void onSchedule(const TTSchedulePayload& event);
     void onTimeTick();
     void tryRequestLightSleep(uint32_t delayMs = TT_SLEEP_AFTER_REFRESH_MS);
     void armInputIdleSleep();

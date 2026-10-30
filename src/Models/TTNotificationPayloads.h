@@ -11,6 +11,7 @@
 #define TT_NOTIFICATION_WEATHER            "TTNotify.Weather"
 #define TT_NOTIFICATION_SLEEP_WAKE         "TTNotify.SleepWake"
 #define TT_NOTIFICATION_SLEEP_STATE        "TTNotify.SleepState"
+#define TT_NOTIFICATION_SCHEDULE           "TTNotify.Schedule"
 #define TT_NOTIFICATION_TIME_TICK          "TTNotify.TimeTick"
 #define TT_NOTIFICATION_CALENDAR           "TTNotify.Calendar"
 #define TT_NOTIFICATION_PICTORIAL          "TTNotify.Pictorial"
@@ -63,6 +64,16 @@ enum TTSleepState {
 
 struct TTSleepStatePayload {
     TTSleepState state;
+};
+
+enum TTScheduleEvent {
+    TT_SCHEDULE_TIME = 0,
+    TT_SCHEDULE_FETCH,
+};
+
+struct TTSchedulePayload {
+    TTScheduleEvent event;
+    bool resumeSleep;
 };
 
 struct TTTimeTickPayload {

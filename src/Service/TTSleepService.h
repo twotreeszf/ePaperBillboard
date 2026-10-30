@@ -4,8 +4,6 @@
 #include "../Base/TTKeypadConfig.h"
 #include "../Models/TTNotificationPayloads.h"
 
-#define TT_SLEEP_FETCH_QUIET_START_HOUR  22
-#define TT_SLEEP_FETCH_QUIET_END_HOUR    6
 #define TT_SLEEP_MIN_US             200000ULL
 #define TT_SLEEP_AFTER_SYNC_MS      0
 #define TT_SLEEP_AFTER_REFRESH_MS   5000
@@ -22,12 +20,12 @@ public:
     void requestLightSleep(void* owner);
     void cancelLightSleep(void* owner);
     bool isLightSleepRequested() const { return _requested; }
+    bool isRtcPending() const { return _rtcPending; }
+    bool takeTimerWake();
     void tryEnter();
 
 private:
     bool canEnter() const;
-    bool isFetchPeriodDue() const;
-    void refreshFetchDeadline();
     uint64_t sleepUsUntil(time_t deadline) const;
     bool enterSleep(uint64_t sleepUs);
     void consumeRequest();
@@ -38,9 +36,9 @@ private:
     void publishSleepState(TTSleepState state);
 
     void* _owner = nullptr;
-    time_t _nextFetchUnix = 0;
     bool _requested = false;
     bool _holdoffAfterInput = false;
     bool _loggedWait = false;
     bool _rtcPending = false;
+    bool _timerWake = false;
 };

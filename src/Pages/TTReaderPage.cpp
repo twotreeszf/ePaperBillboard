@@ -106,6 +106,9 @@ void TTReaderPage::setup() {
     subscribe<TTSleepWakePayload>(TT_NOTIFICATION_SLEEP_WAKE, [this](const TTSleepWakePayload& wake) {
         onSleepWake(wake);
     });
+    subscribe<TTSchedulePayload>(TT_NOTIFICATION_SCHEDULE, [this](const TTSchedulePayload& event) {
+        onSchedule(event);
+    });
     subscribe<TTTimeTickPayload>(TT_NOTIFICATION_TIME_TICK, [this](const TTTimeTickPayload&) {
         onTimeTick();
     });
@@ -764,17 +767,29 @@ void TTReaderPage::onSleepWake(const TTSleepWakePayload& wake) {
     }
     LOG_I("Reader: sleep wake reason=%d", (int)wake.reason);
     switch (wake.reason) {
-        case TT_SLEEP_WAKE_FETCH:
-            cancelIdleSleep();
-            enterIdleSleep();
-            break;
-        case TT_SLEEP_WAKE_TIME:
-            _sleepAfterTimeTick = true;
-            armIdleSleep();
-            break;
         case TT_SLEEP_WAKE_INPUT:
         case TT_SLEEP_WAKE_POWER:
             _sleepAfterTimeTick = false;
+            armIdleSleep();
+            break;
+        case TT_SLEEP_WAKE_TIME:
+        case TT_SLEEP_WAKE_FETCH:
+            break;
+    }
+}
+
+void TTReaderPage::onSchedule(const TTSchedulePayload& event) {
+    if (!_visible || _leaving || !event.resumeSleep) {
+        return;
+    }
+    LOG_I("Reader: schedule event=%d", (int)event.event);
+    switch (event.event) {
+        case TT_SCHEDULE_FETCH:
+            cancelIdleSleep();
+            enterIdleSleep();
+            break;
+        case TT_SCHEDULE_TIME:
+            _sleepAfterTimeTick = true;
             armIdleSleep();
             break;
     }

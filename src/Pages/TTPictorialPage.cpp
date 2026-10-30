@@ -203,6 +203,9 @@ void TTPictorialPage::setup() {
     subscribe<TTSleepWakePayload>(TT_NOTIFICATION_SLEEP_WAKE, [this](const TTSleepWakePayload& wake) {
         onSleepWake(wake);
     });
+    subscribe<TTSchedulePayload>(TT_NOTIFICATION_SCHEDULE, [this](const TTSchedulePayload& event) {
+        onSchedule(event);
+    });
     registerKeyAction(TT_KEY_CENTER, TT_KEY_LONG_PRESS, [this]() {
         if (TTInstanceOf<TTPictorialService>().customOn()) {
             LOG_I("Pictorial page: custom mode ignores series picker");
@@ -414,10 +417,6 @@ void TTPictorialPage::onSleepWake(const TTSleepWakePayload& wake) {
     }
     LOG_I("Pictorial page: sleep wake reason=%d", (int)wake.reason);
     switch (wake.reason) {
-        case TT_SLEEP_WAKE_FETCH:
-            requestWeather();
-            TTInstanceOf<TTPictorialService>().requestHourly();
-            break;
         case TT_SLEEP_WAKE_POWER:
         case TT_SLEEP_WAKE_INPUT:
             _sleepAfterTimeTick = false;
@@ -428,11 +427,30 @@ void TTPictorialPage::onSleepWake(const TTSleepWakePayload& wake) {
             armInputIdleSleep();
             break;
         case TT_SLEEP_WAKE_TIME:
+        case TT_SLEEP_WAKE_FETCH:
+            break;
+    }
+}
+
+void TTPictorialPage::onSchedule(const TTSchedulePayload& event) {
+    if (!_visible) {
+        return;
+    }
+    LOG_I("Pictorial page: schedule event=%d resume=%d", (int)event.event, event.resumeSleep ? 1 : 0);
+    switch (event.event) {
+        case TT_SCHEDULE_FETCH:
+            requestWeather();
+            TTInstanceOf<TTPictorialService>().requestHourly();
+            break;
+        case TT_SCHEDULE_TIME:
             if (_weatherFetching || _artFetching || _picking) {
                 break;
             }
-            _sleepAfterTimeTick = true;
-            LOG_I("Pictorial page: wait time tick then sleep");
+            updateClock(true);
+            if (event.resumeSleep) {
+                _sleepAfterTimeTick = true;
+                LOG_I("Pictorial page: wait time tick then sleep");
+            }
             break;
     }
 }
