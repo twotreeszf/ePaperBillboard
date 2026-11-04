@@ -627,9 +627,9 @@ String TTConfigServer::_devPanelHtml(bool devOpen, bool devDenied, const String&
         html += F(" checked");
     }
     html += F(">启用调试服务</label>");
-    html += F("<p class='tip'>勾选后在 ");
+    html += F("<p class='tip'>勾选后，仅在连接 USB 或充电时于 ");
     html += String(TT_DEBUG_HTTP_PORT);
-    html += F(" 端口提供按键和截图，可与配置页、传书同时使用。</p>");
+    html += F(" 端口提供按键和截图，可与配置页、传书同时使用。拔掉 USB 且未在充电时自动关闭，再次接上电源后重新打开。</p>");
     if (enabled) {
         html += F("<a class='shots' href='/shots'>截图下载与删除</a>");
     }

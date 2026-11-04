@@ -26,8 +26,9 @@ void TTWiFiTask::setup() {
     LOG_I("WiFi task starting");
     bool debug = false;
     TTInstanceOf<TTPreference>().get(PREF_DEV_DEBUG, debug, false);
-    _debugWanted = debug;
-    LOG_I("Debug: option %s", debug ? "on" : "off");
+    _debugOption = debug;
+    _debugWanted = false;
+    LOG_I("Debug: option %s, waits for USB or charging", debug ? "on" : "off");
     _wifiManager.seedDefaultNetwork();
     _wifiManager.refreshSavedNetwork();
     if (!_wifiManager.hasConfiguredNetwork()) {
@@ -303,15 +304,41 @@ void TTWiFiTask::stopBookTransfer(TTBookTransferState state, TTBookTransferError
 void TTWiFiTask::requestDebugServer(bool enabled) {
     auto* f = new std::function<void()>([this, enabled]() {
         LOG_I("Debug: option %s", enabled ? "on" : "off");
-        _debugWanted = enabled;
-        if (!enabled) {
-            stopDebugListen();
-            return;
-        }
-        _wakeFailed = false;
-        _debugRetryAt = 0;
+        _debugOption = enabled;
+        applyDebugWanted();
     });
     enqueue(f);
+}
+
+void TTWiFiTask::noteExternalPower(bool charging, bool usbPlugged) {
+    auto* f = new std::function<void()>([this, charging, usbPlugged]() {
+        const bool powered = charging || usbPlugged;
+        if (_powerKnown && powered == _externalPower) {
+            return;
+        }
+        _powerKnown = true;
+        _externalPower = powered;
+        LOG_I("Debug: external power=%d charging=%d usb=%d",
+              powered ? 1 : 0, charging ? 1 : 0, usbPlugged ? 1 : 0);
+        applyDebugWanted();
+    });
+    enqueue(f);
+}
+
+void TTWiFiTask::applyDebugWanted() {
+    const bool wanted = _debugOption && _externalPower;
+    if (_debugWanted == wanted) {
+        return;
+    }
+    _debugWanted = wanted;
+    if (!wanted) {
+        LOG_I("Debug: stop");
+        stopDebugListen();
+        return;
+    }
+    LOG_I("Debug: start on external power");
+    _wakeFailed = false;
+    _debugRetryAt = 0;
 }
 
 void TTWiFiTask::stopDebugListen() {

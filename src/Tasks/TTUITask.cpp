@@ -5,6 +5,8 @@
 #include <memory>
 #include "../Base/TTLvglEpdDriver.h"
 #include "../Base/TTInstance.h"
+#include "../Base/TTNotificationCenter.h"
+#include "../Models/TTNotificationPayloads.h"
 #include "../Base/TTPopupLayer.h"
 #include "../Base/Logger.h"
 #include "../Base/ErrorCheck.h"
@@ -19,6 +21,7 @@
 #include "../Service/TTTimeService.h"
 #include "../Service/TTOtaService.h"
 #include "../Service/TTSdCardService.h"
+#include "../Tasks/TTWiFiTask.h"
 #include <freertos/FreeRTOS.h>
 #include <freertos/task.h>
 
@@ -69,6 +72,13 @@ void TTUITask::setup() {
     TTInstanceOf<TTSleepService>().begin();
     TTInstanceOf<TTScheduleService>().begin();
     TTInstanceOf<TTPictorialService>().begin();
+    TTWiFiTask& wifi = TTInstanceOf<TTWiFiTask>();
+    TTInstanceOf<TTNotificationCenter>().subscribe<TTSensorDataPayload>(
+        TT_NOTIFICATION_SENSOR_DATA_UPDATE,
+        &wifi,
+        [](const TTSensorDataPayload& data) {
+            TTInstanceOf<TTWiFiTask>().noteExternalPower(data.charging, data.usbPlugged);
+        });
 
     LOG_I("UI task started, heap=%u largest=%u",
           (unsigned)Util::heapFree(), (unsigned)Util::heapLargest());

@@ -35,6 +35,7 @@ public:
     void requestStartLanPortalAsync();
     void requestStopLanPortalAsync();
     void requestDebugServer(bool enabled);
+    void noteExternalPower(bool charging, bool usbPlugged);
     bool isBookTransferActive() const { return _bookTransferWanted; }
     void runWithRadio(const char* tag, std::function<void()> work,
                       std::function<void()> onFailed = {});
@@ -62,6 +63,7 @@ private:
     void processBookTransfer();
     void stopBookTransfer(TTBookTransferState state, TTBookTransferError error);
     void processDebugServer();
+    void applyDebugWanted();
     void stopDebugListen();
     void processLanPortal();
     void stopLanListen();
@@ -73,7 +75,10 @@ private:
     TTDebugServer _debug;
     bool _bookTransferWanted = false;
     bool _lanPortalWanted = false;
+    bool _debugOption = false;
     bool _debugWanted = false;
+    bool _externalPower = false;
+    bool _powerKnown = false;
     uint32_t _debugRetryAt = 0;
     TTWiFiLinkState _publishedState = TT_WIFI_LINK_IDLE;
     bool _wakeFailed = false;
