@@ -7,6 +7,7 @@
 #define PREF_WEATHER_LAT     "weather_lat"
 #define PREF_WEATHER_LON     "weather_lon"
 #define PREF_WEATHER_REGION  "weather_region"
+#define PREF_WEATHER_MODE    "weather_mode"
 #define TT_WEATHER_REGION_CN       "cn"
 #define TT_WEATHER_REGION_OVERSEAS "overseas"
 

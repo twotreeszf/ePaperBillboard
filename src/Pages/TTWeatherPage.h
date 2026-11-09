@@ -198,6 +198,8 @@ private:
     void bindAge(uint32_t fetchedAt);
     void updateAge(bool refreshIfChanged);
     void updateClock(bool refreshIfChanged);
+    void loadDisplayMode();
+    void saveDisplayMode();
     void applyDisplayMode();
     void applyChrome(bool clock);
     void cycleDisplayMode(int delta);

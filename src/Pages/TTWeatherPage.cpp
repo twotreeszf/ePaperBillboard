@@ -12,6 +12,7 @@
 #include "../Service/TTWeatherService.h"
 #include "../Service/TTSleepService.h"
 #include "../Base/TTLvglEpdDriver.h"
+#include "../Base/TTPreference.h"
 #include "../Tasks/TTSensorTask.h"
 #include <WiFi.h>
 #include <Arduino.h>
@@ -357,6 +358,7 @@ void TTWeatherPage::buildContent(lv_obj_t* screen) {
     lv_obj_set_clickable(forecastDiv, false);
     lv_obj_add_event_cb(forecastDiv, drawForecastDiv, LV_EVENT_DRAW_MAIN, nullptr);
 
+    loadDisplayMode();
     applyDisplayMode();
     showContent(false);
     showEmpty(true);
@@ -1422,6 +1424,25 @@ void TTWeatherPage::applyChrome(bool clock) {
     LOG_I("Weather page: chrome clock=%d", clock ? 1 : 0);
 }
 
+void TTWeatherPage::loadDisplayMode() {
+    int mode = TT_WEATHER_MODE_DETAIL;
+    TTInstanceOf<TTPreference>().get(PREF_WEATHER_MODE, mode, TT_WEATHER_MODE_DETAIL);
+    if (mode < 0 || mode >= TT_WEATHER_MODE_N) {
+        mode = TT_WEATHER_MODE_DETAIL;
+    }
+    _displayMode = mode;
+    LOG_I("Weather page: restored mode=%d", _displayMode);
+}
+
+void TTWeatherPage::saveDisplayMode() {
+    auto& pref = TTInstanceOf<TTPreference>();
+    if (!pref.set(PREF_WEATHER_MODE, _displayMode) || !pref.sync()) {
+        LOG_W("Weather page: save mode=%d failed", _displayMode);
+        return;
+    }
+    LOG_I("Weather page: saved mode=%d", _displayMode);
+}
+
 void TTWeatherPage::applyDisplayMode() {
     const bool clock = _displayMode == TT_WEATHER_MODE_CLOCK;
     if (clock) {
@@ -1448,6 +1469,7 @@ void TTWeatherPage::cycleDisplayMode(int delta) {
         return;
     }
     _displayMode = next;
+    saveDisplayMode();
     applyDisplayMode();
     LOG_I("Weather page: display mode=%d", _displayMode);
     cancelLightSleep();
