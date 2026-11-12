@@ -6,7 +6,6 @@
 #include "../Base/TTLvglEpdDriver.h"
 #include "../Base/TTNavigationBar.h"
 #include "../Base/TTPopupLayer.h"
-#include "../Base/TTRtc.h"
 #include "../Base/TTStreamImage.h"
 #include "../Pages/TTCalendarPage.h"
 #include "../Service/TTPictorialService.h"
@@ -16,18 +15,8 @@
 #include <EPDConfig.h>
 #include <cstdio>
 #include <cstring>
-#include <ctime>
-#include <sys/time.h>
 
 namespace {
-
-const char* weekEn(int wday) {
-    const char* names[] = { "Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat" };
-    if (wday < 0 || wday > 6) {
-        return "---";
-    }
-    return names[wday];
-}
 
 lv_obj_t* createLabel(lv_obj_t* parent, const lv_font_t* font, lv_color_t color, const char* text) {
     lv_obj_t* label = lv_label_create(parent);
@@ -42,73 +31,13 @@ lv_obj_t* createLabel(lv_obj_t* parent, const lv_font_t* font, lv_color_t color,
 void TTPictorialPage::buildContent(lv_obj_t* screen) {
     TTFontManager& fonts = TTFontManager::instance();
     lv_font_t* font16 = fonts.getFont(TT_CAL_TEXT_FONT);
-    lv_font_t* fontTemp = fonts.getFont(TT_CAL_TEMP_FONT);
-    lv_font_t* fontClock = fonts.getFont(TT_CAL_TIME_FONT);
-    lv_font_t* fontDate = fonts.getFont(TT_CAL_DATE_EN_FONT);
-    lv_font_t* fontWeek = fonts.getFont(TT_CAL_WEEK_FONT);
-    lv_font_t* fontCond = fonts.getFont(TT_CAL_COND_FONT);
     lv_font_t* font10 = fonts.getFont(TT_CAL_PAGE_FONT);
-    if (fontTemp == nullptr) {
-        fontTemp = font16;
-    }
     if (font10 == nullptr) {
         font10 = font16;
     }
-    if (fontClock == nullptr) {
-        fontClock = fontTemp;
-    }
-    if (fontDate == nullptr) {
-        fontDate = fontTemp;
-    }
-    if (fontWeek == nullptr) {
-        fontWeek = fontDate;
-    }
-    if (fontCond == nullptr) {
-        fontCond = font16;
-    }
     const int height = EPD_HEIGHT - TT_NAV_PAGE_INSET;
     const int artW = EPD_WIDTH - TT_CAL_SIDE_W;
-
-    _side = lv_obj_create(screen);
-    lv_obj_set_pos(_side, 0, 0);
-    lv_obj_set_size(_side, TT_CAL_SIDE_W, height);
-    lv_obj_set_style_bg_color(_side, lv_color_white(), 0);
-    lv_obj_set_style_bg_opa(_side, LV_OPA_COVER, 0);
-    lv_obj_set_style_border_width(_side, 0, 0);
-    lv_obj_set_style_pad_all(_side, 0, 0);
-    lv_obj_set_style_radius(_side, 0, 0);
-    lv_obj_set_scrollable(_side, false);
-
-    _weatherIcon = tt_stream_image_create(_side);
-    lv_obj_set_size(_weatherIcon, TT_CAL_ICON, TT_CAL_ICON);
-    lv_obj_align(_weatherIcon, LV_ALIGN_TOP_MID, 0, TT_CAL_ICON_Y);
-
-    _tempLabel = createLabel(_side, fontTemp, lv_color_black(), "");
-    lv_obj_set_pos(_tempLabel, TT_CAL_TEMP_X, TT_CAL_TEMP_Y);
-    lv_obj_set_hidden(_tempLabel, true);
-
-    _tempUnit = lv_obj_create(_side);
-    lv_obj_set_size(_tempUnit, TT_CAL_DOT_LG, TT_CAL_DOT_LG);
-    lv_obj_set_style_bg_opa(_tempUnit, LV_OPA_TRANSP, 0);
-    lv_obj_set_style_radius(_tempUnit, LV_RADIUS_CIRCLE, 0);
-    lv_obj_set_style_border_width(_tempUnit, TT_CAL_DOT_BORDER, 0);
-    lv_obj_set_style_border_color(_tempUnit, lv_color_black(), 0);
-    lv_obj_set_style_border_opa(_tempUnit, LV_OPA_COVER, 0);
-    lv_obj_set_style_pad_all(_tempUnit, 0, 0);
-    lv_obj_set_scrollable(_tempUnit, false);
-    lv_obj_set_clickable(_tempUnit, false);
-    lv_obj_set_hidden(_tempUnit, true);
-
-    _condLabel = createLabel(_side, fontCond, lv_color_black(), "");
-    lv_label_set_long_mode(_condLabel, LV_LABEL_LONG_CLIP);
-
-    _dateLabel = createLabel(_side, fontDate, lv_color_black(), "--");
-    _weekLabel = createLabel(_side, fontWeek, lv_color_black(), "---");
-    lv_obj_set_width(_weekLabel, LV_SIZE_CONTENT);
-
-    _clockLabel = createLabel(_side, fontClock, lv_color_black(), "--");
-    _clockColon = createLabel(_side, fontClock, lv_color_black(), ":");
-    _clockMin = createLabel(_side, fontClock, lv_color_black(), "--");
+    _daySide.build(screen);
 
     _art = tt_stream_image_create(screen);
     lv_obj_set_pos(_art, TT_CAL_SIDE_W, 0);
@@ -305,7 +234,7 @@ void TTPictorialPage::applyWeather(const TTWeatherPayload& payload) {
         return;
     }
     _weatherFetching = false;
-    if (_tempLabel == nullptr) {
+    if (!_daySide.ready()) {
         tryRequestLightSleep(TT_SLEEP_AFTER_SYNC_MS);
         return;
     }
@@ -318,16 +247,7 @@ void TTPictorialPage::applyWeather(const TTWeatherPayload& payload) {
         tryRequestLightSleep(TT_SLEEP_AFTER_SYNC_MS);
         return;
     }
-    _haveWeather = true;
-    _weatherCode = payload.current.weatherCode;
-    _weatherDay = payload.current.isDay;
-    char path[TT_WEATHER_ICON_PATH_MAX];
-    tt_weather_condition_path(path, sizeof(path), _weatherCode, _weatherDay, TT_CAL_ICON);
-    tt_stream_image_set_src(_weatherIcon, path);
-    char buf[24];
-    snprintf(buf, sizeof(buf), "%.0f", payload.current.temp);
-    lv_label_set_text(_tempLabel, buf);
-    lv_label_set_text(_condLabel, tt_weather_condition_text(_weatherCode));
+    _daySide.setWeather(payload.current.weatherCode, payload.current.isDay, payload.current.temp);
     layoutSide();
     if (_visible) {
         requestRefresh(TT_REFRESH_FULL);
@@ -485,105 +405,13 @@ void TTPictorialPage::setStatusTimeVisible(bool visible) {
 }
 
 void TTPictorialPage::layoutSide() {
-    if (_side == nullptr || _clockLabel == nullptr || _clockColon == nullptr || _clockMin == nullptr) {
-        return;
-    }
-    lv_obj_update_layout(_clockLabel);
-    lv_obj_update_layout(_clockColon);
-    lv_obj_update_layout(_clockMin);
-    int clockW = lv_obj_get_width(_clockLabel) + lv_obj_get_width(_clockColon) + lv_obj_get_width(_clockMin);
-    if (clockW < TT_CAL_TIME_ADV) {
-        clockW = TT_CAL_CLOCK_GLYPHS * TT_CAL_TIME_ADV;
-    }
-    const int sideW = TT_CAL_SIDE_W;
-    const int clockX = (sideW - clockW) / 2;
-    lv_obj_align(_clockLabel, LV_ALIGN_BOTTOM_LEFT, clockX, -TT_CAL_CLOCK_INSET);
-    lv_obj_align_to(_clockColon, _clockLabel, LV_ALIGN_OUT_RIGHT_BOTTOM, 0, -TT_CAL_COLON_SHIFT);
-    lv_obj_align_to(_clockMin, _clockColon, LV_ALIGN_OUT_RIGHT_BOTTOM, 0, TT_CAL_COLON_SHIFT);
-    if (_weatherIcon != nullptr) {
-        lv_obj_align(_weatherIcon, LV_ALIGN_TOP_MID, 0, TT_CAL_ICON_Y);
-    }
-    if (_weekLabel != nullptr) {
-        lv_obj_set_width(_weekLabel, LV_SIZE_CONTENT);
-    }
-    if (_tempLabel == nullptr || _tempUnit == nullptr || _condLabel == nullptr) {
-        return;
-    }
-    if (_haveWeather) {
-        lv_obj_set_hidden(_tempLabel, false);
-        lv_obj_set_hidden(_tempUnit, false);
-    } else {
-        lv_obj_set_hidden(_tempLabel, true);
-        lv_obj_set_hidden(_tempUnit, true);
-    }
-    lv_obj_update_layout(_tempLabel);
-    lv_obj_update_layout(_tempUnit);
-    lv_obj_update_layout(_condLabel);
-    const int tempW = _haveWeather ? lv_obj_get_width(_tempLabel) : 0;
-    const int unitW = _haveWeather ? lv_obj_get_width(_tempUnit) : 0;
-    const int condW = lv_obj_get_width(_condLabel);
-    const int groupW = tempW + TT_CAL_TEMP_DOT_GAP_X + unitW + TT_CAL_INFO_GAP_X + condW;
-    int groupX = (sideW - groupW) / 2;
-    if (groupX < 0) {
-        groupX = 0;
-    }
-    lv_obj_set_pos(_tempLabel, groupX, TT_CAL_TEMP_Y);
-    lv_obj_align_to(_tempUnit, _tempLabel, LV_ALIGN_OUT_RIGHT_TOP,
-                    TT_CAL_TEMP_DOT_GAP_X, TT_CAL_TEMP_DOT_GAP_Y);
-    lv_obj_update_layout(_tempLabel);
-    lv_obj_update_layout(_tempUnit);
-    const int tempY = lv_obj_get_y(_tempLabel);
-    const int tempH = lv_obj_get_height(_tempLabel);
-    const int condH = lv_obj_get_height(_condLabel);
-    const int stackY = tempY + (tempH - condH) / 2;
-    const int infoX = lv_obj_get_x(_tempUnit) + lv_obj_get_width(_tempUnit) + TT_CAL_INFO_GAP_X;
-    int infoW = sideW - infoX - TT_CAL_SIDE_PAD;
-    if (infoW < 24) {
-        infoW = 24;
-    }
-    lv_obj_set_style_max_width(_condLabel, infoW, 0);
-    lv_obj_set_pos(_condLabel, infoX, stackY);
-
-    if (_dateLabel == nullptr || _weekLabel == nullptr) {
-        return;
-    }
-    lv_obj_update_layout(_dateLabel);
-    lv_obj_update_layout(_weekLabel);
-    lv_obj_update_layout(_clockLabel);
-    const int clockTop = lv_obj_get_y(_clockLabel);
-    const int weekH = lv_obj_get_height(_weekLabel);
-    const int dateH = lv_obj_get_height(_dateLabel);
-    const int weekBoxGap = TT_CAL_DATE_TIME_GAP
-        - (weekH - 1 - TT_CAL_EN32_INK_BOTTOM) - TT_CAL_EN40_INK_TOP;
-    const int dateBoxGap = TT_CAL_DATE_TIME_GAP
-        - (dateH - 1 - TT_CAL_EN32_INK_BOTTOM) - TT_CAL_EN32_INK_TOP;
-    const int weekY = clockTop - weekBoxGap - weekH;
-    const int dateY = weekY - dateBoxGap - dateH;
-    lv_obj_align(_dateLabel, LV_ALIGN_TOP_MID, 0, dateY);
-    lv_obj_align(_weekLabel, LV_ALIGN_TOP_MID, 0, weekY);
+    _daySide.layout();
 }
 
 void TTPictorialPage::updateClock(bool refreshIfChanged) {
-    if (_clockLabel == nullptr) {
+    if (!_daySide.updateClock()) {
         return;
     }
-    struct tm local = {};
-    if (!TTInstanceOf<TTRtc>().getLocalTime(local)) {
-        return;
-    }
-    const int minute = local.tm_yday * 24 * 60 + local.tm_hour * 60 + local.tm_min;
-    if (minute == _lastMinute) {
-        return;
-    }
-    _lastMinute = minute;
-    char buf[16];
-    snprintf(buf, sizeof(buf), "%02d", local.tm_hour);
-    lv_label_set_text(_clockLabel, buf);
-    snprintf(buf, sizeof(buf), "%02d", local.tm_min);
-    lv_label_set_text(_clockMin, buf);
-    snprintf(buf, sizeof(buf), "%d-%d", local.tm_mon + 1, local.tm_mday);
-    lv_label_set_text(_dateLabel, buf);
-    lv_label_set_text(_weekLabel, weekEn(local.tm_wday));
     layoutSide();
     if (refreshIfChanged && _visible) {
         requestRefresh(TT_REFRESH_PARTIAL);

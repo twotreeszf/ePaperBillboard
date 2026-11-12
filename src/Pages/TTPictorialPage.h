@@ -5,6 +5,7 @@
 #include "../Models/TTPictorialTypes.h"
 #include "../Models/TTNotificationPayloads.h"
 #include "../Service/TTSleepService.h"
+#include "TTDaySide.h"
 
 #define TT_PIC_UPDATING_TEXT  "正在更新"
 #define TT_PIC_PICK_ROWS      3
@@ -44,16 +45,7 @@ private:
     void cancelInputIdleSleep();
     void cancelSleepSettle();
 
-    lv_obj_t* _side = nullptr;
-    lv_obj_t* _weatherIcon = nullptr;
-    lv_obj_t* _tempLabel = nullptr;
-    lv_obj_t* _tempUnit = nullptr;
-    lv_obj_t* _condLabel = nullptr;
-    lv_obj_t* _dateLabel = nullptr;
-    lv_obj_t* _weekLabel = nullptr;
-    lv_obj_t* _clockLabel = nullptr;
-    lv_obj_t* _clockColon = nullptr;
-    lv_obj_t* _clockMin = nullptr;
+    TTDaySide _daySide;
     lv_obj_t* _art = nullptr;
     lv_obj_t* _status = nullptr;
     lv_obj_t* _pickPanel = nullptr;
@@ -62,16 +54,12 @@ private:
     lv_obj_t* _pickOrdinal = nullptr;
     lv_obj_t* _hit = nullptr;
 
-    int _lastMinute = -1;
     bool _visible = false;
-    bool _haveWeather = false;
     bool _weatherFetching = false;
     bool _artReady = false;
     char _artPath[TT_STREAM_IMAGE_PATH_MAX] = {};
     bool _artFetching = false;
     bool _picking = false;
-    int _weatherCode = 0;
-    bool _weatherDay = true;
     uint32_t _inputIdleSleepHandle = 0;
     uint32_t _sleepSettleHandle = 0;
     bool _sleepAfterTimeTick = false;

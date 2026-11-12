@@ -5,8 +5,8 @@
 #include "../Models/TTCalendarTypes.h"
 #include "../Models/TTNotificationPayloads.h"
 #include "../Service/TTSleepService.h"
+#include "TTDaySide.h"
 
-#define TT_CAL_CLOCK_GLYPHS    5
 #define TT_CAL_AGE_ICON        8
 #define TT_CAL_AGE_ICON_GAP    2
 #define TT_CAL_AGE_ICON_DY     3
@@ -29,8 +29,6 @@
 #define TT_CAL_AXIS_X          (TT_CAL_MARK_LG / 2)
 #define TT_CAL_TEXT_X          (TT_CAL_AXIS_X + TT_CAL_AXIS_GAP)
 #define TT_CAL_DOT_SM          4
-#define TT_CAL_DOT_LG          8
-#define TT_CAL_DOT_BORDER      1
 #define TT_CAL_MARK_SM         8
 #define TT_CAL_MARK_SM_BORDER  1
 #define TT_CAL_MARK_LG         16
@@ -46,26 +44,7 @@
 #define TT_CAL_RULE_GAP        2
 #define TT_CAL_AXIS_STUB_GAP   2
 #define TT_CAL_AXIS_STUB       (TT_CAL_RULE_DASH * 3 + TT_CAL_RULE_GAP * 2)
-#define TT_CAL_ICON            97
-#define TT_CAL_ICON_Y          2
-#define TT_CAL_TEMP_FONT       40
-#define TT_CAL_TEMP_X          2
-#define TT_CAL_TEMP_Y          (TT_CAL_ICON_Y + TT_CAL_ICON + 2)
-#define TT_CAL_TEMP_DOT_GAP_X  3
-#define TT_CAL_TEMP_DOT_GAP_Y  7
-#define TT_CAL_INFO_GAP_X      6
-#define TT_CAL_DATE_EN_FONT    32
-#define TT_CAL_WEEK_FONT       32
-#define TT_CAL_TIME_FONT       40
-#define TT_CAL_TIME_ADV        24
-#define TT_CAL_CLOCK_INSET     4
-#define TT_CAL_COLON_SHIFT     3
-#define TT_CAL_DATE_TIME_GAP   10
-#define TT_CAL_EN32_INK_TOP    5
-#define TT_CAL_EN32_INK_BOTTOM 29
-#define TT_CAL_EN40_INK_TOP    7
 #define TT_CAL_TEXT_FONT       16
-#define TT_CAL_COND_FONT       16
 #define TT_CAL_DATE_FONT       12
 #define TT_CAL_EVENT_FONT      14
 #define TT_CAL_EVENT_DIGIT_ADV 7
@@ -77,19 +56,9 @@
     (TT_CAL_EVENT_CLOCK_W) : (TT_CAL_EVENT_ALLDAY_W))
 #define TT_CAL_EVENT_TIME_GAP  6
 #define TT_CAL_PAGE_FONT       10
-#define TT_CAL_CAPSULE_PAD_X   5
 #define TT_CAL_CAPSULE_PAD_Y   3
 #define TT_CAL_TODAY_PAD_X     7
 #define TT_CAL_CAPSULE_BORDER  1
-#define TT_CAL_COND_TEXT_W     40
-#define TT_CAL_TEMP_GLYPHS     2
-#define TT_CAL_SIDE_PAD        2
-#define TT_CAL_SIDE_WEATHER_W  (TT_CAL_TEMP_GLYPHS * TT_CAL_TIME_ADV + TT_CAL_TEMP_DOT_GAP_X \
-    + TT_CAL_DOT_LG + TT_CAL_INFO_GAP_X + TT_CAL_COND_TEXT_W + TT_CAL_CAPSULE_PAD_X * 2 \
-    + TT_CAL_SIDE_PAD * 2)
-#define TT_CAL_SIDE_CLOCK_W    (TT_CAL_CLOCK_GLYPHS * TT_CAL_TIME_ADV)
-#define TT_CAL_SIDE_W          ((TT_CAL_SIDE_WEATHER_W) > (TT_CAL_SIDE_CLOCK_W) ? \
-    (TT_CAL_SIDE_WEATHER_W) : (TT_CAL_SIDE_CLOCK_W))
 
 enum TTCalCapsule {
     TT_CAL_CAPSULE_NONE = 0,
@@ -151,18 +120,9 @@ private:
     void pageBy(int delta);
     static void onListDraw(lv_event_t* e);
 
-    lv_obj_t* _side = nullptr;
-    lv_obj_t* _weatherIcon = nullptr;
-    lv_obj_t* _tempLabel = nullptr;
-    lv_obj_t* _tempUnit = nullptr;
-    lv_obj_t* _condLabel = nullptr;
+    TTDaySide _daySide;
     lv_obj_t* _ageIcon = nullptr;
     lv_obj_t* _ageLabel = nullptr;
-    lv_obj_t* _dateLabel = nullptr;
-    lv_obj_t* _weekLabel = nullptr;
-    lv_obj_t* _clockLabel = nullptr;
-    lv_obj_t* _clockColon = nullptr;
-    lv_obj_t* _clockMin = nullptr;
     lv_obj_t* _list = nullptr;
     lv_obj_t* _status = nullptr;
     lv_obj_t* _pageLabel = nullptr;
@@ -182,9 +142,7 @@ private:
     uint8_t _visibleSlots = 0;
     int32_t _rangeStart = 0;
     int32_t _rangeEnd = 0;
-    int _lastMinute = -1;
     bool _visible = false;
-    bool _haveWeather = false;
     bool _calendarReady = false;
     bool _forceRefreshing = false;
     bool _calendarFetching = false;
@@ -194,7 +152,5 @@ private:
     bool _ageOk = true;
     uint32_t _inputIdleSleepHandle = 0;
     uint32_t _sleepSettleHandle = 0;
-    int _weatherCode = 0;
-    bool _weatherDay = true;
     uint32_t _fetchedAt = 0;
 };
