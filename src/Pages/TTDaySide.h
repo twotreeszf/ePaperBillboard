@@ -14,19 +14,22 @@
 #define TT_CAL_DOT_BORDER      1
 #define TT_CAL_INFO_GAP_X      6
 #define TT_CAL_DATE_EN_FONT    32
-#define TT_CAL_WEEK_FONT       32
+#define TT_CAL_WEEK_FONT       16
 #define TT_CAL_TIME_FONT       40
 #define TT_CAL_TIME_ADV        24
 #define TT_CAL_CLOCK_INSET     4
 #define TT_CAL_COLON_SHIFT     3
 #define TT_CAL_DATE_TIME_GAP   10
+#define TT_CAL_DATE_WEEK_LIFT  10
+#define TT_CAL_WEEK_INK_TOP    1
+#define TT_CAL_WEEK_INK_BOTTOM 16
 #define TT_CAL_EN32_INK_TOP    5
 #define TT_CAL_EN32_INK_BOTTOM 29
 #define TT_CAL_EN40_INK_TOP    7
 #define TT_CAL_COND_FONT       16
 #define TT_CAL_CAPSULE_PAD_X   5
 #define TT_CAL_COND_TEXT_W     40
-#define TT_CAL_COND_PAD_Y      1
+#define TT_CAL_COND_PAD_Y      2
 #define TT_CAL_TEMP_GLYPHS     2
 #define TT_CAL_SIDE_PAD        2
 #define TT_CAL_SIDE_WEATHER_W  (TT_CAL_TEMP_GLYPHS * TT_CAL_TIME_ADV + TT_CAL_TEMP_DOT_GAP_X \

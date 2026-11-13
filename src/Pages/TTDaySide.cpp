@@ -12,8 +12,8 @@
 
 namespace {
 
-const char* weekEn(int wday) {
-    const char* names[] = { "Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat" };
+const char* weekdayText(int wday) {
+    const char* names[] = { "星期日", "星期一", "星期二", "星期三", "星期四", "星期五", "星期六" };
     if (wday < 0 || wday > 6) {
         return "---";
     }
@@ -132,7 +132,7 @@ void TTDaySide::build(lv_obj_t* parent) {
     lv_font_t* fontTemp = fontOr(fonts, TT_CAL_TEMP_FONT, font16);
     lv_font_t* fontClock = fontOr(fonts, TT_CAL_TIME_FONT, fontTemp);
     lv_font_t* fontDate = fontOr(fonts, TT_CAL_DATE_EN_FONT, fontTemp);
-    lv_font_t* fontWeek = fontOr(fonts, TT_CAL_WEEK_FONT, fontDate);
+    lv_font_t* fontWeek = fontOr(fonts, TT_CAL_WEEK_FONT, font16);
     lv_font_t* fontCond = fontOr(fonts, TT_CAL_COND_FONT, font16);
     const int height = EPD_HEIGHT - TT_NAV_PAGE_INSET;
 
@@ -176,7 +176,8 @@ void TTDaySide::build(lv_obj_t* parent) {
     lv_obj_set_hidden(_condLabel, true);
 
     _dateLabel = createLabel(_side, fontDate, lv_color_black(), "--");
-    _weekLabel = createLabel(_side, fontWeek, lv_color_black(), "---");
+    _weekLabel = TTBoldLabel::create(_side, "---", fontWeek);
+    lv_obj_set_style_pad_right(_weekLabel, TT_BOLD_LABEL_EXTRA, 0);
     lv_obj_set_width(_weekLabel, LV_SIZE_CONTENT);
 
     _clockLabel = createLabel(_side, fontClock, lv_color_black(), "--");
@@ -261,10 +262,10 @@ void TTDaySide::layout() {
     const int weekH = lv_obj_get_height(_weekLabel);
     const int dateH = lv_obj_get_height(_dateLabel);
     const int weekBoxGap = TT_CAL_DATE_TIME_GAP
-        - (weekH - 1 - TT_CAL_EN32_INK_BOTTOM) - TT_CAL_EN40_INK_TOP;
+        - (weekH - 1 - TT_CAL_WEEK_INK_BOTTOM) - TT_CAL_EN40_INK_TOP;
     const int dateBoxGap = TT_CAL_DATE_TIME_GAP
-        - (dateH - 1 - TT_CAL_EN32_INK_BOTTOM) - TT_CAL_EN32_INK_TOP;
-    const int weekY = clockTop - weekBoxGap - weekH;
+        - (dateH - 1 - TT_CAL_EN32_INK_BOTTOM) - TT_CAL_WEEK_INK_TOP;
+    const int weekY = clockTop - weekBoxGap - weekH - TT_CAL_DATE_WEEK_LIFT;
     const int dateY = weekY - dateBoxGap - dateH;
     lv_obj_align(_dateLabel, LV_ALIGN_TOP_MID, 0, dateY);
     lv_obj_align(_weekLabel, LV_ALIGN_TOP_MID, 0, weekY);
@@ -290,7 +291,7 @@ bool TTDaySide::updateClock() {
     lv_label_set_text(_clockMin, buf);
     snprintf(buf, sizeof(buf), "%d-%d", local.tm_mon + 1, local.tm_mday);
     lv_label_set_text(_dateLabel, buf);
-    lv_label_set_text(_weekLabel, weekEn(local.tm_wday));
+    lv_label_set_text(_weekLabel, weekdayText(local.tm_wday));
     return true;
 }
 
