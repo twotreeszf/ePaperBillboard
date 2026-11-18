@@ -3,6 +3,7 @@
 #include <ctime>
 #include "../Models/TTNotificationPayloads.h"
 
+#define TT_SCHEDULE_FETCH_INTERVAL_HOUR     2
 #define TT_SCHEDULE_FETCH_QUIET_START_HOUR  22
 #define TT_SCHEDULE_FETCH_QUIET_END_HOUR    6
 #define TT_SCHEDULE_WALL_TEXT_MAX           24

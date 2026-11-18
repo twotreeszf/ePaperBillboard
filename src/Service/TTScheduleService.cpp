@@ -88,7 +88,7 @@ void TTScheduleService::restoreFetchInterval() {
         return;
     }
     _fetchIntervalMin = 0;
-    LOG_I("Schedule: fetch interval hourly");
+    LOG_I("Schedule: fetch interval %u h", (unsigned)TT_SCHEDULE_FETCH_INTERVAL_HOUR);
     refreshFetchDeadline();
 }
 
@@ -122,14 +122,16 @@ void TTScheduleService::refreshFetchDeadline() {
     struct tm t;
     memset(&t, 0, sizeof(t));
     localtime_r(&now, &t);
+    const int intervalHour = TT_SCHEDULE_FETCH_INTERVAL_HOUR;
+    t.tm_hour = ((t.tm_hour / intervalHour) + 1) * intervalHour;
     t.tm_min = 0;
     t.tm_sec = TT_RTC_MINUTE_TICK_SEC;
-    t.tm_hour += 1;
     time_t next = mktime(&t);
     if (next <= now) {
-        next += 3600;
+        next += (time_t)intervalHour * 3600;
     }
-    for (int step = 0; step < 24; step++) {
+    const int maxSteps = 24 / intervalHour;
+    for (int step = 0; step < maxSteps; step++) {
         struct tm slot;
         memset(&slot, 0, sizeof(slot));
         if (localtime_r(&next, &slot) == nullptr) {
@@ -141,12 +143,13 @@ void TTScheduleService::refreshFetchDeadline() {
         if (!quiet) {
             break;
         }
-        next += 3600;
+        next += (time_t)intervalHour * 3600;
     }
     _nextFetchUnix = next;
     char untilText[TT_SCHEDULE_WALL_TEXT_MAX];
     tt_schedule_format_wall(next, untilText, sizeof(untilText));
-    LOG_I("Schedule: next fetch at %s", untilText[0] != '\0' ? untilText : "?");
+    LOG_I("Schedule: next fetch at %s every %u h",
+          untilText[0] != '\0' ? untilText : "?", (unsigned)intervalHour);
 }
 
 void TTScheduleService::dispatchDue(bool resumeSleep, bool timerWake) {
