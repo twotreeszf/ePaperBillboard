@@ -9,6 +9,11 @@
 #define TT_FS_RES_DIR          "/res"
 #define TT_FS_FONT_DIR         "/fonts"
 #define TT_FS_TMP_DIR          "/tmp"
+#define TT_FS_WWW_DIR          "/res/www"
+#define TT_WWW_SETUP_PAGE      "/res/www/setup/index.html"
+#define TT_WWW_SETUP_SHOTS     "/res/www/setup/shots.html"
+#define TT_WWW_SETUP_RESULT    "/res/www/setup/result.html"
+#define TT_WWW_DEBUG_PAGE      "/res/www/debug/index.html"
 
 File tt_file_open(fs::FS& fs, const char* path, const char* mode);
 File tt_file_open(const char* path, const char* mode);

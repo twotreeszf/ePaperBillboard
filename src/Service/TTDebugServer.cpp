@@ -2,6 +2,8 @@
 
 #include "../Base/ITTScreenPage.h"
 #include "../Base/Logger.h"
+#include "../Base/TTFile.h"
+#include "../Base/TTHttpFile.h"
 #include "../Base/TTInstance.h"
 #include "../Base/TTScreenshotDisplay.h"
 #include "../Tasks/TTUITask.h"
@@ -10,56 +12,6 @@
 #include <cstring>
 
 namespace {
-
-const char* kDebugPage = R"html(
-<!DOCTYPE html>
-<html>
-<head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>调试</title>
-<style>
-body { font-family: -apple-system, sans-serif; margin: 16px; }
-button { margin: 4px; padding: 10px 14px; font-size: 16px; }
-img { display: block; margin-top: 12px; background: #eee; max-width: 100%; image-rendering: pixelated; }
-#msg { color: #333; min-height: 1.2em; word-break: break-all; }
-.tip { color: #666; font-size: 13px; }
-</style>
-</head>
-<body>
-<h2>调试</h2>
-<p class="tip">GET/POST /key?key=up|down|center&amp;gesture=click|double|long<br>GET /shot</p>
-<p id="msg"></p>
-<div id="keys"></div>
-<button id="shot" type="button">截图</button>
-<img id="screen" alt="screen">
-<script>
-const keys = [["up","上"],["down","下"],["center","中"]];
-const gestures = [["click","单击"],["double","双击"],["long","长按"]];
-const box = document.getElementById("keys");
-const msg = document.getElementById("msg");
-keys.forEach(function(key) {
-  gestures.forEach(function(gesture) {
-    const button = document.createElement("button");
-    button.type = "button";
-    button.textContent = key[1] + gesture[1];
-    button.onclick = function() {
-      fetch("/key?key=" + key[0] + "&gesture=" + gesture[0])
-        .then(function(response) { return response.text(); })
-        .then(function(text) { msg.textContent = text; })
-        .catch(function() { msg.textContent = "请求失败"; });
-    };
-    box.appendChild(button);
-  });
-  box.appendChild(document.createElement("br"));
-});
-document.getElementById("shot").onclick = function() {
-  document.getElementById("screen").src = "/shot?t=" + Date.now();
-};
-</script>
-</body>
-</html>
-)html";
 
 struct TTDebugBody {
     WiFiClient client;
@@ -126,7 +78,11 @@ void TTDebugServer::handleClient() {
 
 void TTDebugServer::handleRoot() {
     LOG_I("Debug: page from %s", _server.client().remoteIP().toString().c_str());
-    _server.send(200, "text/html; charset=utf-8", kDebugPage);
+    if (ttHttpSendFile(_server, TT_WWW_DEBUG_PAGE, "text/html; charset=utf-8")) {
+        return;
+    }
+    LOG_E("Debug: page missing %s", TT_WWW_DEBUG_PAGE);
+    _server.send(503, "text/plain; charset=utf-8", "页面文件缺失");
 }
 
 bool TTDebugServer::takeKey(uint8_t& key, const char*& name) const {

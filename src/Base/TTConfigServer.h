@@ -39,14 +39,14 @@ private:
     void _handleDevOpen();
     void _handleDevSave();
     void _handleShots();
+    void _handleShotList();
     void _handleShotFile();
     void _handleShotsZip();
     void _handleShotDelete();
     void _handleShotsClear();
     void _handleNotFound();
+    void _sendPage(const char* path);
     void _sendSaveResult(int code, const char* title, const char* msg);
-    String _getHTMLContent(bool devOpen = false, bool devDenied = false, const String& devPassword = "");
-    String _devPanelHtml(bool devOpen, bool devDenied, const String& devPassword);
     bool _devPasswordOk();
     String _getWiFiListJSON();
 

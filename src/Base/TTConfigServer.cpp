@@ -1,4 +1,5 @@
 #include "TTConfigServer.h"
+#include "TTHttpFile.h"
 #include "TTWiFiManager.h"
 #include "TTScreenshotDisplay.h"
 #include "TTFile.h"
@@ -96,26 +97,6 @@ String normalizeEpdPanel(const String& panel) {
     return String(TT_EPD_PANEL_DEFAULT);
 }
 
-void appendHtmlText(String& out, const char* text) {
-    if (text == nullptr) {
-        return;
-    }
-    for (const char* p = text; *p != '\0'; p++) {
-        const unsigned char c = (unsigned char)*p;
-        if (c == '&') {
-            out += F("&amp;");
-        } else if (c == '<') {
-            out += F("&lt;");
-        } else if (c == '>') {
-            out += F("&gt;");
-        } else if (c == '"') {
-            out += F("&quot;");
-        } else {
-            out += (char)c;
-        }
-    }
-}
-
 void appendUrlText(String& out, const char* text) {
     const char* hex = "0123456789ABCDEF";
     if (text == nullptr) {
@@ -207,6 +188,7 @@ void TTConfigServer::begin() {
         _server.on("/dev/open", HTTP_POST, [this]() { _handleDevOpen(); });
         _server.on("/dev/save", HTTP_POST, [this]() { _handleDevSave(); });
         _server.on("/shots", HTTP_GET, [this]() { _handleShots(); });
+        _server.on("/shots/list", HTTP_GET, [this]() { _handleShotList(); });
         _server.on("/shots/file", HTTP_GET, [this]() { _handleShotFile(); });
         _server.on("/shots.zip", HTTP_GET, [this]() { _handleShotsZip(); });
         _server.on("/shots/delete", HTTP_POST, [this]() { _handleShotDelete(); });
@@ -221,23 +203,30 @@ void TTConfigServer::begin() {
     LOG_I("WiFi: portal listening on :80 kind=%s", _kind == TT_PORTAL_LAN ? "lan" : "network");
 }
 
+void TTConfigServer::_sendPage(const char* path) {
+    if (ttHttpSendFile(_server, path, "text/html; charset=utf-8")) {
+        return;
+    }
+    LOG_E("Portal: page missing %s", path);
+    _server.send(503, "text/plain; charset=utf-8", "页面文件缺失");
+}
+
 void TTConfigServer::_handleRoot() {
-    const bool denied = _server.hasArg("dev") && _server.arg("dev") == "denied";
-    _server.send(200, "text/html; charset=utf-8", _getHTMLContent(false, denied));
+    _sendPage(TT_WWW_SETUP_PAGE);
 }
 
 void TTConfigServer::_sendSaveResult(int code, const char* title, const char* msg) {
-    String html = F("<!DOCTYPE html><html><head><meta charset='utf-8'>");
-    html += F("<meta name='viewport' content='width=device-width,initial-scale=1'>");
-    html += F("<title>");
-    html += title;
-    html += F("</title><style>body{font-family:-apple-system,sans-serif;padding:24px;text-align:center}</style>");
-    html += F("</head><body><h2>");
-    html += title;
-    html += F("</h2><p>");
-    html += msg;
-    html += F("</p></body></html>");
-    _server.send(code, "text/html; charset=utf-8", html);
+    String loc = TT_WWW_SETUP_RESULT;
+    loc += F("?title=");
+    appendUrlText(loc, title);
+    loc += F("&msg=");
+    appendUrlText(loc, msg);
+    if (code != 200) {
+        loc += F("&err=1");
+    }
+    LOG_I("Portal: result %d %s", code, title != nullptr ? title : "");
+    _server.sendHeader("Location", loc, true);
+    _server.send(303, "text/plain", "");
     _server.client().flush();
 }
 
@@ -272,7 +261,7 @@ void TTConfigServer::_handleSave() {
     calPass.trim();
     epdPanel.trim();
     epdPanel = normalizeEpdPanel(epdPanel);
-    if (_server.arg("portal") == "device") {
+    if (_kind == TT_PORTAL_LAN) {
         _handleLanSave(weatherCity, weatherLat, weatherLon, weatherRegion, calHost, calUser, calPass, epdPanel);
         return;
     }
@@ -522,6 +511,18 @@ void TTConfigServer::_handleStatus() {
     pref.get(PREF_EPD_PANEL, epdPanel, String(TT_EPD_PANEL_DEFAULT));
     epdPanel = normalizeEpdPanel(epdPanel);
     doc["epd_panel"] = epdPanel;
+    doc["portal"] = _kind == TT_PORTAL_LAN ? "device" : "network";
+    bool baroOff = false;
+    bool debugOn = false;
+    pref.get(PREF_DEV_BARO_OFF, baroOff, false);
+    pref.get(PREF_DEV_DEBUG, debugOn, false);
+    const bool shotOn = TTInstanceOf<TTScreenshotDisplay>().shotsEnabled();
+    doc["dev_shot"] = shotOn;
+    doc["dev_baro_off"] = baroOff;
+    doc["dev_debug"] = debugOn;
+    LOG_I("Portal: status kind=%s dev_shot=%d dev_baro_off=%d dev_debug=%d",
+          _kind == TT_PORTAL_LAN ? "device" : "network",
+          shotOn ? 1 : 0, baroOff ? 1 : 0, debugOn ? 1 : 0);
     LOG_I("WiFi: status fill ssid=%s password_len=%u tz=%s label=%s city=%s cal_host=%s cal_user=%s epd_panel=%s",
           ssid.c_str(), (unsigned)password.length(), tz, label, weatherCity.c_str(),
           calHost.c_str(), calUser.c_str(), epdPanel.c_str());
@@ -556,11 +557,11 @@ void TTConfigServer::_handleDevOpen() {
     }
     if (!_devPasswordOk()) {
         LOG_W("Dev: open rejected");
-        _server.send(200, "text/html; charset=utf-8", _getHTMLContent(false, true));
+        _server.send(200, "application/json", "{\"ok\":false}");
         return;
     }
     LOG_I("Dev: options opened");
-    _server.send(200, "text/html; charset=utf-8", _getHTMLContent(true, false, _server.arg("password")));
+    _server.send(200, "application/json", "{\"ok\":true}");
 }
 
 void TTConfigServer::_handleDevSave() {
@@ -569,7 +570,7 @@ void TTConfigServer::_handleDevSave() {
     }
     if (!_devPasswordOk()) {
         LOG_W("Dev: save rejected");
-        _server.send(200, "text/html; charset=utf-8", _getHTMLContent(false, true));
+        _sendSaveResult(400, "保存失败", "开发者密码不正确");
         return;
     }
     const bool enabled = _server.arg("shot") == "1";
@@ -586,55 +587,7 @@ void TTConfigServer::_handleDevSave() {
           enabled ? "on" : "off", baroOff ? "off" : "on", debugOn ? "on" : "off");
     TTInstanceOf<TTSensorTask>().requestSensorUpdateAsync();
     TTInstanceOf<TTWiFiTask>().requestDebugServer(debugOn);
-    _server.send(200, "text/html; charset=utf-8", _getHTMLContent(true, false, _server.arg("password")));
-}
-
-String TTConfigServer::_devPanelHtml(bool devOpen, bool devDenied, const String& devPassword) {
-    String html;
-    html += F("<div class='panel' id='panel-dev'>");
-    if (!devOpen) {
-        html += F("<p class='tip'>输入密码后才能查看开发者选项。</p>");
-        if (devDenied) {
-            html += F("<p class='err'>密码不正确</p>");
-        }
-        html += F("<form method='post' action='/dev/open'>");
-        html += F("<label>密码</label>");
-        html += F("<input type='password' id='dev-password' name='password' autocomplete='off'>");
-        html += F("<button class='devbtn' type='submit'>解锁</button></form></div>");
-        return html;
-    }
-    const bool enabled = TTInstanceOf<TTScreenshotDisplay>().shotsEnabled();
-    bool baroOff = false;
-    TTInstanceOf<TTPreference>().get(PREF_DEV_BARO_OFF, baroOff, false);
-    bool debugOn = false;
-    TTInstanceOf<TTPreference>().get(PREF_DEV_DEBUG, debugOn, false);
-    html += F("<input type='hidden' name='dev_open' value='1'>");
-    html += F("<input type='hidden' name='dev_password' value='");
-    appendHtmlText(html, devPassword.c_str());
-    html += F("'>");
-    html += F("<label class='row'><input type='checkbox' name='shot' value='1'");
-    if (enabled) {
-        html += F(" checked");
-    }
-    html += F(">长按上键截图</label>");
-    html += F("<label class='row'><input type='checkbox' name='baro_off' value='1'");
-    if (baroOff) {
-        html += F(" checked");
-    }
-    html += F(">关闭气压计</label>");
-    html += F("<label class='row'><input type='checkbox' name='debug' value='1'");
-    if (debugOn) {
-        html += F(" checked");
-    }
-    html += F(">启用调试服务</label>");
-    html += F("<p class='tip'>勾选后，仅在连接 USB 或充电时于 ");
-    html += String(TT_DEBUG_HTTP_PORT);
-    html += F(" 端口提供按键和截图，可与配置页、传书同时使用。拔掉 USB 且未在充电时自动关闭，再次接上电源后重新打开。</p>");
-    if (enabled) {
-        html += F("<a class='shots' href='/shots'>截图下载与删除</a>");
-    }
-    html += F("</div>");
-    return html;
+    _sendSaveResult(200, "配置已保存", "开发者选项已保存。");
 }
 
 void TTConfigServer::_handleShots() {
@@ -645,44 +598,42 @@ void TTConfigServer::_handleShots() {
         _server.send(404, "text/plain", "Not found");
         return;
     }
+    String loc = TT_WWW_SETUP_SHOTS;
+    if (_server.hasArg("dev")) {
+        loc += F("?dev=");
+        appendUrlText(loc, _server.arg("dev").c_str());
+    }
+    LOG_I("Shot: redirect page");
+    _server.sendHeader("Location", loc, true);
+    _server.send(302, "text/plain", "");
+}
+
+void TTConfigServer::_handleShotList() {
+    if (_rejectUnlessLan()) {
+        return;
+    }
+    if (!TTInstanceOf<TTScreenshotDisplay>().shotsEnabled()) {
+        _server.send(404, "text/plain", "Not found");
+        return;
+    }
     auto& shots = TTInstanceOf<TTScreenshotDisplay>();
-    char names[TT_SHOT_MAX][TT_SHOT_NAME_MAX];
-    const int count = shots.list(names, TT_SHOT_MAX);
-    String html;
-    html.reserve(1024 + (size_t)count * 220);
-    html += F("<!DOCTYPE html><html><head><meta charset='utf-8'>");
-    html += F("<meta name='viewport' content='width=device-width,initial-scale=1'>");
-    html += F("<title>截图</title><style>");
-    html += F("body{font-family:-apple-system,sans-serif;margin:0;padding:16px;background:#f4f4f4}");
-    html += F(".box{max-width:400px;margin:0 auto;background:#fff;padding:20px;border-radius:8px}");
-    html += F("a{color:#111} li{margin:10px 0} button{margin-left:8px}");
-    html += F("input{padding:8px;font-size:16px;box-sizing:border-box}");
-    html += F(".err{color:#b00020}");
-    html += F("</style></head><body><div class='box'><h2>截图</h2>");
-    html += F("<p>在设备上长按上键保存当前画面。空间不足时不会保存。删除时必须填写密码。</p>");
-    if (_server.hasArg("dev") && _server.arg("dev") == "denied") {
-        html += F("<p class='err'>密码不正确，未删除</p>");
-    }
-    if (shots.isBusy()) {
-        html += F("<p>正在保存，请稍后刷新。</p>");
-    } else if (count <= 0) {
-        html += F("<p>还没有截图。</p>");
-    } else {
-        html += F("<p><a href='/shots.zip'>下载全部</a></p><ul>");
+    JsonDocument doc;
+    const bool busy = shots.isBusy();
+    doc["busy"] = busy;
+    JsonArray names = doc["shots"].to<JsonArray>();
+    if (!busy) {
+        char stored[TT_SHOT_MAX][TT_SHOT_NAME_MAX];
+        const int count = shots.list(stored, TT_SHOT_MAX);
         for (int i = 0; i < count; i++) {
-            html += F("<li><a href='/shots/file?name=");
-            appendUrlText(html, names[i]);
-            html += F("'>");
-            appendHtmlText(html, names[i]);
-            html += F("</a><form style='display:inline' method='post' action='/shots/delete'><input type='hidden' name='name' value='");
-            appendHtmlText(html, names[i]);
-            html += F("'><input type='password' name='password' placeholder='密码' autocomplete='off'><button type='submit'>删除</button></form></li>");
+            names.add(stored[i]);
         }
-        html += F("</ul><form method='post' action='/shots/clear'><input type='password' name='password' placeholder='密码' autocomplete='off'><button type='submit'>删除全部</button></form>");
+        LOG_I("Shot: list %d", count);
+    } else {
+        LOG_I("Shot: list busy");
     }
-    html += F("<p><a href='/'>返回设置</a></p></div></body></html>");
-    _server.send(200, "text/html; charset=utf-8", html);
-    LOG_I("Shot: list page %d", count);
+    String result;
+    serializeJson(doc, result);
+    _server.send(200, "application/json", result);
 }
 
 void TTConfigServer::_handleShotFile() {
@@ -705,19 +656,15 @@ void TTConfigServer::_handleShotFile() {
         _server.send(404, "text/plain; charset=utf-8", "not found");
         return;
     }
-    File file = tt_file_open(path, "r");
-    if (!file) {
-        LOG_E("Shot: download open failed %s", path);
-        _server.send(404, "text/plain; charset=utf-8", "not found");
-        return;
-    }
     LOG_I("Shot: download %s", path);
     String header = F("attachment; filename=\"");
     header += name;
     header += '"';
     _server.sendHeader("Content-Disposition", header);
-    _server.streamFile(file, "image/bmp");
-    file.close();
+    if (!ttHttpSendFile(_server, path, "image/bmp")) {
+        LOG_E("Shot: download open failed %s", path);
+        _server.send(404, "text/plain; charset=utf-8", "not found");
+    }
 }
 
 void TTConfigServer::_handleShotsZip() {
@@ -760,7 +707,7 @@ void TTConfigServer::_handleShotDelete() {
     }
     if (!_devPasswordOk()) {
         LOG_W("Shot: delete rejected");
-        _server.sendHeader("Location", "/shots?dev=denied", true);
+        _server.sendHeader("Location", TT_WWW_SETUP_SHOTS "?dev=denied", true);
         _server.send(303, "text/plain", "");
         return;
     }
@@ -771,7 +718,7 @@ void TTConfigServer::_handleShotDelete() {
     } else {
         LOG_W("Shot: delete skipped, capture busy");
     }
-    _server.sendHeader("Location", "/shots", true);
+    _server.sendHeader("Location", TT_WWW_SETUP_SHOTS, true);
     _server.send(303, "text/plain", "");
 }
 
@@ -785,7 +732,7 @@ void TTConfigServer::_handleShotsClear() {
     }
     if (!_devPasswordOk()) {
         LOG_W("Shot: clear rejected");
-        _server.sendHeader("Location", "/shots?dev=denied", true);
+        _server.sendHeader("Location", TT_WWW_SETUP_SHOTS "?dev=denied", true);
         _server.send(303, "text/plain", "");
         return;
     }
@@ -795,7 +742,7 @@ void TTConfigServer::_handleShotsClear() {
     } else {
         LOG_W("Shot: clear skipped, capture busy");
     }
-    _server.sendHeader("Location", "/shots", true);
+    _server.sendHeader("Location", TT_WWW_SETUP_SHOTS, true);
     _server.send(303, "text/plain", "");
 }
 
@@ -808,6 +755,14 @@ bool TTConfigServer::_rejectUnlessLan() {
 }
 
 void TTConfigServer::_handleNotFound() {
+    const String uri = _server.uri();
+    if (ttHttpWwwPath(uri.c_str())) {
+        if (!tt_file_exists(uri.c_str()) || !ttHttpSendFile(_server, uri.c_str(), nullptr)) {
+            LOG_W("Portal: missing %s", uri.c_str());
+            _server.send(404, "text/plain; charset=utf-8", "not found");
+        }
+        return;
+    }
     if (_kind == TT_PORTAL_LAN) {
         _server.send(404, "text/plain", "Not found");
         return;
@@ -816,304 +771,3 @@ void TTConfigServer::_handleNotFound() {
     _server.send(302, "text/plain", "");
 }
 
-String TTConfigServer::_getHTMLContent(bool devOpen, bool devDenied, const String& devPassword) {
-    String html = String(R"html(
-<!DOCTYPE html>
-<html>
-<head>
-    <meta charset="utf-8">
-    <title>设备设置</title>
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <style>
-        body { font-family: -apple-system, sans-serif; margin: 0; padding: 16px; background: #f4f4f4; }
-        .box { max-width: 400px; margin: 0 auto; background: #fff; padding: 20px; border-radius: 8px; }
-        h2 { margin: 0 0 8px; text-align: center; }
-        label { display: block; margin: 12px 0 6px; }
-        select, input { width: 100%; padding: 10px; font-size: 16px; box-sizing: border-box; }
-        .tabs { display: flex; flex-wrap: nowrap; gap: 6px; margin: 12px 0 4px; overflow-x: auto; -webkit-overflow-scrolling: touch; }
-        .tab { flex: 0 0 auto; margin: 0; padding: 8px 12px; font-size: 14px; white-space: nowrap; background: #eee; color: #111; border: 0; border-radius: 6px; }
-        .tab.on { background: #111; color: #fff; }
-        .panel { display: none; }
-        .panel.on { display: block; }
-        button.save { width: 100%; margin-top: 20px; padding: 12px; font-size: 16px; background: #111; color: #fff; border: 0; border-radius: 6px; }
-        a.shots { display: block; margin-top: 12px; text-align: center; color: #111; }
-        #panel-dev input[type=checkbox], #panel-pic input[type=checkbox] { width: auto; margin-right: 8px; }
-        #panel-dev label.row, #panel-pic label.row { display: flex; align-items: center; }
-        button.devbtn { width: 100%; margin-top: 8px; padding: 10px; font-size: 15px; background: #eee; color: #111; border: 0; border-radius: 6px; }
-        .err { color: #b00020; }
-        button.save:disabled { background: #999; }
-        .tip { color: #666; font-size: 13px; margin: 8px 0; }
-    </style>
-</head>
-<body>
-    <div class="box">
-        <h2>设备设置</h2>
-        <p class="tip">按分类填写。完成配置后设备将关闭热点并以 STA 模式连接。</p>
-        <div class="tabs">
-            <button type="button" class="tab on" data-tab="wifi">Wi-Fi</button>
-            <button type="button" class="tab" data-tab="tz">时区</button>
-            <button type="button" class="tab" data-tab="weather">天气</button>
-            <button type="button" class="tab" data-tab="cal">日历</button>
-            <button type="button" class="tab" data-tab="pic">画报</button>
-            <button type="button" class="tab" data-tab="hw">硬件</button>
-            <button type="button" class="tab" data-tab="dev">开发者</button>
-        </div>
-        <form id="setup" method="post" action="/save" onsubmit="return onSubmit()">
-            <input type="hidden" name="portal" value="<!--PORTAL-->">
-            <div class="panel on" id="panel-wifi">
-                <label>名称</label>
-                <select id="ssid-select" onchange="document.getElementById('ssid').value=this.value">
-                    <option value="">正在扫描...</option>
-                </select>
-                <input type="text" id="ssid" name="ssid" placeholder="或手动输入名称">
-                <label>密码</label>
-                <input type="text" id="password" name="password" placeholder="Wi-Fi 密码" autocomplete="off">
-            </div>
-            <div class="panel" id="panel-tz">
-                <label>地区</label>
-                <select id="region" onchange="fillCities()"></select>
-                <label>城市</label>
-                <select id="city" onchange="applyCity()"></select>
-                <input type="hidden" id="timezone" name="timezone" value="CST-8">
-                <input type="hidden" id="timezone_label" name="timezone_label" value="上海">
-            </div>
-            <div class="panel" id="panel-weather">
-                <p class="tip">大陆使用彩云天气，海外使用现有预报。城市名仅用于展示。纬度为负表示南纬，经度为负表示西经。</p>
-                <label>数据源</label>
-                <select id="weather_region" name="weather_region">
-                    <option value="cn" selected>大陆</option>
-                    <option value="overseas">海外</option>
-                </select>
-                <label>城市</label>
-                <input type="text" id="weather_city" name="weather_city" placeholder="北京.望京" maxlength="32">
-                <label>纬度</label>
-                <input type="text" id="weather_lat" name="weather_lat" placeholder="39.9972" inputmode="decimal">
-                <label>经度</label>
-                <input type="text" id="weather_lon" name="weather_lon" placeholder="116.4569" inputmode="decimal">
-            </div>
-            <div class="panel" id="panel-cal">
-                <p class="tip">CalDAV 账号。密码留空则保留已保存的密码。三项都留空则清除日历配置。</p>
-                <label>服务器</label>
-                <input type="text" id="caldav_host" name="caldav_host" placeholder="例如 caldav.feishu.cn" maxlength="47" autocomplete="off">
-                <label>账号</label>
-                <input type="text" id="caldav_user" name="caldav_user" placeholder="CalDAV 用户名" maxlength="31" autocomplete="off">
-                <label>密码</label>
-                <input type="text" id="caldav_pass" name="caldav_pass" placeholder="CalDAV 密码" maxlength="31" autocomplete="off">
-            </div>
-            <div class="panel" id="panel-pic">
-                <p class="tip">打开后，画报改为请求这个地址。请求会带上 Token 和当前时间戳，返回内容须是 i1 图片。地址须以 https:// 开头。</p>
-                <label class="row"><input type="checkbox" id="pic_custom" name="pic_custom" value="1">打开自定义画报</label>
-                <label>请求 URL</label>
-                <input type="text" id="pic_url" name="pic_url" placeholder="https://example.com/pictorial" maxlength="239" autocomplete="off">
-                <label>Token</label>
-                <input type="text" id="pic_token" name="pic_token" placeholder="Token" maxlength="63" autocomplete="off">
-            </div>
-            <div class="panel" id="panel-hw">
-                <p class="tip">同一排线有三种波形。A0-2 是当前默认。A0-3 是最初的 A0 驱动。A0-1 是另一款膜。选错会出现残影或噪点。更改后设备会自动重启。</p>
-                <label>屏幕型号</label>
-                <select id="epd_panel" name="epd_panel">
-                    <option value="a0-1">HINK-E042A13 A0-1</option>
-                    <option value="a0-2" selected>HINK-E042A13 A0-2</option>
-                    <option value="a0-3">HINK-E042A13 A0-3</option>
-                </select>
-            </div>
-            <!--DEV_FIELDS-->
-        </form>
-        <!--DEV_LOCK-->
-        <button class="save" type="submit" form="setup">完成配置</button>
-    </div>
-    <script>
-        const CITIES = {
-            "亚洲":[["上海","CST-8"],["香港","HKT-8"],["台北","CST-8"],["新加坡","SGT-8"],["东京","JST-9"],["首尔","KST-9"],["曼谷","ICT-7"],["迪拜","GST-4"]],
-            "欧洲":[["伦敦","GMT0"],["巴黎","CET-1"],["柏林","CET-1"],["莫斯科","MSK-3"]],
-            "美洲":[["纽约","EST5"],["芝加哥","CST6"],["洛杉矶","PST8"],["丹佛","MST7"],["圣保罗","BRT3"]],
-            "大洋洲":[["悉尼","AEST-10"],["奥克兰","NZST-12"]],
-            "UTC":[["UTC","GMT0"]]
-        };
-        function fillRegions() {
-            const r = document.getElementById('region');
-            r.innerHTML = '';
-            Object.keys(CITIES).forEach(name => {
-                const o = document.createElement('option');
-                o.value = name; o.textContent = name; r.appendChild(o);
-            });
-        }
-        function fillCities() {
-            const list = CITIES[document.getElementById('region').value] || [];
-            const c = document.getElementById('city');
-            c.innerHTML = '';
-            list.forEach(item => {
-                const o = document.createElement('option');
-                o.value = item[1]; o.textContent = item[0]; o.dataset.label = item[0];
-                c.appendChild(o);
-            });
-            applyCity();
-        }
-        function applyCity() {
-            const c = document.getElementById('city');
-            const opt = c.options[c.selectedIndex];
-            document.getElementById('timezone').value = opt ? opt.value : '';
-            document.getElementById('timezone_label').value = opt ? opt.dataset.label : '';
-        }
-        function selectCity(tz, label) {
-            let found = null;
-            Object.keys(CITIES).forEach(region => {
-                CITIES[region].forEach(item => {
-                    if (label && item[0] === label) found = { region, item };
-                });
-            });
-            if (!found && tz) {
-                Object.keys(CITIES).some(region =>
-                    CITIES[region].some(item => {
-                        if (item[1] === tz) { found = { region, item }; return true; }
-                        return false;
-                    })
-                );
-            }
-            if (!found) return;
-            document.getElementById('region').value = found.region;
-            fillCities();
-            const c = document.getElementById('city');
-            for (let i = 0; i < c.options.length; i++) {
-                if (c.options[i].dataset.label === found.item[0] && c.options[i].value === found.item[1]) {
-                    c.selectedIndex = i;
-                }
-            }
-            applyCity();
-        }
-        function fillSaved(status, scan) {
-            const s = document.getElementById('ssid-select');
-            if (!s) {
-                fillDevice(status);
-                return;
-            }
-            s.innerHTML = '<option value="">选择网络...</option>';
-            const networks = scan.networks || [];
-            networks.forEach(n => {
-                const o = document.createElement('option');
-                o.value = n.ssid; o.textContent = n.ssid; s.appendChild(o);
-            });
-            if (status.ssid && networks.every(n => n.ssid !== status.ssid)) {
-                const o = document.createElement('option');
-                o.value = status.ssid;
-                o.textContent = status.ssid + '（已保存）';
-                s.appendChild(o);
-            }
-            if (status.ssid) {
-                document.getElementById('ssid').value = status.ssid;
-                s.value = status.ssid;
-            }
-            if (status.password) {
-                document.getElementById('password').value = status.password;
-            }
-            if (status.timezone || status.label) {
-                selectCity(status.timezone || '', status.label || '');
-            }
-            fillDevice(status);
-        }
-        function setValue(id, value) {
-            const el = document.getElementById(id);
-            if (el && value !== undefined && value !== null && value !== '') el.value = value;
-        }
-        function fillDevice(status) {
-            setValue('weather_region', status.weather_region);
-            setValue('weather_city', status.weather_city);
-            if (status.weather_lat !== undefined && status.weather_lat !== null) {
-                setValue('weather_lat', status.weather_lat);
-            }
-            if (status.weather_lon !== undefined && status.weather_lon !== null) {
-                setValue('weather_lon', status.weather_lon);
-            }
-            setValue('caldav_host', status.caldav_host);
-            setValue('caldav_user', status.caldav_user);
-            setValue('caldav_pass', status.caldav_pass);
-            const picOn = document.getElementById('pic_custom');
-            if (picOn) picOn.checked = !!status.pic_custom;
-            setValue('pic_url', status.pic_url);
-            setValue('pic_token', status.pic_token);
-            setValue('epd_panel', status.epd_panel);
-        }
-        function showTab(name) {
-            document.querySelectorAll('.tab').forEach(el => {
-                el.classList.toggle('on', el.dataset.tab === name);
-            });
-            document.querySelectorAll('.panel').forEach(el => {
-                el.classList.toggle('on', el.id === 'panel-' + name);
-            });
-            const tab = document.querySelector('.tab[data-tab="' + name + '"]');
-            if (tab) tab.scrollIntoView({ inline: 'nearest', block: 'nearest' });
-            if (name === 'dev') {
-                const pw = document.getElementById('dev-password');
-                if (pw) pw.focus();
-            }
-        }
-        document.querySelectorAll('.tab').forEach(el => {
-            el.addEventListener('click', () => showTab(el.dataset.tab));
-        });
-        const devState = "<!--DEV_STATE-->";
-        const portalKind = "<!--PORTAL-->";
-        function applyPortal() {
-            const drop = portalKind === "device"
-                ? ["wifi", "tz"]
-                : ["weather", "cal", "pic", "hw", "dev"];
-            drop.forEach(name => {
-                const tab = document.querySelector('.tab[data-tab="' + name + '"]');
-                if (tab) tab.remove();
-                const panel = document.getElementById('panel-' + name);
-                if (panel) panel.remove();
-            });
-            const title = document.querySelector('h2');
-            const tip = document.querySelector('p.tip');
-            if (portalKind === "device") {
-                if (title) title.textContent = "Web 设置";
-                if (tip) tip.textContent = "按分类填写。设备保持当前局域网连接，保存后可关闭页面。";
-                showTab("weather");
-            } else {
-                if (title) title.textContent = "联网设置";
-                if (tip) tip.textContent = "按分类填写。完成配置后设备将关闭热点并连接 Wi-Fi。";
-                showTab("wifi");
-            }
-        }
-        function onSubmit() {
-            if (portalKind === "device") {
-                const btn = document.querySelector('button.save');
-                btn.disabled = true;
-                btn.textContent = '保存中...';
-                return true;
-            }
-            applyCity();
-            const ssid = document.getElementById('ssid').value.replace(/^\s+|\s+$/g, '');
-            document.getElementById('ssid').value = ssid;
-            if (!ssid) {
-                showTab('wifi');
-                alert('请选择或输入 Wi-Fi 名称');
-                return false;
-            }
-            if (!document.getElementById('timezone').value) {
-                showTab('tz');
-                alert('请选择时区');
-                return false;
-            }
-            const btn = document.querySelector('button.save');
-            btn.disabled = true;
-            btn.textContent = '保存中...';
-            return true;
-        }
-        fillRegions();
-        fillCities();
-        applyPortal();
-        if (devState === "open" || devState === "denied") showTab("dev");
-        Promise.all([
-            fetch('/status').then(r => r.json()).catch(() => ({})),
-            fetch('/scan').then(r => r.json()).catch(() => ({}))
-        ]).then(([status, scan]) => fillSaved(status, scan));
-    </script>
-</body>
-</html>
-)html");
-    html.replace("<!--DEV_STATE-->", devOpen ? "open" : (devDenied ? "denied" : "idle"));
-    html.replace("<!--DEV_FIELDS-->", devOpen ? _devPanelHtml(true, false, devPassword) : String(""));
-    html.replace("<!--DEV_LOCK-->", devOpen ? String("") : _devPanelHtml(false, devDenied, ""));
-    html.replace("<!--PORTAL-->", _kind == TT_PORTAL_LAN ? "device" : "network");
-    return html;
-}

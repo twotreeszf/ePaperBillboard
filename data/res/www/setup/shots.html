@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>截图</title>
+<style>
+body { font-family: -apple-system, sans-serif; margin: 0; padding: 16px; background: #f4f4f4; }
+.box { max-width: 400px; margin: 0 auto; background: #fff; padding: 20px; border-radius: 8px; }
+a { color: #111; }
+li { margin: 10px 0; }
+button { margin-left: 8px; }
+input { padding: 8px; font-size: 16px; box-sizing: border-box; }
+.err { color: #b00020; }
+</style>
+</head>
+<body>
+<div class="box">
+<h2>截图</h2>
+<p>在设备上长按上键保存当前画面。空间不足时不会保存。删除时必须填写密码。</p>
+<p id="msg"></p>
+<p id="zip" hidden><a href="/shots.zip">下载全部</a></p>
+<ul id="list"></ul>
+<form id="clear" method="post" action="/shots/clear" hidden>
+<input type="password" name="password" placeholder="密码" autocomplete="off">
+<button type="submit">删除全部</button>
+</form>
+<p><a href="/">返回设置</a></p>
+</div>
+<script>
+const q = new URLSearchParams(location.search);
+const msg = document.getElementById("msg");
+if (q.get("dev") === "denied") {
+  msg.textContent = "密码不正确，未删除";
+  msg.className = "err";
+}
+fetch("/shots/list").then(function(r) { return r.json(); }).then(function(data) {
+  if (data.busy) {
+    msg.textContent = "正在保存，请稍后刷新。";
+    return;
+  }
+  const shots = data.shots || [];
+  if (!shots.length) {
+    if (!msg.textContent) msg.textContent = "还没有截图。";
+    return;
+  }
+  document.getElementById("zip").hidden = false;
+  document.getElementById("clear").hidden = false;
+  const list = document.getElementById("list");
+  shots.forEach(function(name) {
+    const li = document.createElement("li");
+    const link = document.createElement("a");
+    link.href = "/shots/file?name=" + encodeURIComponent(name);
+    link.textContent = name;
+    const form = document.createElement("form");
+    form.method = "post";
+    form.action = "/shots/delete";
+    form.style.display = "inline";
+    const hidden = document.createElement("input");
+    hidden.type = "hidden";
+    hidden.name = "name";
+    hidden.value = name;
+    const password = document.createElement("input");
+    password.type = "password";
+    password.name = "password";
+    password.placeholder = "密码";
+    password.autocomplete = "off";
+    const button = document.createElement("button");
+    button.type = "submit";
+    button.textContent = "删除";
+    form.append(hidden, password, button);
+    li.append(link, form);
+    list.appendChild(li);
+  });
+}).catch(function() {
+  msg.textContent = "无法读取截图";
+  msg.className = "err";
+});
+</script>
+</body>
+</html>

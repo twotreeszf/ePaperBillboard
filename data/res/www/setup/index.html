@@ -1,0 +1,466 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>设备设置</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <style>
+        body { font-family: -apple-system, sans-serif; margin: 0; padding: 16px; background: #f4f4f4; }
+        .box { max-width: 400px; margin: 0 auto; background: #fff; padding: 20px; border-radius: 8px; }
+        h2 { margin: 0 0 8px; text-align: center; }
+        label { display: block; margin: 12px 0 6px; }
+        select, input { width: 100%; padding: 10px; font-size: 16px; box-sizing: border-box; }
+        .tabs { display: flex; flex-wrap: nowrap; gap: 6px; margin: 12px 0 4px; overflow-x: auto; -webkit-overflow-scrolling: touch; }
+        .tab { flex: 0 0 auto; margin: 0; padding: 8px 12px; font-size: 14px; white-space: nowrap; background: #eee; color: #111; border: 0; border-radius: 6px; }
+        .tab.on { background: #111; color: #fff; }
+        .panel { display: none; }
+        .panel.on { display: block; }
+        button.save { width: 100%; margin-top: 20px; padding: 12px; font-size: 16px; background: #111; color: #fff; border: 0; border-radius: 6px; }
+        a.shots { display: block; margin-top: 12px; text-align: center; color: #111; }
+        #panel-dev input[type=checkbox], #panel-pic input[type=checkbox] { width: auto; margin-right: 8px; }
+        #panel-dev label.row, #panel-pic label.row { display: flex; align-items: center; }
+        button.devbtn { width: 100%; margin-top: 8px; padding: 10px; font-size: 15px; background: #eee; color: #111; border: 0; border-radius: 6px; }
+        .err { color: #b00020; }
+        button.save:disabled { background: #999; }
+        .tip { color: #666; font-size: 13px; margin: 8px 0; }
+        .pair { display: flex; gap: 8px; }
+        .pair select { flex: 1; }
+    </style>
+</head>
+<body>
+    <div class="box">
+        <h2>设备设置</h2>
+        <p class="tip" id="intro">正在读取设置</p>
+        <div class="tabs" id="tabs" hidden>
+            <button type="button" class="tab" data-tab="wifi">Wi-Fi</button>
+            <button type="button" class="tab" data-tab="tz">时区</button>
+            <button type="button" class="tab" data-tab="weather">天气</button>
+            <button type="button" class="tab" data-tab="cal">日历</button>
+            <button type="button" class="tab" data-tab="pic">画报</button>
+            <button type="button" class="tab" data-tab="hw">硬件</button>
+            <button type="button" class="tab" data-tab="dev">开发者</button>
+        </div>
+        <form id="setup" method="post" action="/save" onsubmit="return onSubmit()">
+            <div class="panel" id="panel-wifi">
+                <label>名称</label>
+                <select id="ssid-select" onchange="document.getElementById('ssid').value=this.value">
+                    <option value="">正在扫描...</option>
+                </select>
+                <input type="text" id="ssid" name="ssid" placeholder="或手动输入名称">
+                <label>密码</label>
+                <input type="text" id="password" name="password" placeholder="Wi-Fi 密码" autocomplete="off">
+            </div>
+            <div class="panel" id="panel-tz">
+                <label>地区</label>
+                <select id="region" onchange="fillCities()"></select>
+                <label>城市</label>
+                <select id="city" onchange="applyCity()"></select>
+                <input type="hidden" id="timezone" name="timezone" value="CST-8">
+                <input type="hidden" id="timezone_label" name="timezone_label" value="上海">
+            </div>
+            <div class="panel" id="panel-weather">
+                <p class="tip">大陆使用彩云天气，可选择直辖市和地级市。选自定义后自行填写经纬度。海外使用现有预报。城市名仅用于展示。纬度为负表示南纬，经度为负表示西经。</p>
+                <label>数据源</label>
+                <select id="weather_region" name="weather_region">
+                    <option value="cn" selected>大陆</option>
+                    <option value="overseas">海外</option>
+                </select>
+                <div id="place_row">
+                    <label>城市</label>
+                    <div class="pair">
+                        <select id="weather_province"></select>
+                        <select id="weather_city_pick"></select>
+                    </div>
+                </div>
+                <label>显示名</label>
+                <input type="text" id="weather_city" name="weather_city" placeholder="北京.望京" maxlength="32">
+                <div id="lat_row">
+                    <label>纬度</label>
+                    <input type="text" id="weather_lat" name="weather_lat" placeholder="39.9972" inputmode="decimal">
+                </div>
+                <div id="lon_row">
+                    <label>经度</label>
+                    <input type="text" id="weather_lon" name="weather_lon" placeholder="116.4569" inputmode="decimal">
+                </div>
+            </div>
+            <div class="panel" id="panel-cal">
+                <p class="tip">CalDAV 账号。密码留空则保留已保存的密码。三项都留空则清除日历配置。</p>
+                <label>服务器</label>
+                <input type="text" id="caldav_host" name="caldav_host" placeholder="例如 caldav.feishu.cn" maxlength="47" autocomplete="off">
+                <label>账号</label>
+                <input type="text" id="caldav_user" name="caldav_user" placeholder="CalDAV 用户名" maxlength="31" autocomplete="off">
+                <label>密码</label>
+                <input type="text" id="caldav_pass" name="caldav_pass" placeholder="CalDAV 密码" maxlength="31" autocomplete="off">
+            </div>
+            <div class="panel" id="panel-pic">
+                <p class="tip">打开后，画报改为请求这个地址。请求会带上 Token 和当前时间戳，返回内容须是 i1 图片。地址须以 https:// 开头。</p>
+                <label class="row"><input type="checkbox" id="pic_custom" name="pic_custom" value="1">打开自定义画报</label>
+                <label>请求 URL</label>
+                <input type="text" id="pic_url" name="pic_url" placeholder="https://example.com/pictorial" maxlength="239" autocomplete="off">
+                <label>Token</label>
+                <input type="text" id="pic_token" name="pic_token" placeholder="Token" maxlength="63" autocomplete="off">
+            </div>
+            <div class="panel" id="panel-hw">
+                <p class="tip">同一排线有三种波形。A0-2 是当前默认。A0-3 是最初的 A0 驱动。A0-1 是另一款膜。选错会出现残影或噪点。更改后设备会自动重启。</p>
+                <label>屏幕型号</label>
+                <select id="epd_panel" name="epd_panel">
+                    <option value="a0-1">HINK-E042A13 A0-1</option>
+                    <option value="a0-2" selected>HINK-E042A13 A0-2</option>
+                    <option value="a0-3">HINK-E042A13 A0-3</option>
+                </select>
+            </div>
+            <div class="panel" id="panel-dev">
+                <p class="tip">输入密码后才能查看开发者选项。</p>
+                <p class="err" id="dev-err" hidden>密码不正确</p>
+                <div id="dev-lock">
+                    <label>密码</label>
+                    <input type="password" id="dev-password" autocomplete="off">
+                    <button class="devbtn" id="dev-open" type="button">解锁</button>
+                </div>
+                <div id="dev-fields" hidden>
+                    <input type="hidden" name="dev_open" value="1" disabled>
+                    <input type="hidden" name="dev_password" id="dev-password-save" disabled>
+                    <label class="row"><input type="checkbox" name="shot" id="dev-shot" value="1" disabled>长按上键截图</label>
+                    <label class="row"><input type="checkbox" name="baro_off" id="dev-baro" value="1" disabled>关闭气压计</label>
+                    <label class="row"><input type="checkbox" name="debug" id="dev-debug" value="1" disabled>启用调试服务</label>
+                    <p class="tip">勾选后，仅在连接 USB 或充电时于 8080 端口提供按键和截图，可与配置页、传书同时使用。拔掉 USB 且未在充电时自动关闭，再次接上电源后重新打开。</p>
+                    <a class="shots" id="dev-shots" href="/res/www/setup/shots.html" hidden>截图下载与删除</a>
+                </div>
+            </div>
+        </form>
+        <button class="save" type="submit" form="setup" disabled>完成配置</button>
+    </div>
+    <script>
+        const CITIES = {
+            "亚洲":[["上海","CST-8"],["香港","HKT-8"],["台北","CST-8"],["新加坡","SGT-8"],["东京","JST-9"],["首尔","KST-9"],["曼谷","ICT-7"],["迪拜","GST-4"]],
+            "欧洲":[["伦敦","GMT0"],["巴黎","CET-1"],["柏林","CET-1"],["莫斯科","MSK-3"]],
+            "美洲":[["纽约","EST5"],["芝加哥","CST6"],["洛杉矶","PST8"],["丹佛","MST7"],["圣保罗","BRT3"]],
+            "大洋洲":[["悉尼","AEST-10"],["奥克兰","NZST-12"]],
+            "UTC":[["UTC","GMT0"]]
+        };
+        let places = [];
+        let portalKind = "";
+        let deviceStatus = {};
+        function fillRegions() {
+            const r = document.getElementById("region");
+            r.innerHTML = "";
+            Object.keys(CITIES).forEach(name => {
+                const o = document.createElement("option");
+                o.value = name; o.textContent = name; r.appendChild(o);
+            });
+        }
+        function fillCities() {
+            const list = CITIES[document.getElementById("region").value] || [];
+            const c = document.getElementById("city");
+            c.innerHTML = "";
+            list.forEach(item => {
+                const o = document.createElement("option");
+                o.value = item[1]; o.textContent = item[0]; o.dataset.label = item[0];
+                c.appendChild(o);
+            });
+            applyCity();
+        }
+        function applyCity() {
+            const c = document.getElementById("city");
+            const opt = c.options[c.selectedIndex];
+            document.getElementById("timezone").value = opt ? opt.value : "";
+            document.getElementById("timezone_label").value = opt ? opt.dataset.label : "";
+        }
+        function selectCity(tz, label) {
+            let found = null;
+            Object.keys(CITIES).forEach(region => {
+                CITIES[region].forEach(item => {
+                    if (label && item[0] === label) found = { region, item };
+                });
+            });
+            if (!found && tz) {
+                Object.keys(CITIES).some(region =>
+                    CITIES[region].some(item => {
+                        if (item[1] === tz) { found = { region, item }; return true; }
+                        return false;
+                    })
+                );
+            }
+            if (!found) return;
+            document.getElementById("region").value = found.region;
+            fillCities();
+            const c = document.getElementById("city");
+            for (let i = 0; i < c.options.length; i++) {
+                if (c.options[i].dataset.label === found.item[0] && c.options[i].value === found.item[1]) {
+                    c.selectedIndex = i;
+                }
+            }
+            applyCity();
+        }
+        function showCoords(show) {
+            document.getElementById("lat_row").hidden = !show;
+            document.getElementById("lon_row").hidden = !show;
+        }
+        function fillProvinces() {
+            const prov = document.getElementById("weather_province");
+            prov.innerHTML = "";
+            places.forEach((p, i) => {
+                const o = document.createElement("option");
+                o.value = String(i);
+                o.textContent = p.name;
+                prov.appendChild(o);
+            });
+            const custom = document.createElement("option");
+            custom.value = "";
+            custom.textContent = "自定义";
+            prov.appendChild(custom);
+        }
+        function selectedPlace() {
+            const prov = document.getElementById("weather_province");
+            const city = document.getElementById("weather_city_pick");
+            if (prov.value === "") return null;
+            const list = places[Number(prov.value)].cities || [];
+            return list[Number(city.value)] || null;
+        }
+        function fillPlaceCities() {
+            const prov = document.getElementById("weather_province");
+            const city = document.getElementById("weather_city_pick");
+            city.innerHTML = "";
+            if (prov.value === "") {
+                city.hidden = true;
+                showCoords(true);
+                return;
+            }
+            city.hidden = false;
+            const list = places[Number(prov.value)].cities || [];
+            list.forEach((c, i) => {
+                const o = document.createElement("option");
+                o.value = String(i);
+                o.textContent = c.name;
+                city.appendChild(o);
+            });
+            applyPlace();
+        }
+        function applyPlace() {
+            const place = selectedPlace();
+            if (!place) {
+                showCoords(true);
+                return;
+            }
+            document.getElementById("weather_city").value = place.name;
+            document.getElementById("weather_lat").value = place.lat;
+            document.getElementById("weather_lon").value = place.lon;
+            showCoords(false);
+        }
+        function matchCoord(lat, lon) {
+            if (!Number.isFinite(lat) || !Number.isFinite(lon)) return null;
+            for (let pi = 0; pi < places.length; pi++) {
+                const list = places[pi].cities || [];
+                for (let ci = 0; ci < list.length; ci++) {
+                    const c = list[ci];
+                    if (Math.abs(c.lat - lat) < 0.02 && Math.abs(c.lon - lon) < 0.02) {
+                        return { pi, ci };
+                    }
+                }
+            }
+            return null;
+        }
+        function onWeatherRegion() {
+            const domestic = document.getElementById("weather_region").value !== "overseas";
+            document.getElementById("place_row").hidden = !domestic || places.length === 0;
+            if (!domestic || places.length === 0) {
+                showCoords(true);
+                return;
+            }
+            document.getElementById("weather_province").value = "";
+            fillPlaceCities();
+        }
+        function applyWeather(status) {
+            const regionEl = document.getElementById("weather_region");
+            if (!regionEl) return;
+            const region = status.weather_region || "cn";
+            regionEl.value = region;
+            setValue("weather_city", status.weather_city);
+            if (status.weather_lat !== undefined && status.weather_lat !== null) {
+                setValue("weather_lat", status.weather_lat);
+            }
+            if (status.weather_lon !== undefined && status.weather_lon !== null) {
+                setValue("weather_lon", status.weather_lon);
+            }
+            const domestic = region !== "overseas";
+            document.getElementById("place_row").hidden = !domestic || places.length === 0;
+            if (!domestic || places.length === 0) {
+                showCoords(true);
+                return;
+            }
+            const hit = matchCoord(Number(status.weather_lat), Number(status.weather_lon));
+            const prov = document.getElementById("weather_province");
+            if (!hit) {
+                prov.value = "";
+                fillPlaceCities();
+                return;
+            }
+            prov.value = String(hit.pi);
+            fillPlaceCities();
+            document.getElementById("weather_city_pick").value = String(hit.ci);
+            applyPlace();
+            setValue("weather_city", status.weather_city);
+        }
+        function fillSaved(status, scan) {
+            const s = document.getElementById("ssid-select");
+            if (!s || portalKind === "device") {
+                fillDevice(status);
+                return;
+            }
+            s.innerHTML = "<option value=\"\">选择网络...</option>";
+            const networks = scan.networks || [];
+            networks.forEach(n => {
+                const o = document.createElement("option");
+                o.value = n.ssid; o.textContent = n.ssid; s.appendChild(o);
+            });
+            if (status.ssid && networks.every(n => n.ssid !== status.ssid)) {
+                const o = document.createElement("option");
+                o.value = status.ssid;
+                o.textContent = status.ssid + "（已保存）";
+                s.appendChild(o);
+            }
+            if (status.ssid) {
+                document.getElementById("ssid").value = status.ssid;
+                s.value = status.ssid;
+            }
+            if (status.password) {
+                document.getElementById("password").value = status.password;
+            }
+            if (status.timezone || status.label) {
+                selectCity(status.timezone || "", status.label || "");
+            }
+            fillDevice(status);
+        }
+        function setValue(id, value) {
+            const el = document.getElementById(id);
+            if (el && value !== undefined && value !== null && value !== "") el.value = value;
+        }
+        function fillDevice(status) {
+            applyWeather(status);
+            setValue("caldav_host", status.caldav_host);
+            setValue("caldav_user", status.caldav_user);
+            setValue("caldav_pass", status.caldav_pass);
+            const picOn = document.getElementById("pic_custom");
+            if (picOn) picOn.checked = !!status.pic_custom;
+            setValue("pic_url", status.pic_url);
+            setValue("pic_token", status.pic_token);
+            setValue("epd_panel", status.epd_panel);
+        }
+        function showTab(name) {
+            document.querySelectorAll(".tab").forEach(el => {
+                el.classList.toggle("on", el.dataset.tab === name);
+            });
+            document.querySelectorAll(".panel").forEach(el => {
+                el.classList.toggle("on", el.id === "panel-" + name);
+            });
+            const tab = document.querySelector('.tab[data-tab="' + name + '"]');
+            if (tab) tab.scrollIntoView({ inline: "nearest", block: "nearest" });
+            if (name === "dev") {
+                const pw = document.getElementById("dev-password");
+                if (pw && !pw.hidden) pw.focus();
+            }
+        }
+        document.querySelectorAll(".tab").forEach(el => {
+            el.addEventListener("click", () => showTab(el.dataset.tab));
+        });
+        function applyPortal(kind) {
+            portalKind = kind === "device" ? "device" : "network";
+            const drop = portalKind === "device"
+                ? ["wifi", "tz"]
+                : ["weather", "cal", "pic", "hw", "dev"];
+            drop.forEach(name => {
+                const tab = document.querySelector('.tab[data-tab="' + name + '"]');
+                if (tab) tab.remove();
+                const panel = document.getElementById("panel-" + name);
+                if (panel) panel.remove();
+            });
+            const title = document.querySelector("h2");
+            const tip = document.getElementById("intro");
+            if (portalKind === "device") {
+                if (title) title.textContent = "Web 设置";
+                if (tip) tip.textContent = "按分类填写。设备保持当前局域网连接，保存后可关闭页面。";
+                showTab("weather");
+            } else {
+                if (title) title.textContent = "联网设置";
+                if (tip) tip.textContent = "按分类填写。完成配置后设备将关闭热点并连接 Wi-Fi。";
+                showTab("wifi");
+            }
+            document.getElementById("tabs").hidden = false;
+            document.querySelector("button.save").disabled = false;
+        }
+        function onSubmit() {
+            if (portalKind === "device") {
+                const btn = document.querySelector("button.save");
+                btn.disabled = true;
+                btn.textContent = "保存中...";
+                return true;
+            }
+            applyCity();
+            const ssid = document.getElementById("ssid").value.replace(/^\s+|\s+$/g, "");
+            document.getElementById("ssid").value = ssid;
+            if (!ssid) {
+                showTab("wifi");
+                alert("请选择或输入 Wi-Fi 名称");
+                return false;
+            }
+            if (!document.getElementById("timezone").value) {
+                showTab("tz");
+                alert("请选择时区");
+                return false;
+            }
+            const btn = document.querySelector("button.save");
+            btn.disabled = true;
+            btn.textContent = "保存中...";
+            return true;
+        }
+        document.getElementById("weather_region").addEventListener("change", onWeatherRegion);
+        document.getElementById("weather_province").addEventListener("change", fillPlaceCities);
+        document.getElementById("weather_city_pick").addEventListener("change", applyPlace);
+        document.getElementById("dev-open").addEventListener("click", () => {
+            const password = document.getElementById("dev-password").value;
+            const body = new URLSearchParams();
+            body.set("password", password);
+            fetch("/dev/open", {
+                method: "POST",
+                headers: { "Content-Type": "application/x-www-form-urlencoded" },
+                body: body
+            }).then(r => r.json()).then(data => {
+                const err = document.getElementById("dev-err");
+                if (!data.ok) {
+                    err.hidden = false;
+                    return;
+                }
+                err.hidden = true;
+                document.getElementById("dev-lock").hidden = true;
+                const fields = document.getElementById("dev-fields");
+                fields.hidden = false;
+                fields.querySelectorAll("input").forEach(el => { el.disabled = false; });
+                document.getElementById("dev-password-save").value = password;
+                document.getElementById("dev-shot").checked = !!deviceStatus.dev_shot;
+                document.getElementById("dev-baro").checked = !!deviceStatus.dev_baro_off;
+                document.getElementById("dev-debug").checked = !!deviceStatus.dev_debug;
+                document.getElementById("dev-shots").hidden = !deviceStatus.dev_shot;
+            }).catch(() => {
+                document.getElementById("dev-err").hidden = false;
+            });
+        });
+        fillRegions();
+        fillCities();
+        Promise.all([
+            fetch("/status").then(r => r.json()).catch(() => ({})),
+            fetch("/scan").then(r => r.json()).catch(() => ({})),
+            fetch("/res/www/setup/cities.json").then(r => r.ok ? r.json() : []).catch(() => [])
+        ]).then(([status, scan, cityList]) => {
+            if (!status.portal) {
+                document.getElementById("intro").textContent = "无法读取设置";
+                return;
+            }
+            places = Array.isArray(cityList) ? cityList : [];
+            if (places.length) fillProvinces();
+            deviceStatus = status;
+            applyPortal(status.portal);
+            fillSaved(status, scan);
+        });
+    </script>
+</body>
+</html>
