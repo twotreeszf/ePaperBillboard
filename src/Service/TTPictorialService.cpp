@@ -176,6 +176,33 @@ bool TTPictorialService::hasStored() const {
     return path.length() > 0 && tt_file_exists(path.c_str());
 }
 
+bool TTPictorialService::readStored(char* path, size_t pathMax, char* name, size_t nameMax) const {
+    if (path == nullptr || pathMax == 0) {
+        return false;
+    }
+    path[0] = '\0';
+    if (name != nullptr && nameMax > 0) {
+        name[0] = '\0';
+    }
+    String storedPath;
+    String storedName;
+    auto& pref = TTInstanceOf<TTPreference>();
+    pref.get(PREF_PIC_PATH, storedPath, String(""));
+    if (storedPath.length() == 0 || storedPath.length() >= pathMax || !tt_file_exists(storedPath.c_str())) {
+        return false;
+    }
+    pref.get(PREF_PIC_NAME, storedName, String(""));
+    memcpy(path, storedPath.c_str(), storedPath.length() + 1);
+    if (name != nullptr && nameMax > 0) {
+        if (storedName.length() >= nameMax) {
+            storedName.remove(nameMax - 1);
+        }
+        memcpy(name, storedName.c_str(), storedName.length() + 1);
+    }
+    LOG_I("Pictorial: stored path=%s name=%s", path, name != nullptr ? name : "");
+    return true;
+}
+
 void TTPictorialService::publish(TTPicState state, const char* message, const char* path, const char* name) {
     TTPicPayload payload = {};
     payload.state = state;
@@ -441,7 +468,7 @@ bool TTPictorialService::downloadIndex(const TTPicSeries& series, uint16_t index
     return true;
 }
 
-bool TTPictorialService::showStored() {
+bool TTPictorialService::showStored(bool publishImage) {
     if (!hasStored()) {
         return false;
     }
@@ -451,6 +478,10 @@ bool TTPictorialService::showStored() {
     }
     if (!customOn() && _seriesCount == 0) {
         return false;
+    }
+    if (!publishImage) {
+        LOG_I("Pictorial: stored image already shown");
+        return true;
     }
     String path;
     String name;
@@ -664,8 +695,8 @@ void TTPictorialService::applyFetchInterval(bool fast) {
     TTInstanceOf<TTScheduleService>().restoreFetchInterval();
 }
 
-void TTPictorialService::requestToday() {
-    if (showStored()) {
+void TTPictorialService::requestToday(bool publishStored) {
+    if (showStored(publishStored)) {
         return;
     }
     enqueue(TT_PIC_JOB_TODAY, 0);

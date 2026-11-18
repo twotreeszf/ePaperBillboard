@@ -17,7 +17,8 @@ enum TTPicJob {
 class TTPictorialService {
 public:
     void begin();
-    void requestToday();
+    bool readStored(char* path, size_t pathMax, char* name, size_t nameMax) const;
+    void requestToday(bool publishStored = true);
     void requestAnother();
     void requestHourly();
     void requestExtend();
@@ -37,7 +38,7 @@ private:
     bool ensureManifest();
     bool loadManifest();
     int resolveSelected() const;
-    bool showStored();
+    bool showStored(bool publish);
     bool downloadIndex(const TTPicSeries& series, uint16_t index, bool updateDay);
     bool downloadCustom();
     void runCustomJob(TTPicJob job);

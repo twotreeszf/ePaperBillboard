@@ -91,14 +91,18 @@ public:
     void setup() override;
     void willAppear() override;
     void willDisappear() override;
+    void requestRefresh(TTRefreshLevel level = TT_REFRESH_PARTIAL) override;
 
 protected:
     void buildContent(lv_obj_t* screen) override;
     bool handleKeyAction(TTKeyId key, TTKeyGesture gesture) override;
 
 private:
-    void requestCalendar(bool extend, bool force = false);
-    void requestWeather(bool force = false);
+    bool requestCalendar(bool extend, bool force = false, bool publishFresh = true);
+    void showCachedCalendar(const char* message);
+    void armEnterPaint();
+    bool requestWeather(bool force = false, bool publishFresh = true);
+    void bindWeather(const TTWeatherPayload& payload);
     void applyCalendar(const TTCalendarPayload& payload);
     void applyWeather(const TTWeatherPayload& payload);
     void forceRefresh();
@@ -143,6 +147,8 @@ private:
     int32_t _rangeStart = 0;
     int32_t _rangeEnd = 0;
     bool _visible = false;
+    bool _deferEnterPaint = false;
+    uint32_t _enterPaintHandle = 0;
     bool _calendarReady = false;
     bool _forceRefreshing = false;
     bool _calendarFetching = false;

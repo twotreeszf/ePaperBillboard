@@ -441,27 +441,32 @@ struct TTCalendarCacheFile {
     TTCalEvent events[TT_CAL_EVENT_MAX];
 };
 
-bool TTCalendarService::publishFreshCache(const char* host, const char* user) {
+namespace {
+
+bool sameLocalDay(time_t a, time_t b) {
+    struct tm ta;
+    struct tm tb;
+    memset(&ta, 0, sizeof(ta));
+    memset(&tb, 0, sizeof(tb));
+    if (localtime_r(&a, &ta) == nullptr || localtime_r(&b, &tb) == nullptr) {
+        return false;
+    }
+    return ta.tm_year == tb.tm_year && ta.tm_yday == tb.tm_yday;
+}
+
+TTCalendarCacheFile* openCache(const char* host, const char* user) {
     if (host == nullptr || user == nullptr) {
-        return false;
-    }
-    if (!TTInstanceOf<TTRtc>().isTimeValid()) {
-        LOG_I("CalDAV: cache skipped, clock invalid");
-        return false;
-    }
-    const time_t now = time(nullptr);
-    if (now <= 0) {
-        return false;
+        return nullptr;
     }
     File file = tt_file_open(TT_CAL_CACHE_PATH, "r");
     if (!file) {
-        return false;
+        return nullptr;
     }
     TTCalendarCacheFile* cache = new TTCalendarCacheFile;
     if (cache == nullptr) {
         file.close();
         LOG_E("CalDAV: cache alloc failed");
-        return false;
+        return nullptr;
     }
     const size_t got = file.read((uint8_t*)cache, sizeof(*cache));
     file.close();
@@ -472,24 +477,68 @@ bool TTCalendarService::publishFreshCache(const char* host, const char* user) {
         || strcmp(cache->host, host) != 0
         || strcmp(cache->user, user) != 0) {
         delete cache;
-        LOG_I("CalDAV: cache miss");
+        return nullptr;
+    }
+    return cache;
+}
+
+}  // namespace
+
+bool TTCalendarService::cacheIsFresh(uint32_t fetchedAt) const {
+    if (!TTInstanceOf<TTRtc>().isTimeValid()) {
         return false;
     }
-    const uint32_t fetchedAt = cache->fetchedAt;
-    if (fetchedAt == 0 || (time_t)fetchedAt > now
-        || now - (time_t)fetchedAt > TT_CAL_CACHE_MAX_AGE_SEC) {
+    const time_t now = time(nullptr);
+    const time_t fetched = (time_t)fetchedAt;
+    if (now <= 0 || fetched <= 0 || fetched > now) {
+        return false;
+    }
+    return now - fetched <= TT_CAL_CACHE_MAX_AGE_SEC;
+}
+
+bool TTCalendarService::cacheIsToday(uint32_t fetchedAt) const {
+    if (!TTInstanceOf<TTRtc>().isTimeValid()) {
+        return false;
+    }
+    const time_t now = time(nullptr);
+    const time_t fetched = (time_t)fetchedAt;
+    if (now <= 0 || fetched <= 0 || fetched > now) {
+        return false;
+    }
+    return sameLocalDay(fetched, now);
+}
+
+void TTCalendarService::adoptCache(uint8_t count, int32_t rangeStart, int32_t rangeEnd,
+                                     const TTCalEvent* events) {
+    _count = count;
+    _rangeStart = rangeStart;
+    _rangeEnd = rangeEnd;
+    if (_count > 0 && events != nullptr) {
+        memcpy(_events, events, sizeof(TTCalEvent) * _count);
+    }
+}
+
+bool TTCalendarService::readTodayCache(char* message, size_t messageMax) {
+    char host[TT_CAL_HOST_MAX];
+    char user[TT_CAL_USER_MAX];
+    char pass[TT_CAL_PASS_MAX];
+    if (!loadAccount(host, sizeof(host), user, sizeof(user), pass, sizeof(pass))) {
+        return false;
+    }
+    memset(pass, 0, sizeof(pass));
+    TTCalendarCacheFile* cache = openCache(host, user);
+    if (cache == nullptr || !cacheIsToday(cache->fetchedAt)) {
         delete cache;
-        LOG_I("CalDAV: cache stale fetchedAt=%u now=%ld", (unsigned)fetchedAt, (long)now);
         return false;
     }
-    _count = cache->count;
-    _rangeStart = cache->rangeStart;
-    _rangeEnd = cache->rangeEnd;
-    if (_count > 0) {
-        memcpy(_events, cache->events, sizeof(TTCalEvent) * _count);
+    adoptCache(cache->count, cache->rangeStart, cache->rangeEnd, cache->events);
+    if (message != nullptr && messageMax > 0) {
+        strncpy(message, cache->message, messageMax - 1);
+        message[messageMax - 1] = '\0';
     }
-    LOG_I("CalDAV: reuse cache age=%ld s events=%u", (long)(now - (time_t)fetchedAt), (unsigned)_count);
-    publish(TT_CAL_OK, cache->message, false);
+    const time_t now = time(nullptr);
+    LOG_I("CalDAV: today cache age=%ld s events=%u",
+          (long)(now - (time_t)cache->fetchedAt), (unsigned)cache->count);
     delete cache;
     return true;
 }
@@ -537,15 +586,43 @@ void TTCalendarService::saveCache(const char* host, const char* user, const char
     LOG_I("CalDAV: cache saved %u bytes events=%u", (unsigned)wrote, (unsigned)_count);
 }
 
-void TTCalendarService::requestFetch(bool extend, bool force) {
+bool TTCalendarService::requestFetch(bool extend, bool force, bool publishFresh) {
     if (!extend && !force) {
         char host[TT_CAL_HOST_MAX];
         char user[TT_CAL_USER_MAX];
         char pass[TT_CAL_PASS_MAX];
         if (loadAccount(host, sizeof(host), user, sizeof(user), pass, sizeof(pass))) {
             memset(pass, 0, sizeof(pass));
-            if (publishFreshCache(host, user)) {
-                return;
+            if (!TTInstanceOf<TTRtc>().isTimeValid()) {
+                LOG_I("CalDAV: cache skipped, clock invalid");
+            }
+            TTCalendarCacheFile* cache = openCache(host, user);
+            if (cache == nullptr) {
+                LOG_I("CalDAV: cache miss");
+            } else {
+                const bool fresh = cacheIsFresh(cache->fetchedAt);
+                const bool today = cacheIsToday(cache->fetchedAt);
+                if (!fresh && TTInstanceOf<TTRtc>().isTimeValid()) {
+                    LOG_I("CalDAV: cache stale fetchedAt=%u", (unsigned)cache->fetchedAt);
+                }
+                if (fresh && (publishFresh || !today)) {
+                    adoptCache(cache->count, cache->rangeStart, cache->rangeEnd, cache->events);
+                    const time_t now = time(nullptr);
+                    LOG_I("CalDAV: reuse cache age=%ld s events=%u",
+                          (long)(now - (time_t)cache->fetchedAt), (unsigned)cache->count);
+                    publish(TT_CAL_OK, cache->message, false);
+                    delete cache;
+                    return true;
+                }
+                if (fresh) {
+                    LOG_I("CalDAV: today cache is current");
+                    delete cache;
+                    return false;
+                }
+                if (!publishFresh && today) {
+                    LOG_I("CalDAV: update after today cache");
+                }
+                delete cache;
             }
         }
     }
@@ -562,6 +639,7 @@ void TTCalendarService::requestFetch(bool extend, bool force) {
             }
             publish(TT_CAL_NEED_WIFI, "未连接 Wi-Fi", false);
         });
+    return true;
 }
 
 bool TTCalendarService::loadAccount(char* host, size_t hostMax, char* user, size_t userMax,

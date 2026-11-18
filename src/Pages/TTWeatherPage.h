@@ -162,6 +162,7 @@ public:
     void willAppear() override;
     void willDisappear() override;
     TTRefreshLevel enterRefreshLevel() const override;
+    void requestRefresh(TTRefreshLevel level = TT_REFRESH_PARTIAL) override;
 
 protected:
     void buildContent(lv_obj_t* screen) override;
@@ -173,10 +174,11 @@ private:
     void bindDetails(const TTWeatherPayload& payload);
     void bindGraph(const TTWeatherPayload& payload);
     void forceRefresh();
-    void requestFetch(bool force = false);
+    bool requestFetch(bool force = false, bool publishFresh = true);
     void onSleepWake(const TTSleepWakePayload& wake);
     void onSchedule(const TTSchedulePayload& event);
     void onTimeTick();
+    void armEnterPaint();
     void tryRequestLightSleep(uint32_t delayMs = TT_SLEEP_AFTER_REFRESH_MS);
     void armInputIdleSleep();
     void cancelInputIdleSleep();
@@ -254,6 +256,8 @@ private:
     TTWeatherForecastCol _forecast[TT_WEATHER_FORECAST_N];
     TTWeatherDetailCell _details[TT_WEATHER_DETAIL_N];
     bool _visible = false;
+    bool _deferEnterPaint = false;
+    uint32_t _enterPaintHandle = 0;
     bool _webGoesNetwork = false;
     bool _forceRefreshing = false;
     bool _fetching = false;

@@ -11,13 +11,18 @@
 
 class TTCalendarService {
 public:
-    void requestFetch(bool extend, bool force = false);
+    bool readTodayCache(char* message, size_t messageMax);
+    bool requestFetch(bool extend, bool force = false, bool publishFresh = true);
     uint8_t copyEvents(TTCalEvent* out, uint8_t maxCount) const;
+    int32_t rangeStart() const { return _rangeStart; }
+    int32_t rangeEnd() const { return _rangeEnd; }
 
 private:
     void publish(TTCalendarState state, const char* message, bool extended);
-    bool publishFreshCache(const char* host, const char* user);
     void saveCache(const char* host, const char* user, const char* message);
+    bool cacheIsFresh(uint32_t fetchedAt) const;
+    bool cacheIsToday(uint32_t fetchedAt) const;
+    void adoptCache(uint8_t count, int32_t rangeStart, int32_t rangeEnd, const TTCalEvent* events);
     void fetch(bool extend);
     bool loadAccount(char* host, size_t hostMax, char* user, size_t userMax, char* pass, size_t passMax);
     bool discover(const char* host, const char* authHeader, char hrefs[][TT_CAL_HREF_LEN]);

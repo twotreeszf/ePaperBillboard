@@ -21,13 +21,16 @@ public:
     void setup() override;
     void willAppear() override;
     void willDisappear() override;
+    void requestRefresh(TTRefreshLevel level = TT_REFRESH_PARTIAL) override;
 
 protected:
     void buildContent(lv_obj_t* screen) override;
     bool handleKeyAction(TTKeyId key, TTKeyGesture gesture) override;
 
 private:
-    void requestWeather(bool force = false);
+    bool requestWeather(bool force = false, bool publishFresh = true);
+    void armEnterPaint();
+    void bindWeather(const TTWeatherPayload& payload);
     void applyWeather(const TTWeatherPayload& payload);
     void applyPictorial(const TTPicPayload& payload);
     void onSleepWake(const TTSleepWakePayload& wake);
@@ -55,11 +58,13 @@ private:
     lv_obj_t* _hit = nullptr;
 
     bool _visible = false;
+    bool _deferEnterPaint = false;
     bool _weatherFetching = false;
     bool _artReady = false;
     char _artPath[TT_STREAM_IMAGE_PATH_MAX] = {};
     bool _artFetching = false;
     bool _picking = false;
+    uint32_t _enterPaintHandle = 0;
     uint32_t _inputIdleSleepHandle = 0;
     uint32_t _sleepSettleHandle = 0;
     bool _sleepAfterTimeTick = false;

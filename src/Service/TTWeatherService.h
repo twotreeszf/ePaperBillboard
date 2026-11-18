@@ -20,14 +20,17 @@
 
 class TTWeatherService {
 public:
-    void requestFetch(bool force = false);
+    bool readTodayCache(TTWeatherPayload& out);
+    bool requestFetch(bool force = false, bool publishFresh = true);
 
 private:
     void publish(const TTWeatherPayload& payload);
     void publishStatus(TTWeatherState state, const char* message);
     bool loadLocation(float& lat, float& lon, char* city, size_t cityMax);
     bool useCaiyun() const;
-    bool publishFreshCache(float lat, float lon, uint16_t source);
+    bool readMatchingCache(float lat, float lon, uint16_t source, TTWeatherPayload& out);
+    bool cacheIsFresh(const TTWeatherPayload& payload) const;
+    bool cacheIsToday(const TTWeatherPayload& payload) const;
     void saveCache(float lat, float lon, uint16_t source, const TTWeatherPayload& payload);
     bool fetchForecast(float lat, float lon, TTWeatherPayload& out);
     bool fetchCaiyun(float lat, float lon, TTWeatherPayload& out);

@@ -159,17 +159,39 @@ void TTPictorialPage::willAppear() {
     if (_hit != nullptr) {
         lv_group_focus_obj(_hit);
     }
-    if (_artFetching) {
+    char storedPath[TT_STREAM_IMAGE_PATH_MAX];
+    char storedName[TT_PIC_NAME_MAX];
+    const bool showed = TTInstanceOf<TTPictorialService>().readStored(
+        storedPath, sizeof(storedPath), storedName, sizeof(storedName));
+    if (showed) {
+        LOG_I("Pictorial page: show stored %s (%s)", storedPath, storedName);
+        showArt(storedPath);
+        _artReady = true;
+    } else if (_artFetching) {
         TTInstanceOf<TTPopupLayer>().showLoading(TT_PIC_UPDATING_TEXT);
     }
-    requestWeather();
-    TTInstanceOf<TTPictorialService>().requestToday();
+    TTWeatherPayload* cached = new TTWeatherPayload;
+    if (cached != nullptr && TTInstanceOf<TTWeatherService>().readTodayCache(*cached)) {
+        LOG_I("Pictorial page: show today cache");
+        bindWeather(*cached);
+    }
+    delete cached;
+    requestWeather(false, false);
+    TTInstanceOf<TTPictorialService>().requestToday(!showed);
+    if (showed) {
+        armEnterPaint();
+    }
     LOG_I("Pictorial page: request sensor update");
     TTInstanceOf<TTSensorTask>().requestSensorUpdateAsync();
 }
 
 void TTPictorialPage::willDisappear() {
     _visible = false;
+    _deferEnterPaint = false;
+    if (_enterPaintHandle != 0) {
+        cancelRepeat(_enterPaintHandle);
+        _enterPaintHandle = 0;
+    }
     _dialArtChange = false;
     _picking = false;
     if (_pickPanel != nullptr) {
@@ -216,17 +238,60 @@ bool TTPictorialPage::handleKeyAction(TTKeyId key, TTKeyGesture gesture) {
     return TTScreenPage::handleKeyAction(key, gesture);
 }
 
-void TTPictorialPage::requestWeather(bool force) {
+void TTPictorialPage::requestRefresh(TTRefreshLevel level) {
+    if (_deferEnterPaint) {
+        _deferEnterPaint = false;
+        LOG_I("Pictorial page: defer enter refresh");
+        return;
+    }
+    TTScreenPage::requestRefresh(level);
+}
+
+void TTPictorialPage::armEnterPaint() {
+    _deferEnterPaint = true;
+    if (_enterPaintHandle != 0) {
+        cancelRepeat(_enterPaintHandle);
+    }
+    _enterPaintHandle = runOnce(0, [this]() {
+        _enterPaintHandle = 0;
+        _deferEnterPaint = false;
+        if (!_visible) {
+            return;
+        }
+        if (_artFetching) {
+            if (!TTInstanceOf<TTPopupLayer>().isBusy()) {
+                TTInstanceOf<TTPopupLayer>().showLoading(TT_PIC_UPDATING_TEXT);
+            }
+            return;
+        }
+        LOG_I("Pictorial page: paint stored");
+        TTScreenPage::requestRefresh(TT_REFRESH_DEEP);
+        if (!_weatherFetching && !TTInstanceOf<TTPictorialService>().busy()) {
+            tryRequestLightSleep(TT_SLEEP_AFTER_SYNC_MS);
+        }
+    });
+}
+
+bool TTPictorialPage::requestWeather(bool force, bool publishFresh) {
     if (_weatherFetching) {
         LOG_I("Pictorial page: weather fetch ignored (busy)");
-        return;
+        return true;
     }
     cancelLightSleep();
     cancelSleepSettle();
     _sleepAfterTimeTick = false;
-    _weatherFetching = true;
-    LOG_I("Pictorial page: weather fetch force=%d", force ? 1 : 0);
-    TTInstanceOf<TTWeatherService>().requestFetch(force);
+    const bool pending = TTInstanceOf<TTWeatherService>().requestFetch(force, publishFresh);
+    _weatherFetching = pending;
+    LOG_I("Pictorial page: weather fetch force=%d pending=%d", force ? 1 : 0, pending ? 1 : 0);
+    return pending;
+}
+
+void TTPictorialPage::bindWeather(const TTWeatherPayload& payload) {
+    if (!_daySide.ready() || payload.state != TT_WEATHER_OK) {
+        return;
+    }
+    _daySide.setWeather(payload.current.weatherCode, payload.current.isDay, payload.current.temp);
+    layoutSide();
 }
 
 void TTPictorialPage::applyWeather(const TTWeatherPayload& payload) {
@@ -247,8 +312,7 @@ void TTPictorialPage::applyWeather(const TTWeatherPayload& payload) {
         tryRequestLightSleep(TT_SLEEP_AFTER_SYNC_MS);
         return;
     }
-    _daySide.setWeather(payload.current.weatherCode, payload.current.isDay, payload.current.temp);
-    layoutSide();
+    bindWeather(payload);
     if (_visible) {
         requestRefresh(TT_REFRESH_FULL);
     }

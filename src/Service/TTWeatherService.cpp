@@ -302,21 +302,24 @@ bool coordsMatch(float a, float b) {
     return fabsf(a - b) <= TT_WEATHER_CACHE_COORD_EPS;
 }
 
+bool sameLocalDay(time_t a, time_t b) {
+    struct tm ta;
+    struct tm tb;
+    memset(&ta, 0, sizeof(ta));
+    memset(&tb, 0, sizeof(tb));
+    if (localtime_r(&a, &ta) == nullptr || localtime_r(&b, &tb) == nullptr) {
+        return false;
+    }
+    return ta.tm_year == tb.tm_year && ta.tm_yday == tb.tm_yday;
+}
+
 bool TTWeatherService::useCaiyun() const {
     String region;
     TTInstanceOf<TTPreference>().get(PREF_WEATHER_REGION, region, String(TT_WEATHER_REGION_CN));
     return region != TT_WEATHER_REGION_OVERSEAS;
 }
 
-bool TTWeatherService::publishFreshCache(float lat, float lon, uint16_t source) {
-    if (!TTInstanceOf<TTRtc>().isTimeValid()) {
-        LOG_I("Weather: cache skipped, clock invalid");
-        return false;
-    }
-    const time_t now = time(nullptr);
-    if (now <= 0) {
-        return false;
-    }
+bool TTWeatherService::readMatchingCache(float lat, float lon, uint16_t source, TTWeatherPayload& out) {
     File file = tt_file_open(TT_WEATHER_CACHE_PATH, "r");
     if (!file) {
         return false;
@@ -329,27 +332,56 @@ bool TTWeatherService::publishFreshCache(float lat, float lon, uint16_t source) 
     }
     const size_t got = file.read((uint8_t*)cache, sizeof(*cache));
     file.close();
-    if (got != sizeof(*cache)
-        || cache->magic != TT_WEATHER_CACHE_MAGIC
-        || cache->version != TT_WEATHER_CACHE_VERSION
-        || cache->payload.state != TT_WEATHER_OK
-        || cache->reserved != source
-        || !coordsMatch(cache->lat, lat)
-        || !coordsMatch(cache->lon, lon)) {
-        delete cache;
-        LOG_I("Weather: cache miss");
-        return false;
+    const bool match = got == sizeof(*cache)
+        && cache->magic == TT_WEATHER_CACHE_MAGIC
+        && cache->version == TT_WEATHER_CACHE_VERSION
+        && cache->payload.state == TT_WEATHER_OK
+        && cache->reserved == source
+        && coordsMatch(cache->lat, lat)
+        && coordsMatch(cache->lon, lon);
+    if (match) {
+        out = cache->payload;
     }
-    const uint32_t fetchedAt = cache->payload.fetchedAt;
-    if (fetchedAt == 0 || (time_t)fetchedAt > now
-        || now - (time_t)fetchedAt > TT_WEATHER_CACHE_MAX_AGE_SEC) {
-        delete cache;
-        LOG_I("Weather: cache stale fetchedAt=%u now=%ld", (unsigned)fetchedAt, (long)now);
-        return false;
-    }
-    LOG_I("Weather: reuse cache age=%ld s", (long)(now - (time_t)fetchedAt));
-    publish(cache->payload);
     delete cache;
+    return match;
+}
+
+bool TTWeatherService::cacheIsFresh(const TTWeatherPayload& payload) const {
+    if (!TTInstanceOf<TTRtc>().isTimeValid()) {
+        return false;
+    }
+    const time_t now = time(nullptr);
+    const time_t fetchedAt = (time_t)payload.fetchedAt;
+    if (now <= 0 || fetchedAt <= 0 || fetchedAt > now) {
+        return false;
+    }
+    return now - fetchedAt <= TT_WEATHER_CACHE_MAX_AGE_SEC;
+}
+
+bool TTWeatherService::cacheIsToday(const TTWeatherPayload& payload) const {
+    if (!TTInstanceOf<TTRtc>().isTimeValid()) {
+        return false;
+    }
+    const time_t now = time(nullptr);
+    const time_t fetchedAt = (time_t)payload.fetchedAt;
+    if (now <= 0 || fetchedAt <= 0 || fetchedAt > now) {
+        return false;
+    }
+    return sameLocalDay(fetchedAt, now);
+}
+
+bool TTWeatherService::readTodayCache(TTWeatherPayload& out) {
+    float lat = NAN;
+    float lon = NAN;
+    if (!loadLocation(lat, lon, nullptr, 0) || !isfinite(lat) || !isfinite(lon)) {
+        return false;
+    }
+    const uint16_t source = useCaiyun() ? TT_WEATHER_SOURCE_CAIYUN : TT_WEATHER_SOURCE_OPEN_METEO;
+    if (!readMatchingCache(lat, lon, source, out) || !cacheIsToday(out)) {
+        return false;
+    }
+    const time_t now = time(nullptr);
+    LOG_I("Weather: today cache age=%ld s", (long)(now - (time_t)out.fetchedAt));
     return true;
 }
 
@@ -751,14 +783,42 @@ void TTWeatherService::fetchWeather() {
     publish(draft);
 }
 
-void TTWeatherService::requestFetch(bool force) {
+bool TTWeatherService::requestFetch(bool force, bool publishFresh) {
     float lat = NAN;
     float lon = NAN;
     loadLocation(lat, lon, nullptr, 0);
     const uint16_t source = useCaiyun() ? TT_WEATHER_SOURCE_CAIYUN : TT_WEATHER_SOURCE_OPEN_METEO;
-    if (!force && isfinite(lat) && isfinite(lon) && publishFreshCache(lat, lon, source)) {
-        return;
+    TTWeatherPayload* cached = new TTWeatherPayload;
+    if (cached == nullptr) {
+        LOG_E("Weather: cache alloc failed");
     }
+    if (cached != nullptr && !force && !TTInstanceOf<TTRtc>().isTimeValid()) {
+        LOG_I("Weather: cache skipped, clock invalid");
+    }
+    const bool located = cached != nullptr && isfinite(lat) && isfinite(lon);
+    const bool have = !force && located && readMatchingCache(lat, lon, source, *cached);
+    if (!force && located && !have) {
+        LOG_I("Weather: cache miss");
+    }
+    if (have && !cacheIsFresh(*cached)) {
+        LOG_I("Weather: cache stale fetchedAt=%u", (unsigned)cached->fetchedAt);
+    }
+    if (have && cacheIsFresh(*cached)) {
+        if (publishFresh || !cacheIsToday(*cached)) {
+            const time_t now = time(nullptr);
+            LOG_I("Weather: reuse cache age=%ld s", (long)(now - (time_t)cached->fetchedAt));
+            publish(*cached);
+            delete cached;
+            return true;
+        }
+        LOG_I("Weather: today cache is current");
+        delete cached;
+        return false;
+    }
+    if (!publishFresh && have && cacheIsToday(*cached)) {
+        LOG_I("Weather: update after today cache");
+    }
+    delete cached;
     TTInstanceOf<TTWiFiTask>().runWithRadio(
         "weather",
         [this]() {
@@ -768,4 +828,5 @@ void TTWeatherService::requestFetch(bool force) {
             LOG_W("Weather: radio failed");
             publishStatus(TT_WEATHER_NEED_WIFI, "未连接 Wi-Fi");
         });
+    return true;
 }

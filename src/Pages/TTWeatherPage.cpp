@@ -612,6 +612,34 @@ void TTWeatherPage::setup() {
     syncIndoor(false);
 }
 
+void TTWeatherPage::requestRefresh(TTRefreshLevel level) {
+    if (_deferEnterPaint) {
+        _deferEnterPaint = false;
+        LOG_I("Weather page: defer enter refresh");
+        return;
+    }
+    TTScreenPage::requestRefresh(level);
+}
+
+void TTWeatherPage::armEnterPaint() {
+    _deferEnterPaint = true;
+    if (_enterPaintHandle != 0) {
+        cancelRepeat(_enterPaintHandle);
+    }
+    _enterPaintHandle = runOnce(0, [this]() {
+        _enterPaintHandle = 0;
+        _deferEnterPaint = false;
+        if (!_visible) {
+            return;
+        }
+        LOG_I("Weather page: paint today cache");
+        TTScreenPage::requestRefresh(enterRefreshLevel());
+        if (!_fetching) {
+            tryRequestLightSleep(TT_SLEEP_AFTER_SYNC_MS);
+        }
+    });
+}
+
 TTRefreshLevel TTWeatherPage::enterRefreshLevel() const {
     if (_content != nullptr && !lv_obj_is_hidden(_content)) {
         return TT_REFRESH_DEEP;
@@ -626,14 +654,31 @@ void TTWeatherPage::willAppear() {
     applyChrome(_displayMode == TT_WEATHER_MODE_CLOCK);
     syncIndoor(false);
     TTInstanceOf<TTSensorTask>().requestSensorUpdateAsync();
-    requestFetch();
+    TTWeatherPayload* cached = new TTWeatherPayload;
+    bool showed = false;
+    if (cached != nullptr && TTInstanceOf<TTWeatherService>().readTodayCache(*cached)) {
+        LOG_I("Weather page: show today cache");
+        showed = applyWeather(*cached);
+    }
+    delete cached;
+    const bool pending = requestFetch(false, false);
+    if (showed) {
+        armEnterPaint();
+    } else if (!pending) {
+        tryRequestLightSleep(TT_SLEEP_AFTER_SYNC_MS);
+    }
 }
 
 void TTWeatherPage::willDisappear() {
     TTScreenPage::willDisappear();
     _visible = false;
+    _deferEnterPaint = false;
     _forceRefreshing = false;
     _sleepAfterTimeTick = false;
+    if (_enterPaintHandle != 0) {
+        cancelRepeat(_enterPaintHandle);
+        _enterPaintHandle = 0;
+    }
     cancelInputIdleSleep();
     cancelSleepSettle();
     applyChrome(false);
@@ -1491,17 +1536,18 @@ bool TTWeatherPage::handleKeyAction(TTKeyId key, TTKeyGesture gesture) {
     return TTScreenPage::handleKeyAction(key, gesture);
 }
 
-void TTWeatherPage::requestFetch(bool force) {
+bool TTWeatherPage::requestFetch(bool force, bool publishFresh) {
     if (_fetching) {
         LOG_I("Weather page: fetch ignored (busy)");
-        return;
+        return true;
     }
     cancelLightSleep();
     cancelSleepSettle();
     _sleepAfterTimeTick = false;
-    _fetching = true;
-    LOG_I("Weather page: fetch force=%d", force ? 1 : 0);
-    TTInstanceOf<TTWeatherService>().requestFetch(force);
+    const bool pending = TTInstanceOf<TTWeatherService>().requestFetch(force, publishFresh);
+    _fetching = pending;
+    LOG_I("Weather page: fetch force=%d pending=%d", force ? 1 : 0, pending ? 1 : 0);
+    return pending;
 }
 
 void TTWeatherPage::onSleepWake(const TTSleepWakePayload& wake) {

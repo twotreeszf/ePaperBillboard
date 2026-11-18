@@ -418,12 +418,32 @@ void TTCalendarPage::willAppear() {
     setStatusTimeVisible(false);
     updateClock(false);
     layoutSide();
-    requestCalendar(false);
-    requestWeather();
+    TTWeatherPayload* cached = new TTWeatherPayload;
+    if (cached != nullptr && TTInstanceOf<TTWeatherService>().readTodayCache(*cached)) {
+        LOG_I("Calendar page: show today cache");
+        bindWeather(*cached);
+    }
+    delete cached;
+    char message[TT_CAL_MSG_MAX];
+    message[0] = '\0';
+    const bool showed = TTInstanceOf<TTCalendarService>().readTodayCache(message, sizeof(message));
+    if (showed) {
+        showCachedCalendar(message);
+    }
+    requestCalendar(false, false, false);
+    requestWeather(false, false);
+    if (showed) {
+        armEnterPaint();
+    }
 }
 
 void TTCalendarPage::willDisappear() {
     _visible = false;
+    _deferEnterPaint = false;
+    if (_enterPaintHandle != 0) {
+        cancelRepeat(_enterPaintHandle);
+        _enterPaintHandle = 0;
+    }
     _forceRefreshing = false;
     _sleepAfterTimeTick = false;
     cancelInputIdleSleep();
@@ -442,16 +462,63 @@ bool TTCalendarPage::handleKeyAction(TTKeyId key, TTKeyGesture gesture) {
     return TTScreenPage::handleKeyAction(key, gesture);
 }
 
-void TTCalendarPage::requestCalendar(bool extend, bool force) {
+void TTCalendarPage::requestRefresh(TTRefreshLevel level) {
+    if (_deferEnterPaint) {
+        _deferEnterPaint = false;
+        LOG_I("Calendar page: defer enter refresh");
+        return;
+    }
+    TTScreenPage::requestRefresh(level);
+}
+
+void TTCalendarPage::armEnterPaint() {
+    _deferEnterPaint = true;
+    if (_enterPaintHandle != 0) {
+        cancelRepeat(_enterPaintHandle);
+    }
+    _enterPaintHandle = runOnce(0, [this]() {
+        _enterPaintHandle = 0;
+        _deferEnterPaint = false;
+        if (!_visible) {
+            return;
+        }
+        LOG_I("Calendar page: paint today cache");
+        TTScreenPage::requestRefresh(TT_REFRESH_FULL);
+        if (!_calendarFetching && !_weatherFetching) {
+            tryRequestLightSleep(TT_SLEEP_AFTER_SYNC_MS);
+        }
+    });
+}
+
+void TTCalendarPage::showCachedCalendar(const char* message) {
+    TTCalendarService& service = TTInstanceOf<TTCalendarService>();
+    _count = service.copyEvents(_events, TT_CAL_EVENT_MAX);
+    _rangeStart = service.rangeStart();
+    _rangeEnd = service.rangeEnd();
+    _calendarReady = true;
+    _page = 0;
+    if (_count == 0) {
+        _planCount = 0;
+        _pageCount = 0;
+        lv_label_set_text(_status, (message != nullptr && message[0] != '\0') ? message : "这7天没有日程");
+    } else {
+        rebuildRows();
+    }
+    showPage();
+    LOG_I("Calendar page: show today cache events=%u", (unsigned)_count);
+}
+
+bool TTCalendarPage::requestCalendar(bool extend, bool force, bool publishFresh) {
     if (_calendarFetching) {
         LOG_I("Calendar page: calendar fetch ignored (busy)");
-        return;
+        return true;
     }
     cancelLightSleep();
     cancelSleepSettle();
     _sleepAfterTimeTick = false;
-    _calendarFetching = true;
-    if (!extend && !_calendarReady && !_forceRefreshing) {
+    const bool pending = TTInstanceOf<TTCalendarService>().requestFetch(extend, force, publishFresh);
+    _calendarFetching = pending;
+    if (pending && !extend && !_calendarReady && !_forceRefreshing) {
         lv_label_set_text(_status, "正在同步日历");
         lv_obj_set_hidden(_status, false);
     }
@@ -459,21 +526,23 @@ void TTCalendarPage::requestCalendar(bool extend, bool force) {
         _extendLoading = true;
         TTInstanceOf<TTPopupLayer>().showLoading("加载中...");
     }
-    LOG_I("Calendar page: fetch extend=%d force=%d", extend ? 1 : 0, force ? 1 : 0);
-    TTInstanceOf<TTCalendarService>().requestFetch(extend, force);
+    LOG_I("Calendar page: fetch extend=%d force=%d pending=%d",
+          extend ? 1 : 0, force ? 1 : 0, pending ? 1 : 0);
+    return pending;
 }
 
-void TTCalendarPage::requestWeather(bool force) {
+bool TTCalendarPage::requestWeather(bool force, bool publishFresh) {
     if (_weatherFetching) {
         LOG_I("Calendar page: weather fetch ignored (busy)");
-        return;
+        return true;
     }
     cancelLightSleep();
     cancelSleepSettle();
     _sleepAfterTimeTick = false;
-    _weatherFetching = true;
-    LOG_I("Calendar page: weather fetch force=%d", force ? 1 : 0);
-    TTInstanceOf<TTWeatherService>().requestFetch(force);
+    const bool pending = TTInstanceOf<TTWeatherService>().requestFetch(force, publishFresh);
+    _weatherFetching = pending;
+    LOG_I("Calendar page: weather fetch force=%d pending=%d", force ? 1 : 0, pending ? 1 : 0);
+    return pending;
 }
 
 void TTCalendarPage::forceRefresh() {
@@ -657,6 +726,23 @@ void TTCalendarPage::tryRequestLightSleep(uint32_t delayMs) {
     });
 }
 
+void TTCalendarPage::bindWeather(const TTWeatherPayload& payload) {
+    if (!_daySide.ready() || payload.state != TT_WEATHER_OK) {
+        return;
+    }
+    _ageOk = true;
+    _daySide.setWeather(payload.current.weatherCode, payload.current.isDay, payload.current.temp);
+    char buf[24];
+    _fetchedAt = payload.fetchedAt;
+    if (_fetchedAt == 0) {
+        const time_t now = time(nullptr);
+        _fetchedAt = (now > 0) ? (uint32_t)now : 1;
+    }
+    formatAge(_fetchedAt, buf, sizeof(buf));
+    lv_label_set_text(_ageLabel, buf);
+    layoutSide();
+}
+
 void TTCalendarPage::applyWeather(const TTWeatherPayload& payload) {
     if (payload.state == TT_WEATHER_FETCHING) {
         return;
@@ -676,17 +762,7 @@ void TTCalendarPage::applyWeather(const TTWeatherPayload& payload) {
         finishFetch();
         return;
     }
-    _ageOk = true;
-    _daySide.setWeather(payload.current.weatherCode, payload.current.isDay, payload.current.temp);
-    char buf[24];
-    _fetchedAt = payload.fetchedAt;
-    if (_fetchedAt == 0) {
-        const time_t now = time(nullptr);
-        _fetchedAt = (now > 0) ? (uint32_t)now : 1;
-    }
-    formatAge(_fetchedAt, buf, sizeof(buf));
-    lv_label_set_text(_ageLabel, buf);
-    layoutSide();
+    bindWeather(payload);
     if (_visible) {
         LOG_I("Calendar page: weather ready, full refresh");
         requestRefresh(TT_REFRESH_FULL);
