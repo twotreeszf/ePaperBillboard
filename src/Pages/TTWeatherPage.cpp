@@ -661,10 +661,10 @@ void TTWeatherPage::willAppear() {
         showed = applyWeather(*cached);
     }
     delete cached;
-    requestFetch(false, false);
+    const bool pending = requestFetch(false, false);
     if (showed) {
         armEnterPaint();
-    } else if (!_fetching) {
+    } else if (!pending) {
         tryRequestLightSleep(TT_SLEEP_AFTER_SYNC_MS);
     }
 }
@@ -1539,7 +1539,7 @@ bool TTWeatherPage::handleKeyAction(TTKeyId key, TTKeyGesture gesture) {
 bool TTWeatherPage::requestFetch(bool force, bool publishFresh) {
     if (_fetching) {
         LOG_I("Weather page: fetch ignored (busy)");
-        return false;
+        return true;
     }
     cancelLightSleep();
     cancelSleepSettle();
