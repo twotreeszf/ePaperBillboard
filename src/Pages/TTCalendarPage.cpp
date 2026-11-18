@@ -511,7 +511,7 @@ void TTCalendarPage::showCachedCalendar(const char* message) {
 bool TTCalendarPage::requestCalendar(bool extend, bool force, bool publishFresh) {
     if (_calendarFetching) {
         LOG_I("Calendar page: calendar fetch ignored (busy)");
-        return true;
+        return false;
     }
     cancelLightSleep();
     cancelSleepSettle();
@@ -534,7 +534,7 @@ bool TTCalendarPage::requestCalendar(bool extend, bool force, bool publishFresh)
 bool TTCalendarPage::requestWeather(bool force, bool publishFresh) {
     if (_weatherFetching) {
         LOG_I("Calendar page: weather fetch ignored (busy)");
-        return true;
+        return false;
     }
     cancelLightSleep();
     cancelSleepSettle();

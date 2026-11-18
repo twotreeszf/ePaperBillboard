@@ -275,7 +275,7 @@ void TTPictorialPage::armEnterPaint() {
 bool TTPictorialPage::requestWeather(bool force, bool publishFresh) {
     if (_weatherFetching) {
         LOG_I("Pictorial page: weather fetch ignored (busy)");
-        return true;
+        return false;
     }
     cancelLightSleep();
     cancelSleepSettle();
