@@ -305,7 +305,12 @@ tools/venv/bin/python tools/publish_firmware.py --summary
 
 This compares against the **previous** commit that changed `src/Base/TTFirmwareVersion.h` (not the current header value alone).
 
-2. **Edit `release-notes.md`** at the repo root with a short Markdown summary of **only what changed since that last publish** (at most 100 characters; shown in the update reader). The publish script refuses a new binary release if this file is still identical to the copy at the last publish commit.
+2. **Edit `release-notes.md`** at the repo root. Cover **only what changed since that last publish**. The update reader lays this file out as Markdown, so write it as the note a user reads on the device — not as a commit summary. Two requirements come before the length limit:
+
+   - **User-friendly copy.** Say what the person using the device will notice, in everyday language. A heading should name the benefit (`显示更清晰`, `续航更持久`), and each bullet should say what changes for them. Leave out implementation details such as resource paths, debug servers, and fetch internals unless the user can act on them.
+   - **Hierarchy.** Group related changes under headings and lists. Do not publish one flat paragraph. Use `##` for each group and `-` for the items under it. Bold only the few words that matter (`**粗体**`, `**每两小时**`).
+
+   The text must stay within 479 bytes, and its manifest line within 767 bytes. The publish script refuses a new binary release if this file is still identical to the copy at the last publish commit.
 
 3. **Publish**:
 

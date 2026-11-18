@@ -20,7 +20,8 @@ FIRMWARE_BIN = ROOT / ".pio" / "build" / PIO_ENV / "firmware.bin"
 RES_ROOT = ROOT / "data" / "res"
 MANIFEST_NAME = "manifest.json"
 NOTES_PATH = ROOT / "release-notes.md"
-NOTES_MAX_CHARS = 100
+NOTES_MAX_BYTES = 479
+OTA_MANIFEST_LINE_MAX = 767
 HISTORY_MAX = 24
 CONTENT_ROOTS = ("src", "include", "lib")
 CONTENT_FILES = ("platformio.ini", "partitions_16MB.csv")
@@ -210,10 +211,16 @@ def load_notes():
 def ensure_notes_length(notes):
     if not notes:
         raise SystemExit(f"{NOTES_PATH.name} is empty")
-    count = len(notes)
-    if count > NOTES_MAX_CHARS:
+    size = len(notes.encode("utf-8"))
+    if size > NOTES_MAX_BYTES:
         raise SystemExit(
-            f"{NOTES_PATH.name} has {count} characters; the limit is {NOTES_MAX_CHARS}"
+            f"{NOTES_PATH.name} is {size} bytes; the limit is {NOTES_MAX_BYTES}"
+        )
+    line = f'  "notes": {json.dumps(notes, ensure_ascii=False)},'
+    line_size = len(line.encode("utf-8"))
+    if line_size > OTA_MANIFEST_LINE_MAX:
+        raise SystemExit(
+            f"{NOTES_PATH.name} makes a {line_size} byte manifest line; the limit is {OTA_MANIFEST_LINE_MAX}"
         )
 
 
