@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>联网设置</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <style>
+        body { font-family: -apple-system, sans-serif; margin: 0; padding: 16px; background: #f4f4f4; }
+        .box { max-width: 400px; margin: 0 auto; background: #fff; padding: 20px; border-radius: 8px; }
+        h2 { margin: 0 0 8px; text-align: center; }
+        label { display: block; margin: 12px 0 6px; }
+        select, input { width: 100%; padding: 10px; font-size: 16px; box-sizing: border-box; }
+        .tabs { display: flex; flex-wrap: nowrap; gap: 6px; margin: 12px 0 4px; overflow-x: auto; -webkit-overflow-scrolling: touch; }
+        .tab { flex: 0 0 auto; margin: 0; padding: 8px 12px; font-size: 14px; white-space: nowrap; background: #eee; color: #111; border: 0; border-radius: 6px; }
+        .tab.on { background: #111; color: #fff; }
+        .panel { display: none; }
+        .panel.on { display: block; }
+        button.save { width: 100%; margin-top: 20px; padding: 12px; font-size: 16px; background: #111; color: #fff; border: 0; border-radius: 6px; }
+        button.save:disabled { background: #999; }
+        .tip { color: #666; font-size: 13px; margin: 8px 0; }
+    </style>
+</head>
+<body>
+    <div class="box">
+        <h2>联网设置</h2>
+        <p class="tip" id="intro">正在读取设置</p>
+        <div class="tabs" id="tabs" hidden>
+            <button type="button" class="tab" data-tab="wifi">Wi-Fi</button>
+            <button type="button" class="tab" data-tab="tz">时区</button>
+        </div>
+        <form id="setup" method="post" action="/save" onsubmit="return onSubmit()">
+            <div class="panel" id="panel-wifi">
+                <label>名称</label>
+                <select id="ssid-select" onchange="document.getElementById('ssid').value=this.value">
+                    <option value="">正在扫描...</option>
+                </select>
+                <input type="text" id="ssid" name="ssid" placeholder="或手动输入名称">
+                <label>密码</label>
+                <input type="text" id="password" name="password" placeholder="Wi-Fi 密码" autocomplete="off">
+            </div>
+            <div class="panel" id="panel-tz">
+                <label>地区</label>
+                <select id="region" onchange="fillCities()"></select>
+                <label>城市</label>
+                <select id="city" onchange="applyCity()"></select>
+                <input type="hidden" id="timezone" name="timezone" value="CST-8">
+                <input type="hidden" id="timezone_label" name="timezone_label" value="上海">
+            </div>
+        </form>
+        <button class="save" type="submit" form="setup" disabled>完成配置</button>
+    </div>
+    <script>
+        const CITIES = {
+            "亚洲":[["上海","CST-8"],["香港","HKT-8"],["台北","CST-8"],["新加坡","SGT-8"],["东京","JST-9"],["首尔","KST-9"],["曼谷","ICT-7"],["迪拜","GST-4"]],
+            "欧洲":[["伦敦","GMT0"],["巴黎","CET-1"],["柏林","CET-1"],["莫斯科","MSK-3"]],
+            "美洲":[["纽约","EST5"],["芝加哥","CST6"],["洛杉矶","PST8"],["丹佛","MST7"],["圣保罗","BRT3"]],
+            "大洋洲":[["悉尼","AEST-10"],["奥克兰","NZST-12"]],
+            "UTC":[["UTC","GMT0"]]
+        };
+        function fillRegions() {
+            const r = document.getElementById("region");
+            r.innerHTML = "";
+            Object.keys(CITIES).forEach(name => {
+                const o = document.createElement("option");
+                o.value = name; o.textContent = name; r.appendChild(o);
+            });
+        }
+        function fillCities() {
+            const list = CITIES[document.getElementById("region").value] || [];
+            const c = document.getElementById("city");
+            c.innerHTML = "";
+            list.forEach(item => {
+                const o = document.createElement("option");
+                o.value = item[1]; o.textContent = item[0]; o.dataset.label = item[0];
+                c.appendChild(o);
+            });
+            applyCity();
+        }
+        function applyCity() {
+            const c = document.getElementById("city");
+            const opt = c.options[c.selectedIndex];
+            document.getElementById("timezone").value = opt ? opt.value : "";
+            document.getElementById("timezone_label").value = opt ? opt.dataset.label : "";
+        }
+        function selectCity(tz, label) {
+            let found = null;
+            Object.keys(CITIES).forEach(region => {
+                CITIES[region].forEach(item => {
+                    if (label && item[0] === label) found = { region, item };
+                });
+            });
+            if (!found && tz) {
+                Object.keys(CITIES).some(region =>
+                    CITIES[region].some(item => {
+                        if (item[1] === tz) { found = { region, item }; return true; }
+                        return false;
+                    })
+                );
+            }
+            if (!found) return;
+            document.getElementById("region").value = found.region;
+            fillCities();
+            const c = document.getElementById("city");
+            for (let i = 0; i < c.options.length; i++) {
+                if (c.options[i].dataset.label === found.item[0] && c.options[i].value === found.item[1]) {
+                    c.selectedIndex = i;
+                }
+            }
+            applyCity();
+        }
+        function fillSaved(status, scan) {
+            const s = document.getElementById("ssid-select");
+            s.innerHTML = "<option value=\"\">选择网络...</option>";
+            const networks = scan.networks || [];
+            networks.forEach(n => {
+                const o = document.createElement("option");
+                o.value = n.ssid; o.textContent = n.ssid; s.appendChild(o);
+            });
+            if (status.ssid && networks.every(n => n.ssid !== status.ssid)) {
+                const o = document.createElement("option");
+                o.value = status.ssid;
+                o.textContent = status.ssid + "（已保存）";
+                s.appendChild(o);
+            }
+            if (status.ssid) {
+                document.getElementById("ssid").value = status.ssid;
+                s.value = status.ssid;
+            }
+            if (status.password) {
+                document.getElementById("password").value = status.password;
+            }
+            if (status.timezone || status.label) {
+                selectCity(status.timezone || "", status.label || "");
+            }
+        }
+        function showTab(name) {
+            document.querySelectorAll(".tab").forEach(el => {
+                el.classList.toggle("on", el.dataset.tab === name);
+            });
+            document.querySelectorAll(".panel").forEach(el => {
+                el.classList.toggle("on", el.id === "panel-" + name);
+            });
+            const tab = document.querySelector('.tab[data-tab="' + name + '"]');
+            if (tab) tab.scrollIntoView({ inline: "nearest", block: "nearest" });
+        }
+        document.querySelectorAll(".tab").forEach(el => {
+            el.addEventListener("click", () => showTab(el.dataset.tab));
+        });
+        function onSubmit() {
+            applyCity();
+            const ssid = document.getElementById("ssid").value.replace(/^\s+|\s+$/g, "");
+            document.getElementById("ssid").value = ssid;
+            if (!ssid) {
+                showTab("wifi");
+                alert("请选择或输入 Wi-Fi 名称");
+                return false;
+            }
+            if (!document.getElementById("timezone").value) {
+                showTab("tz");
+                alert("请选择时区");
+                return false;
+            }
+            const btn = document.querySelector("button.save");
+            btn.disabled = true;
+            btn.textContent = "保存中...";
+            return true;
+        }
+        fillRegions();
+        fillCities();
+        Promise.all([
+            fetch("/status").then(r => r.json()).catch(() => ({})),
+            fetch("/scan").then(r => r.json()).catch(() => ({}))
+        ]).then(([status, scan]) => {
+            if (status.portal !== "network") {
+                document.getElementById("intro").textContent = "无法读取设置";
+                return;
+            }
+            document.getElementById("intro").textContent = "按分类填写。完成配置后设备将关闭热点并连接 Wi-Fi。";
+            showTab("wifi");
+            document.getElementById("tabs").hidden = false;
+            document.querySelector("button.save").disabled = false;
+            fillSaved(status, scan);
+        });
+    </script>
+</body>
+</html>

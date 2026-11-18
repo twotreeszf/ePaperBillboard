@@ -212,7 +212,7 @@ void TTConfigServer::_sendPage(const char* path) {
 }
 
 void TTConfigServer::_handleRoot() {
-    _sendPage(TT_WWW_SETUP_PAGE);
+    _sendPage(_kind == TT_PORTAL_LAN ? TT_WWW_SETUP_PAGE : TT_WWW_NETWORK_PAGE);
 }
 
 void TTConfigServer::_sendSaveResult(int code, const char* title, const char* msg) {

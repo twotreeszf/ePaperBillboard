@@ -2,7 +2,7 @@
 <html>
 <head>
     <meta charset="utf-8">
-    <title>设备设置</title>
+    <title>Web 设置</title>
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <style>
         body { font-family: -apple-system, sans-serif; margin: 0; padding: 16px; background: #f4f4f4; }
@@ -29,11 +29,9 @@
 </head>
 <body>
     <div class="box">
-        <h2>设备设置</h2>
+        <h2>Web 设置</h2>
         <p class="tip" id="intro">正在读取设置</p>
         <div class="tabs" id="tabs" hidden>
-            <button type="button" class="tab" data-tab="wifi">Wi-Fi</button>
-            <button type="button" class="tab" data-tab="tz">时区</button>
             <button type="button" class="tab" data-tab="weather">天气</button>
             <button type="button" class="tab" data-tab="cal">日历</button>
             <button type="button" class="tab" data-tab="pic">画报</button>
@@ -41,23 +39,6 @@
             <button type="button" class="tab" data-tab="dev">开发者</button>
         </div>
         <form id="setup" method="post" action="/save" onsubmit="return onSubmit()">
-            <div class="panel" id="panel-wifi">
-                <label>名称</label>
-                <select id="ssid-select" onchange="document.getElementById('ssid').value=this.value">
-                    <option value="">正在扫描...</option>
-                </select>
-                <input type="text" id="ssid" name="ssid" placeholder="或手动输入名称">
-                <label>密码</label>
-                <input type="text" id="password" name="password" placeholder="Wi-Fi 密码" autocomplete="off">
-            </div>
-            <div class="panel" id="panel-tz">
-                <label>地区</label>
-                <select id="region" onchange="fillCities()"></select>
-                <label>城市</label>
-                <select id="city" onchange="applyCity()"></select>
-                <input type="hidden" id="timezone" name="timezone" value="CST-8">
-                <input type="hidden" id="timezone_label" name="timezone_label" value="上海">
-            </div>
             <div class="panel" id="panel-weather">
                 <p class="tip">大陆使用彩云天气，可选择直辖市和地级市。选自定义后自行填写经纬度。海外使用现有预报。城市名仅用于展示。纬度为负表示南纬，经度为负表示西经。</p>
                 <label>数据源</label>
@@ -131,67 +112,8 @@
         <button class="save" type="submit" form="setup" disabled>完成配置</button>
     </div>
     <script>
-        const CITIES = {
-            "亚洲":[["上海","CST-8"],["香港","HKT-8"],["台北","CST-8"],["新加坡","SGT-8"],["东京","JST-9"],["首尔","KST-9"],["曼谷","ICT-7"],["迪拜","GST-4"]],
-            "欧洲":[["伦敦","GMT0"],["巴黎","CET-1"],["柏林","CET-1"],["莫斯科","MSK-3"]],
-            "美洲":[["纽约","EST5"],["芝加哥","CST6"],["洛杉矶","PST8"],["丹佛","MST7"],["圣保罗","BRT3"]],
-            "大洋洲":[["悉尼","AEST-10"],["奥克兰","NZST-12"]],
-            "UTC":[["UTC","GMT0"]]
-        };
         let places = [];
-        let portalKind = "";
         let deviceStatus = {};
-        function fillRegions() {
-            const r = document.getElementById("region");
-            r.innerHTML = "";
-            Object.keys(CITIES).forEach(name => {
-                const o = document.createElement("option");
-                o.value = name; o.textContent = name; r.appendChild(o);
-            });
-        }
-        function fillCities() {
-            const list = CITIES[document.getElementById("region").value] || [];
-            const c = document.getElementById("city");
-            c.innerHTML = "";
-            list.forEach(item => {
-                const o = document.createElement("option");
-                o.value = item[1]; o.textContent = item[0]; o.dataset.label = item[0];
-                c.appendChild(o);
-            });
-            applyCity();
-        }
-        function applyCity() {
-            const c = document.getElementById("city");
-            const opt = c.options[c.selectedIndex];
-            document.getElementById("timezone").value = opt ? opt.value : "";
-            document.getElementById("timezone_label").value = opt ? opt.dataset.label : "";
-        }
-        function selectCity(tz, label) {
-            let found = null;
-            Object.keys(CITIES).forEach(region => {
-                CITIES[region].forEach(item => {
-                    if (label && item[0] === label) found = { region, item };
-                });
-            });
-            if (!found && tz) {
-                Object.keys(CITIES).some(region =>
-                    CITIES[region].some(item => {
-                        if (item[1] === tz) { found = { region, item }; return true; }
-                        return false;
-                    })
-                );
-            }
-            if (!found) return;
-            document.getElementById("region").value = found.region;
-            fillCities();
-            const c = document.getElementById("city");
-            for (let i = 0; i < c.options.length; i++) {
-                if (c.options[i].dataset.label === found.item[0] && c.options[i].value === found.item[1]) {
-                    c.selectedIndex = i;
-                }
-            }
-            applyCity();
-        }
         function showCoords(show) {
             document.getElementById("lat_row").hidden = !show;
             document.getElementById("lon_row").hidden = !show;
@@ -301,34 +223,7 @@
             applyPlace();
             setValue("weather_city", status.weather_city);
         }
-        function fillSaved(status, scan) {
-            const s = document.getElementById("ssid-select");
-            if (!s || portalKind === "device") {
-                fillDevice(status);
-                return;
-            }
-            s.innerHTML = "<option value=\"\">选择网络...</option>";
-            const networks = scan.networks || [];
-            networks.forEach(n => {
-                const o = document.createElement("option");
-                o.value = n.ssid; o.textContent = n.ssid; s.appendChild(o);
-            });
-            if (status.ssid && networks.every(n => n.ssid !== status.ssid)) {
-                const o = document.createElement("option");
-                o.value = status.ssid;
-                o.textContent = status.ssid + "（已保存）";
-                s.appendChild(o);
-            }
-            if (status.ssid) {
-                document.getElementById("ssid").value = status.ssid;
-                s.value = status.ssid;
-            }
-            if (status.password) {
-                document.getElementById("password").value = status.password;
-            }
-            if (status.timezone || status.label) {
-                selectCity(status.timezone || "", status.label || "");
-            }
+        function fillSaved(status) {
             fillDevice(status);
         }
         function setValue(id, value) {
@@ -363,51 +258,13 @@
         document.querySelectorAll(".tab").forEach(el => {
             el.addEventListener("click", () => showTab(el.dataset.tab));
         });
-        function applyPortal(kind) {
-            portalKind = kind === "device" ? "device" : "network";
-            const drop = portalKind === "device"
-                ? ["wifi", "tz"]
-                : ["weather", "cal", "pic", "hw", "dev"];
-            drop.forEach(name => {
-                const tab = document.querySelector('.tab[data-tab="' + name + '"]');
-                if (tab) tab.remove();
-                const panel = document.getElementById("panel-" + name);
-                if (panel) panel.remove();
-            });
-            const title = document.querySelector("h2");
-            const tip = document.getElementById("intro");
-            if (portalKind === "device") {
-                if (title) title.textContent = "Web 设置";
-                if (tip) tip.textContent = "按分类填写。设备保持当前局域网连接，保存后可关闭页面。";
-                showTab("weather");
-            } else {
-                if (title) title.textContent = "联网设置";
-                if (tip) tip.textContent = "按分类填写。完成配置后设备将关闭热点并连接 Wi-Fi。";
-                showTab("wifi");
-            }
+        function applyPortal() {
+            document.getElementById("intro").textContent = "按分类填写。设备保持当前局域网连接，保存后可关闭页面。";
+            showTab("weather");
             document.getElementById("tabs").hidden = false;
             document.querySelector("button.save").disabled = false;
         }
         function onSubmit() {
-            if (portalKind === "device") {
-                const btn = document.querySelector("button.save");
-                btn.disabled = true;
-                btn.textContent = "保存中...";
-                return true;
-            }
-            applyCity();
-            const ssid = document.getElementById("ssid").value.replace(/^\s+|\s+$/g, "");
-            document.getElementById("ssid").value = ssid;
-            if (!ssid) {
-                showTab("wifi");
-                alert("请选择或输入 Wi-Fi 名称");
-                return false;
-            }
-            if (!document.getElementById("timezone").value) {
-                showTab("tz");
-                alert("请选择时区");
-                return false;
-            }
             const btn = document.querySelector("button.save");
             btn.disabled = true;
             btn.textContent = "保存中...";
@@ -444,22 +301,19 @@
                 document.getElementById("dev-err").hidden = false;
             });
         });
-        fillRegions();
-        fillCities();
         Promise.all([
             fetch("/status").then(r => r.json()).catch(() => ({})),
-            fetch("/scan").then(r => r.json()).catch(() => ({})),
             fetch("/res/www/setup/cities.json").then(r => r.ok ? r.json() : []).catch(() => [])
-        ]).then(([status, scan, cityList]) => {
-            if (!status.portal) {
+        ]).then(([status, cityList]) => {
+            if (status.portal !== "device") {
                 document.getElementById("intro").textContent = "无法读取设置";
                 return;
             }
             places = Array.isArray(cityList) ? cityList : [];
             if (places.length) fillProvinces();
             deviceStatus = status;
-            applyPortal(status.portal);
-            fillSaved(status, scan);
+            applyPortal();
+            fillSaved(status);
         });
     </script>
 </body>
