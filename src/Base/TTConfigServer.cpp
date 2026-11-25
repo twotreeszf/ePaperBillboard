@@ -13,6 +13,7 @@
 #include "TTRtc.h"
 #include "../Tasks/TTSensorTask.h"
 #include "../Tasks/TTWiFiTask.h"
+#include "../Service/TTWeatherService.h"
 #include "../Service/TTDebugServer.h"
 #include <EPDConfig.h>
 #include <ArduinoJson.h>
@@ -332,10 +333,19 @@ void TTConfigServer::_handleLanSave(const String& weatherCity, const String& wea
         _sendSaveResult(400, "保存失败", "画报 Token 无效");
         return;
     }
+    String weatherLocate = _server.arg("weather_locate");
+    weatherLocate.trim();
+    const bool domestic = weatherRegion != TT_WEATHER_REGION_OVERSEAS;
+    if (!domestic && weatherLocate == TT_WEATHER_LOCATE_AUTO) {
+        weatherLocate = TT_WEATHER_LOCATE_MANUAL;
+        LOG_I("Weather: auto location is domestic only");
+    }
+    const bool weatherAuto = domestic && weatherLocate == TT_WEATHER_LOCATE_AUTO;
+    const bool weatherManual = weatherLocate == TT_WEATHER_LOCATE_MANUAL;
     float weatherLatVal = 0;
     float weatherLonVal = 0;
     const bool weatherHasCoord = !weatherLat.isEmpty() || !weatherLon.isEmpty();
-    if (weatherHasCoord
+    if (!weatherAuto && weatherHasCoord
         && (!parseCoord(weatherLat, weatherLatVal, -90.0f, 90.0f)
             || !parseCoord(weatherLon, weatherLonVal, -180.0f, 180.0f))) {
         _sendSaveResult(400, "保存失败", "请填写有效的纬度和经度");
@@ -363,17 +373,23 @@ void TTConfigServer::_handleLanSave(const String& weatherCity, const String& wea
         return;
     }
 
-    pref.set(PREF_WEATHER_CITY, weatherCity);
     pref.set(PREF_WEATHER_REGION, weatherRegion);
     LOG_I("Weather: save region=%s", weatherRegion.c_str());
-    if (!weatherHasCoord) {
-        pref.remove(PREF_WEATHER_LAT);
-        pref.remove(PREF_WEATHER_LON);
-        LOG_I("Weather: cleared lat/lon city=%s", weatherCity.c_str());
-    } else {
-        pref.set(PREF_WEATHER_LAT, weatherLatVal);
-        pref.set(PREF_WEATHER_LON, weatherLonVal);
-        LOG_I("Weather: save city=%s lat=%.4f lon=%.4f", weatherCity.c_str(), weatherLatVal, weatherLonVal);
+    if (weatherAuto || weatherManual) {
+        pref.set(PREF_WEATHER_LOCATE, weatherLocate);
+        LOG_I("Weather: save locate=%s", weatherLocate.c_str());
+    }
+    if (!weatherAuto) {
+        pref.set(PREF_WEATHER_CITY, weatherCity);
+        if (!weatherHasCoord) {
+            pref.remove(PREF_WEATHER_LAT);
+            pref.remove(PREF_WEATHER_LON);
+            LOG_I("Weather: cleared lat/lon city=%s", weatherCity.c_str());
+        } else {
+            pref.set(PREF_WEATHER_LAT, weatherLatVal);
+            pref.set(PREF_WEATHER_LON, weatherLonVal);
+            LOG_I("Weather: save city=%s lat=%.4f lon=%.4f", weatherCity.c_str(), weatherLatVal, weatherLonVal);
+        }
     }
 
     if (!calAny) {
@@ -420,6 +436,10 @@ void TTConfigServer::_handleLanSave(const String& weatherCity, const String& wea
         _sendSaveResult(500, "保存失败", "无法保存设置");
         return;
     }
+    bool weatherLocated = false;
+    if (weatherAuto) {
+        weatherLocated = TTInstanceOf<TTWeatherService>().applyAutoLocation();
+    }
     if (devOpen) {
         TTInstanceOf<TTSensorTask>().requestSensorUpdateAsync();
         TTInstanceOf<TTWiFiTask>().requestDebugServer(debugOn);
@@ -428,6 +448,14 @@ void TTConfigServer::_handleLanSave(const String& weatherCity, const String& wea
         _sendSaveResult(200, "配置已保存", "屏幕型号已更改，设备即将重启。可以关闭此页面。");
         _applyAt = millis() + TT_WIFI_APPLY_DELAY_MS;
         _applyPending = true;
+        return;
+    }
+    if (weatherAuto && weatherLocated) {
+        _sendSaveResult(200, "配置已保存", "已根据网络位置更新城市和经纬度。可以关闭此页面。");
+        return;
+    }
+    if (weatherAuto) {
+        _sendSaveResult(200, "配置已保存", "已设为自动获取。联网更新天气时会填写城市和经纬度。");
         return;
     }
     _sendSaveResult(200, "配置已保存", "已保存。设备保持当前网络连接。可以关闭此页面。");
@@ -456,20 +484,35 @@ void TTConfigServer::_handleStatus() {
         doc["label"] = label;
     }
 
+    String weatherLocate;
+    pref.get(PREF_WEATHER_LOCATE, weatherLocate, String(""));
+    const bool savedLat = pref.contains(PREF_WEATHER_LAT);
+    const bool savedCity = pref.contains(PREF_WEATHER_CITY);
+    if (weatherLocate != TT_WEATHER_LOCATE_AUTO && weatherLocate != TT_WEATHER_LOCATE_MANUAL) {
+        weatherLocate = savedLat ? String(TT_WEATHER_LOCATE_MANUAL) : String(TT_WEATHER_LOCATE_AUTO);
+    }
+    doc["weather_locate"] = weatherLocate;
+
     String weatherCity;
     float weatherLat = NAN;
     float weatherLon = NAN;
-    pref.get(PREF_WEATHER_CITY, weatherCity, String(TT_WEATHER_DEFAULT_CITY));
-    if (weatherCity.isEmpty()) {
+    if (savedCity) {
+        pref.get(PREF_WEATHER_CITY, weatherCity, String(TT_WEATHER_DEFAULT_CITY));
+        if (weatherCity.isEmpty()) {
+            weatherCity = TT_WEATHER_DEFAULT_CITY;
+        }
+    } else if (weatherLocate == TT_WEATHER_LOCATE_MANUAL) {
         weatherCity = TT_WEATHER_DEFAULT_CITY;
     }
-    pref.get(PREF_WEATHER_LAT, weatherLat, TT_WEATHER_DEFAULT_LAT);
-    pref.get(PREF_WEATHER_LON, weatherLon, TT_WEATHER_DEFAULT_LON);
-    if (!isfinite(weatherLat)) {
-        weatherLat = TT_WEATHER_DEFAULT_LAT;
-    }
-    if (!isfinite(weatherLon)) {
-        weatherLon = TT_WEATHER_DEFAULT_LON;
+    if (savedLat || weatherLocate == TT_WEATHER_LOCATE_MANUAL) {
+        pref.get(PREF_WEATHER_LAT, weatherLat, TT_WEATHER_DEFAULT_LAT);
+        pref.get(PREF_WEATHER_LON, weatherLon, TT_WEATHER_DEFAULT_LON);
+        if (!isfinite(weatherLat)) {
+            weatherLat = TT_WEATHER_DEFAULT_LAT;
+        }
+        if (!isfinite(weatherLon)) {
+            weatherLon = TT_WEATHER_DEFAULT_LON;
+        }
     }
     doc["weather_city"] = weatherCity;
     String weatherRegion;

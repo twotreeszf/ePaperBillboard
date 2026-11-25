@@ -10,6 +10,9 @@
 #define TT_WEATHER_SOURCE_CAIYUN     1
 #define TT_WEATHER_CAIYUN_HOST       "api.caiyunapp.com"
 #define TT_WEATHER_CAIYUN_TOKEN      "NYEoULA67nCT0xpX"
+#define TT_AMAP_HOST                 "restapi.amap.com"
+#define TT_AMAP_WEB_KEY              "ee827344540b722e80df8896345a3053"
+#define TT_AMAP_IP_BODY_MAX          1024
 #define TT_WEATHER_CAIYUN_BODY_MAX   (48 * 1024)
 #define TT_WEATHER_KMH_PER_MS        3.6f
 #define TT_WEATHER_PA_PER_HPA        100.0f
@@ -22,10 +25,13 @@ class TTWeatherService {
 public:
     bool readTodayCache(TTWeatherPayload& out);
     bool requestFetch(bool force = false, bool publishFresh = true);
+    bool applyAutoLocation();
 
 private:
     void publish(const TTWeatherPayload& payload);
     void publishStatus(TTWeatherState state, const char* message);
+    bool autoLocate() const;
+    bool locateByIp();
     bool loadLocation(float& lat, float& lon, char* city, size_t cityMax);
     bool useCaiyun() const;
     bool readMatchingCache(float lat, float lon, uint16_t source, TTWeatherPayload& out);
@@ -35,5 +41,5 @@ private:
     bool fetchForecast(float lat, float lon, TTWeatherPayload& out);
     bool fetchCaiyun(float lat, float lon, TTWeatherPayload& out);
     bool fetchAqi(float lat, float lon, TTWeatherPayload& out);
-    void fetchWeather();
+    void fetchWeather(bool force);
 };

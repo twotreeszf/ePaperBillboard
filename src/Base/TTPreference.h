@@ -12,6 +12,7 @@
 class TTPreference {
 public:
     bool begin();
+    bool contains(const char* key);
     
     // Get config value, use default value if key doesn't exist
     template<typename T>

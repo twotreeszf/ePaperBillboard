@@ -313,6 +313,96 @@ bool sameLocalDay(time_t a, time_t b) {
     return ta.tm_year == tb.tm_year && ta.tm_yday == tb.tm_yday;
 }
 
+bool TTWeatherService::autoLocate() const {
+    auto& pref = TTInstanceOf<TTPreference>();
+    String region;
+    pref.get(PREF_WEATHER_REGION, region, String(TT_WEATHER_REGION_CN));
+    if (region == TT_WEATHER_REGION_OVERSEAS) {
+        return false;
+    }
+    String mode;
+    pref.get(PREF_WEATHER_LOCATE, mode, String(""));
+    if (mode == TT_WEATHER_LOCATE_MANUAL) {
+        return false;
+    }
+    if (mode == TT_WEATHER_LOCATE_AUTO) {
+        return true;
+    }
+    return !pref.contains(PREF_WEATHER_LAT);
+}
+
+bool TTWeatherService::locateByIp() {
+    char url[TT_WEATHER_URL_MAX] = {0};
+    snprintf(url, sizeof(url), "https://%s/v3/ip?key=%s", TT_AMAP_HOST, TT_AMAP_WEB_KEY);
+    LOG_I("Weather: locate host=%s", TT_AMAP_HOST);
+    JsonDocument doc;
+    if (!httpGetJson(url, doc, nullptr, TT_AMAP_IP_BODY_MAX)) {
+        LOG_W("Weather: locate request failed");
+        return false;
+    }
+    const bool accepted = doc["status"] == "1" || doc["status"] == 1;
+    if (!accepted) {
+        const char* info = doc["info"].as<const char*>();
+        LOG_W("Weather: locate rejected info=%s", info != nullptr ? info : "");
+        return false;
+    }
+    String city;
+    if (doc["city"].is<const char*>()) {
+        const char* name = doc["city"].as<const char*>();
+        if (name != nullptr && name[0] != '\0') {
+            city = name;
+        }
+    }
+    if (city.isEmpty() && doc["province"].is<const char*>()) {
+        const char* name = doc["province"].as<const char*>();
+        if (name != nullptr) {
+            city = name;
+        }
+    }
+    const char* rectangle = doc["rectangle"].as<const char*>();
+    float lng1 = 0;
+    float lat1 = 0;
+    float lng2 = 0;
+    float lat2 = 0;
+    if (city.isEmpty() || rectangle == nullptr ||
+        sscanf(rectangle, "%f,%f;%f,%f", &lng1, &lat1, &lng2, &lat2) != 4) {
+        LOG_W("Weather: locate missing city or rectangle");
+        return false;
+    }
+    const float lat = (lat1 + lat2) / 2.0f;
+    const float lon = (lng1 + lng2) / 2.0f;
+    if (!isfinite(lat) || !isfinite(lon) || lat < -90.0f || lat > 90.0f || lon < -180.0f || lon > 180.0f) {
+        LOG_W("Weather: locate coordinate invalid");
+        return false;
+    }
+    if (city.length() >= TT_WEATHER_CITY_MAX) {
+        city.remove(TT_WEATHER_CITY_MAX - 1);
+    }
+    auto& pref = TTInstanceOf<TTPreference>();
+    pref.set(PREF_WEATHER_CITY, city);
+    pref.set(PREF_WEATHER_LAT, lat);
+    pref.set(PREF_WEATHER_LON, lon);
+    pref.set(PREF_WEATHER_LOCATE, String(TT_WEATHER_LOCATE_AUTO));
+    if (!pref.sync()) {
+        LOG_E("Weather: locate save failed");
+        return false;
+    }
+    LOG_I("Weather: located city=%s lat=%.4f lon=%.4f mode=%s",
+          city.c_str(), lat, lon, TT_WEATHER_LOCATE_AUTO);
+    return true;
+}
+
+bool TTWeatherService::applyAutoLocation() {
+    if (!autoLocate()) {
+        return false;
+    }
+    if (WiFi.status() != WL_CONNECTED) {
+        LOG_I("Weather: auto location waits for Wi-Fi");
+        return false;
+    }
+    return locateByIp();
+}
+
 bool TTWeatherService::useCaiyun() const {
     String region;
     TTInstanceOf<TTPreference>().get(PREF_WEATHER_REGION, region, String(TT_WEATHER_REGION_CN));
@@ -741,24 +831,39 @@ bool TTWeatherService::fetchAqi(float lat, float lon, TTWeatherPayload& out) {
     return true;
 }
 
-void TTWeatherService::fetchWeather() {
-    TTWeatherPayload draft = {};
-    float lat = NAN;
-    float lon = NAN;
-    loadLocation(lat, lon, draft.city, sizeof(draft.city));
-
+void TTWeatherService::fetchWeather(bool force) {
     if (WiFi.status() != WL_CONNECTED) {
         LOG_W("Weather: need Wi-Fi");
         publishStatus(TT_WEATHER_NEED_WIFI, "未连接 Wi-Fi");
         return;
     }
-    if (!isfinite(lat) || !isfinite(lon)) {
+    if (autoLocate() && !locateByIp()) {
+        LOG_W("Weather: IP locate failed");
+    }
+
+    TTWeatherPayload draft = {};
+    float lat = NAN;
+    float lon = NAN;
+    if (!loadLocation(lat, lon, draft.city, sizeof(draft.city)) || !isfinite(lat) || !isfinite(lon)) {
         LOG_W("Weather: location not configured");
         publishStatus(TT_WEATHER_NEED_LOCATION, "未配置地点");
         return;
     }
 
     const bool caiyun = useCaiyun();
+    const uint16_t source = caiyun ? TT_WEATHER_SOURCE_CAIYUN : TT_WEATHER_SOURCE_OPEN_METEO;
+    if (!force && autoLocate()) {
+        TTWeatherPayload* cached = new TTWeatherPayload;
+        if (cached != nullptr && readMatchingCache(lat, lon, source, *cached) && cacheIsFresh(*cached)) {
+            const time_t now = time(nullptr);
+            LOG_I("Weather: reuse cache after locate age=%ld s",
+                  (long)(now - (time_t)cached->fetchedAt));
+            publish(*cached);
+            delete cached;
+            return;
+        }
+        delete cached;
+    }
     LOG_I("Weather: fetch source=%s lat=%.4f lon=%.4f city=%s heap=%u largest=%u",
           caiyun ? "caiyun" : "open-meteo",
           lat, lon, draft.city,
@@ -779,50 +884,52 @@ void TTWeatherService::fetchWeather() {
     draft.message[0] = '\0';
     const time_t now = time(nullptr);
     draft.fetchedAt = (now > 0) ? (uint32_t)now : 1;
-    saveCache(lat, lon, caiyun ? TT_WEATHER_SOURCE_CAIYUN : TT_WEATHER_SOURCE_OPEN_METEO, draft);
+    saveCache(lat, lon, source, draft);
     publish(draft);
 }
 
 bool TTWeatherService::requestFetch(bool force, bool publishFresh) {
-    float lat = NAN;
-    float lon = NAN;
-    loadLocation(lat, lon, nullptr, 0);
-    const uint16_t source = useCaiyun() ? TT_WEATHER_SOURCE_CAIYUN : TT_WEATHER_SOURCE_OPEN_METEO;
-    TTWeatherPayload* cached = new TTWeatherPayload;
-    if (cached == nullptr) {
-        LOG_E("Weather: cache alloc failed");
-    }
-    if (cached != nullptr && !force && !TTInstanceOf<TTRtc>().isTimeValid()) {
-        LOG_I("Weather: cache skipped, clock invalid");
-    }
-    const bool located = cached != nullptr && isfinite(lat) && isfinite(lon);
-    const bool have = !force && located && readMatchingCache(lat, lon, source, *cached);
-    if (!force && located && !have) {
-        LOG_I("Weather: cache miss");
-    }
-    if (have && !cacheIsFresh(*cached)) {
-        LOG_I("Weather: cache stale fetchedAt=%u", (unsigned)cached->fetchedAt);
-    }
-    if (have && cacheIsFresh(*cached)) {
-        if (publishFresh || !cacheIsToday(*cached)) {
-            const time_t now = time(nullptr);
-            LOG_I("Weather: reuse cache age=%ld s", (long)(now - (time_t)cached->fetchedAt));
-            publish(*cached);
-            delete cached;
-            return true;
+    if (!autoLocate()) {
+        float lat = NAN;
+        float lon = NAN;
+        loadLocation(lat, lon, nullptr, 0);
+        const uint16_t source = useCaiyun() ? TT_WEATHER_SOURCE_CAIYUN : TT_WEATHER_SOURCE_OPEN_METEO;
+        TTWeatherPayload* cached = new TTWeatherPayload;
+        if (cached == nullptr) {
+            LOG_E("Weather: cache alloc failed");
         }
-        LOG_I("Weather: today cache is current");
+        if (cached != nullptr && !force && !TTInstanceOf<TTRtc>().isTimeValid()) {
+            LOG_I("Weather: cache skipped, clock invalid");
+        }
+        const bool located = cached != nullptr && isfinite(lat) && isfinite(lon);
+        const bool have = !force && located && readMatchingCache(lat, lon, source, *cached);
+        if (!force && located && !have) {
+            LOG_I("Weather: cache miss");
+        }
+        if (have && !cacheIsFresh(*cached)) {
+            LOG_I("Weather: cache stale fetchedAt=%u", (unsigned)cached->fetchedAt);
+        }
+        if (have && cacheIsFresh(*cached)) {
+            if (publishFresh || !cacheIsToday(*cached)) {
+                const time_t now = time(nullptr);
+                LOG_I("Weather: reuse cache age=%ld s", (long)(now - (time_t)cached->fetchedAt));
+                publish(*cached);
+                delete cached;
+                return true;
+            }
+            LOG_I("Weather: today cache is current");
+            delete cached;
+            return false;
+        }
+        if (!publishFresh && have && cacheIsToday(*cached)) {
+            LOG_I("Weather: update after today cache");
+        }
         delete cached;
-        return false;
     }
-    if (!publishFresh && have && cacheIsToday(*cached)) {
-        LOG_I("Weather: update after today cache");
-    }
-    delete cached;
     TTInstanceOf<TTWiFiTask>().runWithRadio(
         "weather",
-        [this]() {
-            fetchWeather();
+        [this, force]() {
+            fetchWeather(force);
         },
         [this]() {
             LOG_W("Weather: radio failed");

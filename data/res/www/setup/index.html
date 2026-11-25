@@ -46,6 +46,15 @@
                     <option value="cn" selected>大陆</option>
                     <option value="overseas">海外</option>
                 </select>
+                <div id="locate_row">
+                <label>地点</label>
+                <select id="weather_locate" name="weather_locate">
+                    <option value="auto" selected>自动获取</option>
+                    <option value="manual">手动选择</option>
+                </select>
+                <p class="tip" id="locate_tip">自动获取根据当前网络 IP 填写城市和经纬度。</p>
+                </div>
+                <div id="manual_place">
                 <div id="place_row">
                     <label>城市</label>
                     <div class="pair">
@@ -62,6 +71,7 @@
                 <div id="lon_row">
                     <label>经度</label>
                     <input type="text" id="weather_lon" name="weather_lon" placeholder="116.4569" inputmode="decimal">
+                </div>
                 </div>
             </div>
             <div class="panel" id="panel-cal">
@@ -182,10 +192,36 @@
             }
             return null;
         }
+        function setLocateVisible() {
+            const domestic = document.getElementById("weather_region").value !== "overseas";
+            document.getElementById("locate_row").hidden = !domestic;
+            const auto = domestic && document.getElementById("weather_locate").value !== "manual";
+            document.getElementById("manual_place").hidden = auto;
+            const tip = document.getElementById("locate_tip");
+            tip.hidden = !auto;
+            if (!auto) return;
+            const city = document.getElementById("weather_city").value;
+            tip.textContent = city
+                ? "自动获取根据当前网络 IP 填写城市和经纬度。当前：" + city
+                : "自动获取根据当前网络 IP 填写城市和经纬度。";
+        }
+        function onLocateMode() {
+            setLocateVisible();
+            if (document.getElementById("weather_locate").value === "manual") {
+                onWeatherRegion();
+            }
+        }
         function onWeatherRegion() {
             const domestic = document.getElementById("weather_region").value !== "overseas";
-            document.getElementById("place_row").hidden = !domestic || places.length === 0;
-            if (!domestic || places.length === 0) {
+            setLocateVisible();
+            if (!domestic) {
+                document.getElementById("place_row").hidden = true;
+                showCoords(true);
+                return;
+            }
+            if (document.getElementById("weather_locate").value !== "manual") return;
+            document.getElementById("place_row").hidden = places.length === 0;
+            if (places.length === 0) {
                 showCoords(true);
                 return;
             }
@@ -197,6 +233,8 @@
             if (!regionEl) return;
             const region = status.weather_region || "cn";
             regionEl.value = region;
+            const locateEl = document.getElementById("weather_locate");
+            if (locateEl) locateEl.value = status.weather_locate === "manual" ? "manual" : "auto";
             setValue("weather_city", status.weather_city);
             if (status.weather_lat !== undefined && status.weather_lat !== null) {
                 setValue("weather_lat", status.weather_lat);
@@ -204,9 +242,16 @@
             if (status.weather_lon !== undefined && status.weather_lon !== null) {
                 setValue("weather_lon", status.weather_lon);
             }
+            setLocateVisible();
             const domestic = region !== "overseas";
-            document.getElementById("place_row").hidden = !domestic || places.length === 0;
-            if (!domestic || places.length === 0) {
+            if (!domestic) {
+                document.getElementById("place_row").hidden = true;
+                showCoords(true);
+                return;
+            }
+            if (locateEl && locateEl.value !== "manual") return;
+            document.getElementById("place_row").hidden = places.length === 0;
+            if (places.length === 0) {
                 showCoords(true);
                 return;
             }
@@ -270,6 +315,7 @@
             btn.textContent = "保存中...";
             return true;
         }
+        document.getElementById("weather_locate").addEventListener("change", onLocateMode);
         document.getElementById("weather_region").addEventListener("change", onWeatherRegion);
         document.getElementById("weather_province").addEventListener("change", fillPlaceCities);
         document.getElementById("weather_city_pick").addEventListener("change", applyPlace);

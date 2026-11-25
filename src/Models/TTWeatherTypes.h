@@ -7,9 +7,12 @@
 #define PREF_WEATHER_LAT     "weather_lat"
 #define PREF_WEATHER_LON     "weather_lon"
 #define PREF_WEATHER_REGION  "weather_region"
+#define PREF_WEATHER_LOCATE  "weather_locate"
 #define PREF_WEATHER_MODE    "weather_mode"
 #define TT_WEATHER_REGION_CN       "cn"
 #define TT_WEATHER_REGION_OVERSEAS "overseas"
+#define TT_WEATHER_LOCATE_AUTO     "auto"
+#define TT_WEATHER_LOCATE_MANUAL   "manual"
 
 #define TT_WEATHER_CITY_MAX   32
 #define TT_WEATHER_DEFAULT_CITY "北京.望京"

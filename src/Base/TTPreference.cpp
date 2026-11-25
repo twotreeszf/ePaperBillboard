@@ -11,6 +11,16 @@ void TTPreference::ensureMutex() {
     }
 }
 
+bool TTPreference::contains(const char* key) {
+    ensureMutex();
+    Lock lock(_mutex);
+    if (!_loaded && !_load()) {
+        return false;
+    }
+    const JsonDocument& stored = _doc;
+    return key != nullptr && key[0] != '\0' && !stored[key].isUnbound();
+}
+
 bool TTPreference::begin() {
     ensureMutex();
     Lock lock(_mutex);
