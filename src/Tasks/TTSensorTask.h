@@ -22,6 +22,7 @@
 #define TT_BATTERY_LOW_MV           3700
 #define TT_BATTERY_MEDIUM_MV        3850
 #define TT_BATTERY_FULL_MV          4200
+#define TT_BATTERY_LOW_POWER_PERCENT 10
 #define TT_BATTERY_SOC_PAIRS        14
 #define TT_BATTERY_SOC_MAP \
     3300, 0, \
@@ -53,6 +54,7 @@ public:
     void requestRtcWriteAsync(time_t utc);
     void requestRtcLoadAsync();
     bool copyLastIndoor(float& temperature, float& humidity) const;
+    bool lowBattery() const;
 
 protected:
     void setup() override;
@@ -77,4 +79,6 @@ private:
     uint32_t _usbPollMs = 0;
     bool _usbKnown = false;
     bool _lastUsbPlugged = false;
+    bool _batteryKnown = false;
+    bool _lowBattery = false;
 };

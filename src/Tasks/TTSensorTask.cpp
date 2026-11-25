@@ -146,6 +146,12 @@ void TTSensorTask::performSensorRead() {
 
     LOG_I("Battery: %dmV percent=%u usb=%d charging=%d",
           voltageMv, (unsigned)percent, usbPlugged ? 1 : 0, charging ? 1 : 0);
+    const bool low = !usbPlugged && !charging && percent < TT_BATTERY_LOW_POWER_PERCENT;
+    if (!_batteryKnown || low != _lowBattery) {
+        LOG_I("Battery: low power=%d percent=%u", low ? 1 : 0, (unsigned)percent);
+    }
+    _batteryKnown = true;
+    _lowBattery = low;
     _lastUsbPlugged = usbPlugged;
     _usbKnown = true;
 
@@ -180,6 +186,10 @@ bool TTSensorTask::barometerDisabled() const {
     bool disabled = false;
     TTInstanceOf<TTPreference>().get(PREF_DEV_BARO_OFF, disabled, false);
     return disabled;
+}
+
+bool TTSensorTask::lowBattery() const {
+    return _batteryKnown && _lowBattery;
 }
 
 bool TTSensorTask::copyLastIndoor(float& temperature, float& humidity) const {

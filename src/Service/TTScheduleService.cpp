@@ -1,5 +1,6 @@
 #include "TTScheduleService.h"
 #include "TTSleepService.h"
+#include "../Tasks/TTSensorTask.h"
 #include "../Base/Logger.h"
 #include "../Base/TTInstance.h"
 #include "../Base/TTNotificationCenter.h"
@@ -160,8 +161,11 @@ void TTScheduleService::dispatchDue(bool resumeSleep, bool timerWake) {
     }
     if (_nextFetchUnix > 0 && now >= _nextFetchUnix) {
         refreshFetchDeadline();
-        publish(TT_SCHEDULE_FETCH, resumeSleep);
-        return;
+        if (!TTInstanceOf<TTSensorTask>().lowBattery()) {
+            publish(TT_SCHEDULE_FETCH, resumeSleep);
+            return;
+        }
+        LOG_I("Schedule: low battery, skip fetch");
     }
     if (timerWake || (_nextTimeUnix > 0 && now >= _nextTimeUnix)) {
         _nextTimeUnix = TTInstanceOf<TTRtc>().nextMinuteTick();
